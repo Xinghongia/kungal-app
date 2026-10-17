@@ -32,7 +32,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.kungal.app.ui.components.GroupTone
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.SettingsGroup
 
@@ -82,16 +81,11 @@ fun HubContent(
     ) {
         sections.forEach { section ->
             SettingsGroup(title = section.title) {
-                section.entries.forEachIndexed { index, entry ->
+                section.entries.forEach { entry ->
                     item(
                         headline = entry.label,
                         supporting = entry.supporting,
                         icon = entry.icon,
-                        tone = when (index % 3) {
-                            0 -> GroupTone.PRIMARY
-                            1 -> GroupTone.SECONDARY
-                            else -> GroupTone.TERTIARY
-                        },
                         onClick = { onOpen(entry) },
                     )
                 }

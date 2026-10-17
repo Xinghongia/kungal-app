@@ -62,7 +62,6 @@ import com.kungal.app.BuildConfig
 import com.kungal.app.KungalApp
 import com.kungal.app.Settings
 import com.kungal.app.ui.components.GroupIcon
-import com.kungal.app.ui.components.GroupTone
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.SettingsGroup
 import com.kungal.app.ui.theme.PresetTheme
@@ -142,7 +141,6 @@ fun SettingsScreen(app: KungalApp, onBack: () -> Unit) {
                         headline = "动态取色",
                         supporting = "跟随壁纸生成整套配色（Android 12+）",
                         icon = Icons.Outlined.AutoAwesome,
-                        tone = GroupTone.PRIMARY,
                         checked = settings.dynamicColor,
                         onCheckedChange = { on ->
                             scope.launch { app.settingsStore.setDynamicColor(on) }
@@ -153,7 +151,7 @@ fun SettingsScreen(app: KungalApp, onBack: () -> Unit) {
                 if (!settings.dynamicColor || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
                     block {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            GroupIcon(Icons.Outlined.Palette, GroupTone.PRIMARY)
+                            GroupIcon(Icons.Outlined.Palette)
                             Spacer(Modifier.width(16.dp))
                             Text("主题", style = MaterialTheme.typography.bodyLarge)
                         }
@@ -167,7 +165,6 @@ fun SettingsScreen(app: KungalApp, onBack: () -> Unit) {
                         headline = "主题",
                         supporting = "已启用动态取色，关闭后可选择 6 套预设主题",
                         icon = Icons.Outlined.Palette,
-                        tone = GroupTone.PRIMARY,
                     )
                 }
 
@@ -175,7 +172,6 @@ fun SettingsScreen(app: KungalApp, onBack: () -> Unit) {
                     headline = "纯黑模式",
                     supporting = "深色模式下使用纯黑背景（OLED 更省电）",
                     icon = Icons.Outlined.DarkMode,
-                    tone = GroupTone.PRIMARY,
                     checked = settings.amoledDark,
                     onCheckedChange = { on -> scope.launch { app.settingsStore.setAmoledDark(on) } },
                 )
@@ -190,7 +186,6 @@ fun SettingsScreen(app: KungalApp, onBack: () -> Unit) {
                     headline = "话题默认排序",
                     supporting = "打开话题列表时使用的排序方式",
                     icon = Icons.Outlined.Sort,
-                    tone = GroupTone.TERTIARY,
                     onClick = { sortExpanded = true },
                     trailing = {
                         Box {
@@ -216,7 +211,7 @@ fun SettingsScreen(app: KungalApp, onBack: () -> Unit) {
                                                 Icon(
                                                     Icons.Outlined.Check,
                                                     contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    tint = MaterialTheme.colorScheme.onSurface,
                                                     modifier = Modifier.size(18.dp),
                                                 )
                                             }
@@ -234,7 +229,6 @@ fun SettingsScreen(app: KungalApp, onBack: () -> Unit) {
                     headline = "清理图片缓存",
                     supporting = "清空已缓存的封面与头像图片，不影响登录与其他数据",
                     icon = Icons.Outlined.CleaningServices,
-                    tone = GroupTone.SECONDARY,
                     onClick = {
                         val loader = SingletonImageLoader.get(context)
                         loader.memoryCache?.clear()
@@ -248,7 +242,6 @@ fun SettingsScreen(app: KungalApp, onBack: () -> Unit) {
                 item(
                     headline = "版本",
                     icon = Icons.Outlined.Info,
-                    tone = GroupTone.PRIMARY,
                     trailing = {
                         Text(
                             BuildConfig.VERSION_NAME,
@@ -260,14 +253,12 @@ fun SettingsScreen(app: KungalApp, onBack: () -> Unit) {
                     headline = "鲲 Galgame 论坛",
                     supporting = "在浏览器打开官网",
                     icon = Icons.Outlined.Language,
-                    tone = GroupTone.PRIMARY,
                     onClick = { AndroidActions.openInBrowser(context, SITE_URL) },
                 )
                 item(
                     headline = "开源地址",
                     supporting = "GitHub · Xinghongia/kungal-app",
                     icon = Icons.Outlined.Code,
-                    tone = GroupTone.PRIMARY,
                     onClick = { AndroidActions.openInBrowser(context, REPO_URL) },
                 )
                 block {
@@ -324,7 +315,7 @@ private fun ThemeSwatch(preset: PresetTheme, selected: Boolean, onClick: () -> U
                 Icon(
                     Icons.Outlined.Check,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(14.dp),
                 )
                 Spacer(Modifier.width(2.dp))

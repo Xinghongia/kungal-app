@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -105,7 +106,7 @@ fun TopicListScreen(
                     // 二级分类（版块）：也放进右上角子菜单，选中分类后才出现
                     if (state.category != null) {
                         androidx.compose.foundation.layout.Box {
-                            TextButton(onClick = { sectionExpanded = true }) {
+                            TextButton(onClick = { sectionExpanded = true }, colors = neutralTextButtonColors()) {
                                 Text(sectionLabel, style = MaterialTheme.typography.labelLarge)
                                 Icon(Icons.Outlined.ArrowDropDown, contentDescription = "切换版块")
                             }
@@ -141,7 +142,7 @@ fun TopicListScreen(
                     }
                     // 一级分类切换
                     androidx.compose.foundation.layout.Box {
-                        TextButton(onClick = { categoryExpanded = true }) {
+                        TextButton(onClick = { categoryExpanded = true }, colors = neutralTextButtonColors()) {
                             Text(categoryLabel, style = MaterialTheme.typography.labelLarge)
                             Icon(Icons.Outlined.ArrowDropDown, contentDescription = "切换分类")
                         }
@@ -197,7 +198,7 @@ fun TopicListScreen(
 
                     // 排序：字段下拉 + 升降序切换
                     androidx.compose.foundation.layout.Box {
-                        TextButton(onClick = { sortExpanded = true }) {
+                        TextButton(onClick = { sortExpanded = true }, colors = neutralTextButtonColors()) {
                             Icon(Icons.Outlined.Sort, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
                             Text(sortLabel, style = MaterialTheme.typography.labelMedium)
@@ -230,6 +231,7 @@ fun TopicListScreen(
                     }
                     TextButton(
                         onClick = { vm.setSortOrder(if (state.sortOrder == "desc") "asc" else "desc") },
+                        colors = neutralTextButtonColors(),
                     ) {
                         Icon(
                             if (state.sortOrder == "desc") Icons.Outlined.ArrowDownward else Icons.Outlined.ArrowUpward,
@@ -286,10 +288,16 @@ private fun CheckMark() {
     Icon(
         Icons.Outlined.Check,
         contentDescription = null,
-        tint = MaterialTheme.colorScheme.primary,
+        tint = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.size(18.dp),
     )
 }
+
+/** 排序/分类等工具按钮：固定用正文前景色（浅色近黑、深色近白），不跟主题强调色走。 */
+@Composable
+private fun neutralTextButtonColors() = ButtonDefaults.textButtonColors(
+    contentColor = MaterialTheme.colorScheme.onSurface,
+)
 
 @Composable
 private fun TopicCard(topic: Topic, onClick: () -> Unit) {

@@ -31,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.kungal.app.KungalApp
-import com.kungal.app.ui.components.GroupTone
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.SettingsGroup
 import com.kungal.app.ui.util.AndroidActions
@@ -89,7 +88,6 @@ fun MessagesScreen(
                     item(
                         headline = "登录 / 切换账号",
                         icon = Icons.Outlined.Forum,
-                        tone = GroupTone.PRIMARY,
                         onClick = onOpenLogin,
                     )
                 }

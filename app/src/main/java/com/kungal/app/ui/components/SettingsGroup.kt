@@ -1,6 +1,5 @@
 package com.kungal.app.ui.components
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
@@ -41,7 +40,7 @@ private val GroupCorner = 20.dp
 private val InnerCorner = 4.dp
 private val RowSpacing = 2.dp
 
-enum class GroupTone { PRIMARY, SECONDARY, TERTIARY }
+enum class GroupTone { PRIMARY, SECONDARY, TERTIARY, NEUTRAL }
 
 private typealias RowContent = @Composable RowScope.() -> Unit
 private typealias GroupRowBlock = @Composable (index: Int, count: Int) -> Unit
@@ -53,7 +52,7 @@ class SettingsGroupScope internal constructor() {
         headline: String,
         supporting: String? = null,
         icon: ImageVector? = null,
-        tone: GroupTone = GroupTone.SECONDARY,
+        tone: GroupTone = GroupTone.PRIMARY,
         onClick: (() -> Unit)? = null,
         trailing: (@Composable () -> Unit)? = null,
     ) {
@@ -83,7 +82,7 @@ class SettingsGroupScope internal constructor() {
         onCheckedChange: (Boolean) -> Unit,
         supporting: String? = null,
         icon: ImageVector? = null,
-        tone: GroupTone = GroupTone.SECONDARY,
+        tone: GroupTone = GroupTone.PRIMARY,
     ) {
         item(
             headline = headline,
@@ -134,23 +133,20 @@ fun SettingsGroup(
     }
 }
 
-/** 行首图标：纯图标不带背景（22dp，用主题强调色；颜色随主题切换带过渡） */
+/**
+ * 行首图标：22dp。默认与正文一致的前景色（onSurfaceVariant），
+ * 仅需要强调的入口（危险操作/品牌动作）才显式传 tone 使用主题色。
+ */
 @Composable
 fun GroupIcon(
     icon: ImageVector,
-    tone: GroupTone = GroupTone.SECONDARY,
+    tone: GroupTone = GroupTone.NEUTRAL,
 ) {
-    val color = toneColor(tone)
-    val animatedColor by animateColorAsState(
-        targetValue = color,
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-        label = "groupIconColor",
-    )
     Icon(
         icon,
         contentDescription = null,
         modifier = Modifier.size(22.dp),
-        tint = animatedColor,
+        tint = toneColor(tone),
     )
 }
 
@@ -159,6 +155,7 @@ private fun toneColor(tone: GroupTone): Color = when (tone) {
     GroupTone.PRIMARY -> MaterialTheme.colorScheme.primary
     GroupTone.SECONDARY -> MaterialTheme.colorScheme.secondary
     GroupTone.TERTIARY -> MaterialTheme.colorScheme.tertiary
+    GroupTone.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 @Composable

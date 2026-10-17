@@ -50,7 +50,6 @@ import com.kungal.app.KungalApp
 import com.kungal.app.ui.components.AvatarImage
 import com.kungal.app.ui.components.Chip
 import com.kungal.app.ui.components.ErrorBox
-import com.kungal.app.ui.components.GroupTone
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.components.SettingsGroup
@@ -163,7 +162,6 @@ private fun LoggedOutContent(onOpenLogin: () -> Unit) {
             headline = "登录 / 切换账号",
             supporting = "在应用内网页登录（账号由 NextMoe·未萌 统一管理）",
             icon = Icons.Outlined.Login,
-            tone = GroupTone.PRIMARY,
             onClick = onOpenLogin,
         )
     }
@@ -217,13 +215,13 @@ private fun LoggedInContent(
                     Icons.Outlined.Star,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.tertiary,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
                     text = "${me.moemoepoint} 萌萌点",
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.tertiary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (me.isCreator) {
                     Spacer(Modifier.width(10.dp))
@@ -242,26 +240,22 @@ private fun LoggedInContent(
             headline = "消息中心",
             supporting = if (me.hasUnreadMessages) "有新消息" else "通知与私信",
             icon = Icons.Outlined.Mail,
-            tone = GroupTone.PRIMARY,
             onClick = onOpenMessages,
         )
         item(
             headline = "设置",
             supporting = "外观、主题、默认排序与关于",
             icon = Icons.Outlined.Settings,
-            tone = GroupTone.SECONDARY,
             onClick = onOpenSettings,
         )
         item(
             headline = "账号资料",
             supporting = "头像、昵称与资料（BP-04 交付）",
             icon = Icons.Outlined.Badge,
-            tone = GroupTone.TERTIARY,
         )
         item(
             headline = "退出登录",
             icon = Icons.AutoMirrored.Outlined.Logout,
-            tone = GroupTone.TERTIARY,
             onClick = onLogout,
         )
     }
@@ -276,7 +270,6 @@ private fun AboutGroup() {
         item(
             headline = "版本",
             icon = Icons.Outlined.Info,
-            tone = GroupTone.PRIMARY,
             trailing = {
                 Text(BuildConfig.VERSION_NAME, color = MaterialTheme.colorScheme.onSurfaceVariant)
             },
@@ -285,14 +278,12 @@ private fun AboutGroup() {
             headline = "鲲 Galgame 论坛",
             supporting = SITE_URL,
             icon = Icons.Outlined.Language,
-            tone = GroupTone.PRIMARY,
             onClick = { AndroidActions.openInBrowser(context, SITE_URL) },
         )
         item(
             headline = "开源地址",
             supporting = "GitHub · Xinghongia/kungal-app",
             icon = Icons.Outlined.Code,
-            tone = GroupTone.PRIMARY,
             onClick = { AndroidActions.openInBrowser(context, "https://github.com/Xinghongia/kungal-app") },
         )
         block {
