@@ -96,10 +96,13 @@ fun EntityWorksList(
                 items = result.items,
                 ended = result.items.isEmpty() || result.items.size < 24 ||
                     (result.total > 0 && page * 24 >= result.total),
+                total = result.total,
             )
         },
         emptyText = "没有找到符合条件的作品",
         keyOf = { it.id },
+        pagination = true,
+        pageSize = 24,
         header = {
             header()
             EntityFilterRow(filters, showVia = showVia, onChange = { filters = it })

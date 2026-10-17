@@ -76,6 +76,8 @@ import com.kungal.app.ui.components.KungalPullToRefresh
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.components.NsfwCoverImage
+import com.kungal.app.ui.components.PaginationBar
+import com.kungal.app.ui.components.pageCount
 import com.kungal.core.model.WorkCollectedMonth
 import com.kungal.core.model.WorkSummary
 
@@ -106,12 +108,11 @@ fun GalgameListScreen(
 
     LaunchedEffect(includeNsfw) { vm.setIncludeNsfw(includeNsfw) }
 
-    LaunchedEffect(gridState) {
-        snapshotFlow {
-            val last = gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-            val total = gridState.layoutInfo.totalItemsCount
-            total > 0 && last >= total - 4
-        }.collect { nearEnd -> if (nearEnd) vm.loadMore() }
+    // 页码式列表：换页后回到顶部
+    LaunchedEffect(state.page) {
+        if (state.page > 0 && gridState.firstVisibleItemIndex > 0) {
+            gridState.scrollToItem(0)
+        }
     }
 
     val resourceMode = mode == GalgameListMode.RESOURCE
@@ -197,24 +198,22 @@ fun GalgameListScreen(
                                 )
                             }
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                Box(
-                                    Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                                    contentAlignment = Alignment.Center,
+                                Column(
+                                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
                                 ) {
-                                    when {
-                                        state.loadingMore -> LoadingBox()
-                                        state.error != null -> ErrorBox(
-                                            state.error!!,
-                                            onRetry = { vm.loadMore() },
-                                        )
-                                        state.endReached -> Text(
-                                            "没有更多了",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                        else -> TextButton(onClick = { vm.loadMore() }) {
-                                            Text("加载更多")
+                                    if (state.loading) {
+                                        LoadingBox()
+                                    } else {
+                                        if (state.error != null) {
+                                            ErrorBox(state.error!!, onRetry = { vm.goToPage(state.page) })
                                         }
+                                        PaginationBar(
+                                            page = state.page,
+                                            totalPages = pageCount(state.total, GalgameListViewModel.PAGE_SIZE),
+                                            onPageChange = vm::goToPage,
+                                            enabled = !state.loading,
+                                        )
                                     }
                                 }
                             }

@@ -895,11 +895,17 @@ fun TraitDetailScreen(
                         limit = 24,
                         includeNsfw = nsfwDisplay.allowsNsfw,
                     )
-                    PageResult(result.items, ended = result.items.size < 24 || page * 24 >= result.total)
+                    PageResult(
+                        result.items,
+                        ended = result.items.size < 24 || page * 24 >= result.total,
+                        total = result.total,
+                    )
                 },
                 emptyText = "没有拥有该特质的角色",
                 modifier = Modifier.fillMaxSize(),
                 keyOf = { it.id },
+                pagination = true,
+                pageSize = 24,
                 header = {
                     DetailCard(title = "特质") {
                         Text(

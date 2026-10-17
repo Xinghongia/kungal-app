@@ -223,6 +223,26 @@ class SearchViewModel(
         }
     }
 
+    /** 页码分页：打开某一页（替换当前 tab 的结果）。留言墙为游标接口，不支持页码。 */
+    fun goToPage(target: Int) {
+        val q = _state.value.submittedQuery
+        if (q.isEmpty() || target < 1) return
+        if (_state.value.tab == SearchTab.WALL) return
+        searchJob = viewModelScope.launch {
+            when (_state.value.tab) {
+                SearchTab.WORKS -> if (_state.value.works.page != target) loadWorks(q, target, append = false)
+                SearchTab.TOPICS -> if (_state.value.topics.page != target) loadTopics(q, target, false)
+                SearchTab.REPLIES -> if (_state.value.replies.page != target) loadReplies(q, target, false)
+                SearchTab.COMMENTS -> if (_state.value.comments.page != target) loadComments(q, target, false)
+                SearchTab.USERS -> if (_state.value.users.page != target) loadUsers(q, target, false)
+                SearchTab.RESOURCES -> if (_state.value.resources.page != target) loadResources(q, target, false)
+                SearchTab.TOOLSETS -> if (_state.value.toolsets.page != target) loadToolsets(q, target, false)
+                SearchTab.ENTITIES -> if (_state.value.entities.page != target) loadEntities(q, target, append = false)
+                SearchTab.ALL, SearchTab.WALL -> Unit
+            }
+        }
+    }
+
     fun loadMore() {
         val q = _state.value.submittedQuery
         if (q.isEmpty()) return

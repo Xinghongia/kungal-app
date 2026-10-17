@@ -312,23 +312,27 @@ fun CollectionTab(
             key = Triple(userId, "folders", includeNsfw),
             load = { page, _ ->
                 val result = app.userApi.collections(userId, page = page, includeNsfw = includeNsfw)
-                PageResult(result.items, ended = result.items.size < 24)
+                PageResult(result.items, ended = result.items.size < 24, total = result.total)
             },
             emptyText = "TA 还没有公开的收藏夹",
             modifier = Modifier.fillMaxSize(),
             header = modeChips,
             keyOf = { it.id },
+            pagination = true,
+            pageSize = 24,
         ) { collection -> CollectionRow(collection, onOpenWeb) }
         "toolsets" -> PagedListContent(
             key = Pair(userId, "fav-toolsets"),
             load = { page, _ ->
                 val result = app.userApi.toolsets(userId, relation = "favorited", page = page)
-                PageResult(result.items, ended = result.items.size < 24)
+                PageResult(result.items, ended = result.items.size < 24, total = result.total)
             },
             emptyText = "TA 还没有收藏工具集",
             modifier = Modifier.fillMaxSize(),
             header = modeChips,
             keyOf = { it.id },
+            pagination = true,
+            pageSize = 24,
         ) { toolset ->
             ToolsetRow(toolset, onClick = { onOpenWeb(siteUrl("/toolset/${toolset.id}")) })
         }
@@ -338,12 +342,14 @@ fun CollectionTab(
                 val result = app.userApi.topics(
                     userId, relation = "favorited", page = page, limit = 50, includeNsfw = includeNsfw,
                 )
-                PageResult(result.items, ended = result.items.size < 50)
+                PageResult(result.items, ended = result.items.size < 50, total = result.total)
             },
             emptyText = "TA 还没有收藏话题",
             modifier = Modifier.fillMaxSize(),
             header = modeChips,
             keyOf = { it.id },
+            pagination = true,
+            pageSize = 50,
         ) { topic ->
             SimpleContentRow(
                 title = topic.title,
@@ -456,12 +462,14 @@ fun TopicsTab(
                 val result = app.userApi.topics(
                     userId, relation = relation, page = page, limit = 50, includeNsfw = includeNsfw,
                 )
-                PageResult(result.items, ended = result.items.size < 50)
+                PageResult(result.items, ended = result.items.size < 50, total = result.total)
             },
             emptyText = "这里还没有话题",
             modifier = Modifier.fillMaxSize(),
             header = headerContent,
             keyOf = { it.id },
+            pagination = true,
+            pageSize = 50,
         ) { topic ->
             SimpleContentRow(
                 title = topic.title,
@@ -475,12 +483,14 @@ fun TopicsTab(
                 val result = app.userApi.replies(
                     userId, relation = relation, page = page, limit = 50, includeNsfw = includeNsfw,
                 )
-                PageResult(result.items, ended = result.items.size < 50)
+                PageResult(result.items, ended = result.items.size < 50, total = result.total)
             },
             emptyText = "这里还没有回复",
             modifier = Modifier.fillMaxSize(),
             header = headerContent,
             keyOf = { it.id },
+            pagination = true,
+            pageSize = 50,
         ) { reply ->
             Column(
                 Modifier
@@ -510,12 +520,14 @@ fun TopicsTab(
                 val result = app.userApi.comments(
                     userId, relation = relation, page = page, limit = 50, includeNsfw = includeNsfw,
                 )
-                PageResult(result.items, ended = result.items.size < 50)
+                PageResult(result.items, ended = result.items.size < 50, total = result.total)
             },
             emptyText = "这里还没有$kindLabel",
             modifier = Modifier.fillMaxSize(),
             header = headerContent,
             keyOf = { it.id },
+            pagination = true,
+            pageSize = 50,
         ) { comment ->
             SimpleContentRow(
                 title = comment.excerpt,
@@ -544,7 +556,7 @@ fun WorksTab(
             val result = app.userApi.works(
                 userId, relation = relation, page = page, limit = 24, includeNsfw = includeNsfw,
             )
-            PageResult(result.items, ended = result.items.size < 24)
+            PageResult(result.items, ended = result.items.size < 24, total = result.total)
         },
         emptyText = "这里还没有作品",
         modifier = Modifier.fillMaxSize(),
@@ -557,6 +569,8 @@ fun WorksTab(
             )
         },
         keyOf = { it.id },
+        pagination = true,
+        pageSize = 24,
     ) { work ->
         WorkRow(
             work = work,
@@ -621,12 +635,14 @@ fun RatingsTab(
         key = Pair(userId, includeNsfw),
         load = { page, _ ->
             val result = app.userApi.ratings(userId, page = page, limit = 24, includeNsfw = includeNsfw)
-            PageResult(result.items, ended = result.items.size < 24)
+            PageResult(result.items, ended = result.items.size < 24, total = result.total)
         },
         emptyText = "TA 还没有发布评分",
         modifier = Modifier.fillMaxSize(),
         header = header,
         keyOf = { it.id },
+        pagination = true,
+        pageSize = 24,
     ) { rating ->
         RatingRow(
             rating = rating,
@@ -746,7 +762,7 @@ fun ResourcesTab(
                 limit = 50,
                 includeNsfw = includeNsfw,
             )
-            PageResult(result.items, ended = result.items.size < 50)
+            PageResult(result.items, ended = result.items.size < 50, total = result.total)
         },
         emptyText = "这里还没有资源",
         modifier = Modifier.fillMaxSize(),
@@ -766,6 +782,8 @@ fun ResourcesTab(
             }
         },
         keyOf = { it.id },
+        pagination = true,
+        pageSize = 50,
     ) { resource ->
         ResourceRow(
             resource = resource,
@@ -894,7 +912,7 @@ fun QuizTab(
             } else {
                 app.userApi.quizzes(userId, page = page)
             }
-            PageResult(result.items, ended = result.items.size < 50)
+            PageResult(result.items, ended = result.items.size < 50, total = result.total)
         },
         emptyText = if (mode == "answered") "还没有答题记录" else "TA 还没有出过题",
         modifier = Modifier.fillMaxSize(),
@@ -909,6 +927,8 @@ fun QuizTab(
             }
         },
         keyOf = { it.id },
+        pagination = true,
+        pageSize = 50,
     ) { quiz -> QuizRow(quiz, onClick = { onOpenWeb(siteUrl("/galgame-quiz/${quiz.id}")) }) }
 }
 
@@ -955,7 +975,7 @@ fun ToolsetTab(
         key = Pair(userId, relation),
         load = { page, _ ->
             val result = app.userApi.toolsets(userId, relation = relation, page = page)
-            PageResult(result.items, ended = result.items.size < 24)
+            PageResult(result.items, ended = result.items.size < 24, total = result.total)
         },
         emptyText = "这里还没有工具集",
         modifier = Modifier.fillMaxSize(),
@@ -968,6 +988,8 @@ fun ToolsetTab(
             )
         },
         keyOf = { it.id },
+        pagination = true,
+        pageSize = 24,
     ) { toolset -> ToolsetRow(toolset, onClick = { onOpenToolset(toolset.id) }) }
 }
 

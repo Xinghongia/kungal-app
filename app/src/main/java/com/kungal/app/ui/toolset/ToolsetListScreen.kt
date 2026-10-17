@@ -64,6 +64,8 @@ import com.kungal.app.ui.components.ErrorBox
 import com.kungal.app.ui.components.KungalPullToRefresh
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
+import com.kungal.app.ui.components.PaginationBar
+import com.kungal.app.ui.components.pageCount
 import com.kungal.app.ui.galgame.FilterOption
 import com.kungal.app.ui.galgame.FilterOptionSheet
 import com.kungal.app.ui.galgame.FilterPill
@@ -99,12 +101,10 @@ fun ToolsetListScreen(
     LaunchedEffect(state.query, state.type, state.platform, state.release, state.sortField, state.sortOrder) {
         if (listState.firstVisibleItemIndex > 0) listState.scrollToItem(0)
     }
-    LaunchedEffect(listState, state.endReached) {
-        snapshotFlow {
-            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-            val total = listState.layoutInfo.totalItemsCount
-            total > 0 && last >= total - 3
-        }.collect { nearEnd -> if (nearEnd) vm.loadMore() }
+    LaunchedEffect(listState, state.page) {
+        if (state.page > 1 && listState.firstVisibleItemIndex > 0) {
+            listState.scrollToItem(0)
+        }
     }
 
     Scaffold(
@@ -221,18 +221,27 @@ fun ToolsetListScreen(
                         }
                         item(key = "footer") {
                             Column(
-                                Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                                Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                when {
-                                    state.loadingMore -> LoadingBox()
-                                    state.error != null -> ErrorBox(state.error!!, onRetry = { vm.loadMore() })
-                                    state.endReached -> Text(
-                                        "没有更多了",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                if (state.loading) {
+                                    LoadingBox()
+                                } else {
+                                    if (state.error != null) {
+                                        ErrorBox(
+                                            state.error!!,
+                                            onRetry = { vm.goToPage(state.page) },
+                                        )
+                                    }
+                                    PaginationBar(
+                                        page = state.page,
+                                        totalPages = pageCount(
+                                            state.total,
+                                            ToolsetListViewModel.PAGE_SIZE,
+                                        ),
+                                        onPageChange = vm::goToPage,
+                                        enabled = !state.loading,
                                     )
-                                    else -> TextButton(onClick = { vm.loadMore() }) { Text("加载更多") }
                                 }
                             }
                         }

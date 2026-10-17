@@ -60,6 +60,8 @@ import com.kungal.app.ui.components.KungalPullToRefresh
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.components.NsfwCoverImage
+import com.kungal.app.ui.components.PaginationBar
+import com.kungal.app.ui.components.pageCount
 import com.kungal.app.ui.util.relativeTime
 import com.kungal.core.model.GalgameResource
 import kotlinx.coroutines.delay
@@ -94,12 +96,10 @@ fun ResourceListScreen(
     LaunchedEffect(state.query) {
         if (listState.firstVisibleItemIndex > 0) listState.scrollToItem(0)
     }
-    LaunchedEffect(listState, state.endReached) {
-        snapshotFlow {
-            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-            val total = listState.layoutInfo.totalItemsCount
-            total > 0 && last >= total - 3
-        }.collect { nearEnd -> if (nearEnd) vm.loadMore() }
+    LaunchedEffect(state.page) {
+        if (state.page > 1 && listState.firstVisibleItemIndex > 0) {
+            listState.scrollToItem(0)
+        }
     }
 
     Scaffold(
@@ -175,21 +175,27 @@ fun ResourceListScreen(
                         }
                         item(key = "footer") {
                             Column(
-                                Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                                Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                when {
-                                    state.loadingMore -> LoadingBox()
-                                    state.error != null -> ErrorBox(
-                                        state.error!!,
-                                        onRetry = { vm.loadMore() },
+                                if (state.loading) {
+                                    LoadingBox()
+                                } else {
+                                    if (state.error != null) {
+                                        ErrorBox(
+                                            state.error!!,
+                                            onRetry = { vm.goToPage(state.page) },
+                                        )
+                                    }
+                                    PaginationBar(
+                                        page = state.page,
+                                        totalPages = pageCount(
+                                            state.total,
+                                            ResourceListViewModel.PAGE_SIZE,
+                                        ),
+                                        onPageChange = vm::goToPage,
+                                        enabled = !state.loading,
                                     )
-                                    state.endReached -> Text(
-                                        "没有更多了",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    else -> TextButton(onClick = { vm.loadMore() }) { Text("加载更多") }
                                 }
                             }
                         }

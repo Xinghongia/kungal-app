@@ -86,11 +86,17 @@ fun RatingListScreen(
                     gameType = gameType,
                     includeNsfw = includeNsfw,
                 )
-                PageResult(result.items, ended = result.items.size < 24 || page * 24 >= result.total)
+                PageResult(
+                    result.items,
+                    ended = result.items.size < 24 || page * 24 >= result.total,
+                    total = result.total,
+                )
             },
             emptyText = "没有找到符合条件的评分",
             modifier = Modifier.fillMaxSize().padding(padding),
             keyOf = { it.id },
+            pagination = true,
+            pageSize = 24,
             header = {
                 Row(
                     modifier = Modifier

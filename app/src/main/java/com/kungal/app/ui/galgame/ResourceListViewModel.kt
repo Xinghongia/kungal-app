@@ -43,13 +43,13 @@ class ResourceListViewModel(
     private var loadJob: Job? = null
 
     init {
-        load(reset = true)
+        loadPage(1)
     }
 
     fun setIncludeNsfw(value: Boolean) {
         if (includeNsfw == value) return
         includeNsfw = value
-        load(reset = true)
+        loadPage(1)
     }
 
     /** 搜索词（由界面防抖后调用）。 */
@@ -57,49 +57,42 @@ class ResourceListViewModel(
         val trimmed = value.trim()
         if (_state.value.query == trimmed) return
         _state.update { it.copy(query = trimmed) }
-        load(reset = true)
+        loadPage(1)
     }
 
-    fun refresh() = load(reset = true, pull = true)
+    fun refresh() = loadPage(1, pull = true)
 
-    fun loadMore() {
+    /** 页码分页：直接打开某一页（替换当前列表）。 */
+    fun goToPage(target: Int) {
         val current = _state.value
-        if (current.loading || current.loadingMore || current.endReached) return
-        load(reset = false)
+        if (current.loading || target < 1 || target == current.page) return
+        loadPage(target)
     }
 
-    fun retry() = load(reset = true)
+    fun retry() = loadPage(1)
 
-    private fun load(reset: Boolean, pull: Boolean = false) {
-        val current = _state.value
-        if (reset) {
-            loadJob?.cancel()
-        } else if (current.loading || current.loadingMore || current.endReached) {
-            return
-        }
-        val nextPage = if (reset) 1 else current.page + 1
-        val query = current.query
+    private fun loadPage(targetPage: Int, pull: Boolean = false) {
+        loadJob?.cancel()
+        val query = _state.value.query
         loadJob = viewModelScope.launch {
             _state.update {
-                when {
-                    reset && pull && it.items.isNotEmpty() ->
-                        it.copy(refreshing = true, error = null)
-                    reset -> it.copy(
+                if (pull && it.items.isNotEmpty()) {
+                    it.copy(refreshing = true, error = null)
+                } else {
+                    it.copy(
                         loading = true,
                         refreshing = false,
                         error = null,
                         items = emptyList(),
-                        page = 0,
                         total = 0,
                         endReached = false,
                     )
-                    else -> it.copy(loadingMore = true, error = null)
                 }
             }
             runCatching {
                 app.resourceApi.list(
                     ResourceListQuery(
-                        page = nextPage,
+                        page = targetPage,
                         limit = PAGE_SIZE,
                         q = query.ifBlank { null },
                         includeNsfw = includeNsfw,
@@ -107,16 +100,16 @@ class ResourceListViewModel(
                 )
             }.onSuccess { page ->
                 _state.update { prev ->
-                    val merged = if (reset) page.items else prev.items + page.items
                     prev.copy(
-                        items = merged,
-                        page = nextPage,
+                        items = page.items,
+                        page = targetPage,
                         total = page.total,
                         totalRelation = page.totalRelation,
                         loading = false,
                         refreshing = false,
                         loadingMore = false,
-                        endReached = page.items.isEmpty() || merged.size >= page.total,
+                        endReached = page.items.isEmpty() ||
+                            targetPage * PAGE_SIZE >= page.total,
                         error = null,
                     )
                 }

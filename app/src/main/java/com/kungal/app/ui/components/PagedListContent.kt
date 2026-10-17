@@ -26,15 +26,17 @@ import androidx.compose.ui.unit.dp
 import com.kungal.app.ui.topic.friendlyError
 import kotlinx.coroutines.launch
 
-/** 一页结果：items + 下一页游标（页码接口可留空）+ 是否到底。 */
+/** 一页结果：items + 下一页游标（页码接口可留空）+ 是否到底 + 总数（页码模式用）。 */
 data class PageResult<T>(
     val items: List<T>,
     val nextCursor: String? = null,
     val ended: Boolean = false,
+    val total: Int = 0,
 )
 
 /**
- * 通用分页列表：首屏加载、触底自动加载、失败重试、空态。
+ * 通用分页列表：首屏加载、触底自动加载（游标模式）/ 页码分页（pagination=true）、
+ * 失败重试、空态。
  * key 变化（筛选条件/用户变化）时整体重来，并回到列表顶部。
  * header 会作为列表第一项一起滚动（用于用户主页这类「头部跟随内容滑动」的页面）。
  * 顶部不留 contentPadding，保证与不使用本组件的标签页头部起始位置一致。
@@ -48,6 +50,9 @@ fun <T> PagedListContent(
     contentPadding: PaddingValues = PaddingValues(bottom = 8.dp),
     header: (@Composable () -> Unit)? = null,
     keyOf: (T) -> Any? = { null },
+    /** true = 页码式接口：底部显示分页器；false = 游标式接口：触底加载更多。 */
+    pagination: Boolean = false,
+    pageSize: Int = 24,
     itemContent: @Composable (T) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -56,6 +61,7 @@ fun <T> PagedListContent(
     var loading by remember(key) { mutableStateOf(true) }
     var error by remember(key) { mutableStateOf<String?>(null) }
     var page by remember(key) { mutableStateOf(1) }
+    var total by remember(key) { mutableStateOf(0) }
     var cursor by remember(key) { mutableStateOf<String?>(null) }
     var ended by remember(key) { mutableStateOf(false) }
     var reloadToken by remember(key) { mutableStateOf(0) }
@@ -72,6 +78,7 @@ fun <T> PagedListContent(
                 items = result.items
                 cursor = result.nextCursor
                 page = 1
+                total = result.total
                 ended = result.ended || (result.items.isEmpty() && result.nextCursor == null)
                 loading = false
                 refreshing = false
@@ -84,7 +91,7 @@ fun <T> PagedListContent(
     }
 
     fun loadMore() {
-        if (loading || ended) return
+        if (loading || ended || pagination) return
         loading = true
         scope.launch {
             runCatching { load(page + 1, cursor) }
@@ -92,6 +99,7 @@ fun <T> PagedListContent(
                     items = items + result.items
                     cursor = result.nextCursor
                     page += 1
+                    total = result.total
                     ended = result.ended || (result.items.isEmpty() && result.nextCursor == null)
                     loading = false
                 }
@@ -102,12 +110,37 @@ fun <T> PagedListContent(
         }
     }
 
-    LaunchedEffect(listState, ended, cursor) {
-        snapshotFlow {
-            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-            val total = listState.layoutInfo.totalItemsCount
-            total > 0 && last >= total - 3
-        }.collect { nearEnd -> if (nearEnd) loadMore() }
+    fun goToPage(target: Int) {
+        if (loading || target < 1 || target == page) return
+        loading = true
+        error = null
+        scope.launch {
+            runCatching { load(target, null) }
+                .onSuccess { result ->
+                    items = result.items
+                    page = target
+                    cursor = result.nextCursor
+                    total = result.total
+                    ended = result.ended ||
+                        (result.items.isEmpty() && result.nextCursor == null)
+                    loading = false
+                    listState.scrollToItem(0)
+                }
+                .onFailure { e ->
+                    error = friendlyError(e)
+                    loading = false
+                }
+        }
+    }
+
+    if (!pagination) {
+        LaunchedEffect(listState, ended, cursor) {
+            snapshotFlow {
+                val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+                val totalItems = listState.layoutInfo.totalItemsCount
+                totalItems > 0 && last >= totalItems - 3
+            }.collect { nearEnd -> if (nearEnd) loadMore() }
+        }
     }
 
     KungalPullToRefresh(
@@ -141,20 +174,41 @@ fun <T> PagedListContent(
                     itemContent(item)
                 }
                 item(key = "paged-footer") {
-                    Column(
-                        Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        when {
-                            // 下拉刷新时由顶部插图表示进度，页脚不再重复显示加载占位
-                            loading && !refreshing -> LoadingBox()
-                            error != null -> ErrorBox(error!!, onRetry = { loadMore() })
-                            ended -> Text(
-                                "没有更多了",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            else -> TextButton(onClick = { loadMore() }) { Text("加载更多") }
+                    if (pagination) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            if (loading) {
+                                LoadingBox()
+                            } else {
+                                if (error != null) {
+                                    ErrorBox(error!!, onRetry = { goToPage(page) })
+                                }
+                                PaginationBar(
+                                    page = page,
+                                    totalPages = pageCount(total, pageSize),
+                                    onPageChange = { goToPage(it) },
+                                    enabled = !loading,
+                                )
+                            }
+                        }
+                    } else {
+                        Column(
+                            Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            when {
+                                // 下拉刷新时由顶部插图表示进度，页脚不再重复显示加载占位
+                                loading && !refreshing -> LoadingBox()
+                                error != null -> ErrorBox(error!!, onRetry = { loadMore() })
+                                ended -> Text(
+                                    "没有更多了",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                else -> TextButton(onClick = { loadMore() }) { Text("加载更多") }
+                            }
                         }
                     }
                 }

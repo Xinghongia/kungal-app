@@ -225,11 +225,17 @@ fun CollectionDetailScreen(
                         sort = sort,
                         includeNsfw = includeNsfw,
                     )
-                    PageResult(result.items, ended = result.items.size < 24 || page * 24 >= result.total)
+                    PageResult(
+                        result.items,
+                        ended = result.items.size < 24 || page * 24 >= result.total,
+                        total = result.total,
+                    )
                 },
                 emptyText = "这个收藏夹还没有作品",
                 modifier = Modifier.fillMaxSize(),
                 keyOf = { it.id },
+                pagination = true,
+                pageSize = 24,
                 header = {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         CollectionInfoCard(
@@ -361,11 +367,17 @@ fun MyCollectionsScreen(
                     limit = 24,
                     includeNsfw = nsfwDisplay.allowsNsfw,
                 )
-                PageResult(result.items, ended = result.items.size < 24 || page * 24 >= result.total)
+                PageResult(
+                    result.items,
+                    ended = result.items.size < 24 || page * 24 >= result.total,
+                    total = result.total,
+                )
             },
             emptyText = "还没有收藏夹，点右上角新建一个吧",
             modifier = Modifier.fillMaxSize(),
             keyOf = { it.id },
+            pagination = true,
+            pageSize = 24,
             header = {
                 Text(
                     "这里包含私密收藏夹；公开收藏夹会出现在你的个人主页。",

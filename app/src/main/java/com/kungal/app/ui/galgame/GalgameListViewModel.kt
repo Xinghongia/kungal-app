@@ -105,7 +105,7 @@ class GalgameListViewModel(
             }
             runCatching { app.galgameApi.collectedMonths(includeNsfw) }
                 .onSuccess { months -> _state.update { it.copy(collectedMonths = months.items) } }
-            load(reset = true)
+            loadPage(1)
         }
     }
 
@@ -116,15 +116,16 @@ class GalgameListViewModel(
             runCatching { app.galgameApi.collectedMonths(includeNsfw) }
                 .onSuccess { months -> _state.update { it.copy(collectedMonths = months.items) } }
         }
-        load(reset = true)
+        loadPage(1)
     }
 
-    fun refresh() = load(reset = true, pull = true)
+    fun refresh() = loadPage(1, pull = true)
 
-    fun loadMore() {
+    /** 页码分页：直接打开某一页（替换当前列表），不累积。 */
+    fun goToPage(target: Int) {
         val current = _state.value
-        if (current.loading || current.loadingMore || current.endReached) return
-        load(reset = false)
+        if (current.loading || target < 1 || target == current.page) return
+        loadPage(target)
     }
 
     fun setSortField(field: String) = updateFilters { it.copy(sortField = field) }
@@ -160,58 +161,48 @@ class GalgameListViewModel(
 
     private fun updateFilters(block: (GalgameFilterState) -> GalgameFilterState) {
         _state.update { it.copy(filters = block(it.filters)) }
-        load(reset = true)
+        loadPage(1)
     }
 
-    private fun load(reset: Boolean, pull: Boolean = false) {
-        val current = _state.value
-        if (reset) {
-            loadJob?.cancel()
-        } else if (current.loading || current.loadingMore || current.endReached) {
-            return
-        }
-        val nextPage = if (reset) 1 else current.page + 1
-        val filters = current.filters
+    private fun loadPage(targetPage: Int, pull: Boolean = false) {
+        loadJob?.cancel()
+        val filters = _state.value.filters
         loadJob = viewModelScope.launch {
             _state.update {
-                when {
-                    reset && pull && it.items.isNotEmpty() -> it.copy(
-                        refreshing = true,
-                        error = null,
-                    )
-                    reset -> it.copy(
+                if (pull && it.items.isNotEmpty()) {
+                    it.copy(refreshing = true, error = null)
+                } else {
+                    it.copy(
                         loading = true,
                         refreshing = false,
                         error = null,
                         items = emptyList(),
-                        page = 0,
                         total = 0,
                         endReached = false,
                     )
-                    else -> it.copy(loadingMore = true, error = null)
                 }
             }
             runCatching {
                 when (mode) {
                     GalgameListMode.RESOURCE -> app.galgameApi.works(
-                        buildWorkQuery(filters, nextPage),
+                        buildWorkQuery(filters, targetPage),
                     )
                     GalgameListMode.LIBRARY -> app.galgameApi.libraryWorks(
-                        buildLibraryQuery(filters, nextPage),
+                        buildLibraryQuery(filters, targetPage),
                     )
                 }
             }.onSuccess { page ->
                 _state.update { prev ->
-                    val merged = if (reset) page.items else prev.items + page.items
                     prev.copy(
-                        items = merged,
-                        page = nextPage,
+                        items = page.items,
+                        page = targetPage,
                         total = page.total,
                         totalRelation = page.totalRelation,
                         loading = false,
                         refreshing = false,
                         loadingMore = false,
-                        endReached = page.items.isEmpty() || merged.size >= page.total,
+                        endReached = page.items.isEmpty() ||
+                            targetPage * PAGE_SIZE >= page.total,
                         error = null,
                     )
                 }

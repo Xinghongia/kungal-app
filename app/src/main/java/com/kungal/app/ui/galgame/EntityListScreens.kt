@@ -89,11 +89,17 @@ fun TagListScreen(
                     limit = 24,
                     includeNsfw = includeNsfw,
                 )
-                PageResult(result.items, ended = result.items.size < 24 || page * 24 >= result.total)
+                PageResult(
+                    result.items,
+                    ended = result.items.size < 24 || page * 24 >= result.total,
+                    total = result.total,
+                )
             },
             emptyText = "没有找到标签",
             modifier = Modifier.fillMaxSize(),
             keyOf = { it.id },
+            pagination = true,
+            pageSize = 24,
             header = {
                 EntitySearchRow(
                     value = draft,
@@ -146,11 +152,17 @@ fun CompanyListScreen(
                     page = page,
                     limit = 24,
                 )
-                PageResult(result.items, ended = result.items.size < 24 || page * 24 >= result.total)
+                PageResult(
+                    result.items,
+                    ended = result.items.size < 24 || page * 24 >= result.total,
+                    total = result.total,
+                )
             },
             emptyText = "没有找到会社",
             modifier = Modifier.fillMaxSize(),
             keyOf = { it.id },
+            pagination = true,
+            pageSize = 24,
             header = {
                 EntitySearchRow(
                     value = draft,
@@ -196,11 +208,17 @@ fun EngineListScreen(
             key = Pair("engines", query),
             load = { page, _ ->
                 val result = app.entityApi.engines(q = query.ifBlank { null }, page = page, limit = 24)
-                PageResult(result.items, ended = result.items.size < 24 || page * 24 >= result.total)
+                PageResult(
+                    result.items,
+                    ended = result.items.size < 24 || page * 24 >= result.total,
+                    total = result.total,
+                )
             },
             emptyText = "没有找到引擎",
             modifier = Modifier.fillMaxSize(),
             keyOf = { it.id },
+            pagination = true,
+            pageSize = 24,
             header = {
                 EntitySearchRow(
                     value = draft,
@@ -239,11 +257,17 @@ fun SeriesListScreen(
                     limit = 24,
                     includeNsfw = nsfwDisplay.allowsNsfw,
                 )
-                PageResult(result.items, ended = result.items.size < 24 || page * 24 >= result.total)
+                PageResult(
+                    result.items,
+                    ended = result.items.size < 24 || page * 24 >= result.total,
+                    total = result.total,
+                )
             },
             emptyText = "没有找到系列",
             modifier = Modifier.fillMaxSize(),
             keyOf = { it.id },
+            pagination = true,
+            pageSize = 24,
             header = {
                 EntitySearchRow(
                     value = draft,
@@ -332,11 +356,17 @@ fun CharacterListScreen(
                     limit = 24,
                     includeNsfw = includeNsfw,
                 )
-                PageResult(result.items, ended = result.items.size < 24 || page * 24 >= result.total)
+                PageResult(
+                    result.items,
+                    ended = result.items.size < 24 || page * 24 >= result.total,
+                    total = result.total,
+                )
             },
             emptyText = "没有找到角色",
             modifier = Modifier.fillMaxSize(),
             keyOf = { it.id },
+            pagination = true,
+            pageSize = 24,
             header = {
                 EntitySearchRow(
                     value = draft,
@@ -441,11 +471,17 @@ fun TraitListScreen(
                     limit = 50,
                     includeNsfw = includeNsfw,
                 )
-                PageResult(result.items, ended = result.items.size < 50 || page * 50 >= result.total)
+                PageResult(
+                    result.items,
+                    ended = result.items.size < 50 || page * 50 >= result.total,
+                    total = result.total,
+                )
             },
             emptyText = "没有找到特质",
             modifier = Modifier.fillMaxSize(),
             keyOf = { it.id },
+            pagination = true,
+            pageSize = 50,
             header = {
                 EntitySearchRow(
                     value = draft,

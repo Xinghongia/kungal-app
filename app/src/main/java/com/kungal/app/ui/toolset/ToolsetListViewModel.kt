@@ -43,14 +43,14 @@ class ToolsetListViewModel(private val app: KungalApp) : ViewModel() {
     private var loadJob: Job? = null
 
     init {
-        load(reset = true)
+        loadPage(1)
     }
 
     fun setQuery(value: String) {
         val trimmed = value.trim()
         if (_state.value.query == trimmed) return
         _state.update { it.copy(query = trimmed) }
-        load(reset = true)
+        loadPage(1)
     }
 
     fun setType(value: String?) = updateFilters { it.copy(type = value) }
@@ -67,50 +67,44 @@ class ToolsetListViewModel(private val app: KungalApp) : ViewModel() {
         it.copy(type = null, platform = null, release = null, sortField = "resource_updated", sortOrder = "desc")
     }
 
-    fun refresh() = load(reset = true, pull = true)
+    fun refresh() = loadPage(1, pull = true)
 
-    fun retry() = load(reset = true)
+    fun retry() = loadPage(1)
 
-    fun loadMore() {
+    /** 页码分页：直接打开某一页（替换当前列表）。 */
+    fun goToPage(target: Int) {
         val current = _state.value
-        if (current.loading || current.loadingMore || current.endReached) return
-        load(reset = false)
+        if (current.loading || target < 1 || target == current.page) return
+        loadPage(target)
     }
 
     private fun updateFilters(block: (ToolsetListState) -> ToolsetListState) {
         _state.update(block)
-        load(reset = true)
+        loadPage(1)
     }
 
-    private fun load(reset: Boolean, pull: Boolean = false) {
-        val current = _state.value
-        if (reset) {
-            loadJob?.cancel()
-        } else if (current.loading || current.loadingMore || current.endReached) {
-            return
-        }
-        val nextPage = if (reset) 1 else current.page + 1
+    private fun loadPage(targetPage: Int, pull: Boolean = false) {
+        loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _state.update {
-                when {
-                    reset && pull && it.items.isNotEmpty() -> it.copy(refreshing = true, error = null)
-                    reset -> it.copy(
+                if (pull && it.items.isNotEmpty()) {
+                    it.copy(refreshing = true, error = null)
+                } else {
+                    it.copy(
                         loading = true,
                         refreshing = false,
                         error = null,
                         items = emptyList(),
-                        page = 0,
                         total = 0,
                         endReached = false,
                     )
-                    else -> it.copy(loadingMore = true, error = null)
                 }
             }
             val snapshot = _state.value
             runCatching {
                 app.toolsetApi.list(
                     ToolsetListQuery(
-                        page = nextPage,
+                        page = targetPage,
                         limit = PAGE_SIZE,
                         sort = toolsetSortToken(snapshot.sortField, snapshot.sortOrder),
                         toolsetType = snapshot.type,
@@ -121,15 +115,15 @@ class ToolsetListViewModel(private val app: KungalApp) : ViewModel() {
                 )
             }.onSuccess { page ->
                 _state.update { prev ->
-                    val merged = if (reset) page.items else prev.items + page.items
                     prev.copy(
-                        items = merged,
-                        page = nextPage,
+                        items = page.items,
+                        page = targetPage,
                         total = page.total,
                         loading = false,
                         refreshing = false,
                         loadingMore = false,
-                        endReached = page.items.isEmpty() || merged.size >= page.total,
+                        endReached = page.items.isEmpty() ||
+                            targetPage * PAGE_SIZE >= page.total,
                         error = null,
                     )
                 }

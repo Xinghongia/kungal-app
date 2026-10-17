@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -74,6 +75,8 @@ import com.kungal.app.ui.components.ErrorBox
 import com.kungal.app.ui.components.KungalImage
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
+import com.kungal.app.ui.components.PaginationBar
+import com.kungal.app.ui.components.pageCount
 import com.kungal.app.ui.galgame.FilterOption
 import com.kungal.app.ui.galgame.FilterOptionSheet
 import com.kungal.app.ui.galgame.FilterPill
@@ -211,7 +214,7 @@ fun SearchScreen(
                             keywords = state.submittedQuery,
                             onFamily = vm::setEntityFamily,
                             onRetry = vm::retry,
-                            onLoadMore = vm::loadMore,
+                            onPageChange = vm::goToPage,
                             onOpenEntity = onOpenEntity,
                         )
                         else -> LaneContent(
@@ -219,6 +222,7 @@ fun SearchScreen(
                             keywords = state.submittedQuery,
                             onRetry = vm::retry,
                             onLoadMore = vm::loadMore,
+                            onPageChange = vm::goToPage,
                             onOpenTopic = onOpenTopic,
                             onOpenUser = onOpenUser,
                             onOpenResource = onOpenResource,
@@ -519,6 +523,7 @@ private fun LaneContent(
     keywords: String,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit,
+    onPageChange: (Int) -> Unit,
     onOpenTopic: (String) -> Unit,
     onOpenUser: (String) -> Unit,
     onOpenResource: (String) -> Unit,
@@ -526,29 +531,43 @@ private fun LaneContent(
     onOpenPath: (String) -> Unit,
 ) {
     when (state.tab) {
-        SearchTab.TOPICS -> LaneList(state.topics, state.error, onRetry, onLoadMore) { topic ->
+        SearchTab.TOPICS -> LaneList(
+            state.topics, state.error, onRetry, onLoadMore, onPageChange, paginated = true,
+        ) { topic ->
             TopicHit(topic, keywords, Modifier.padding(horizontal = 12.dp)) { onOpenTopic(topic.id) }
         }
-        SearchTab.REPLIES -> LaneList(state.replies, state.error, onRetry, onLoadMore) { reply ->
+        SearchTab.REPLIES -> LaneList(
+            state.replies, state.error, onRetry, onLoadMore, onPageChange, paginated = true,
+        ) { reply ->
             ReplyHit(reply, keywords, Modifier.padding(horizontal = 12.dp)) { onOpenTopic(reply.topicId) }
         }
-        SearchTab.COMMENTS -> LaneList(state.comments, state.error, onRetry, onLoadMore) { comment ->
+        SearchTab.COMMENTS -> LaneList(
+            state.comments, state.error, onRetry, onLoadMore, onPageChange, paginated = true,
+        ) { comment ->
             CommentHit(comment, keywords, Modifier.padding(horizontal = 12.dp)) { onOpenTopic(comment.topicId) }
         }
-        SearchTab.USERS -> LaneList(state.users, state.error, onRetry, onLoadMore) { user ->
+        SearchTab.USERS -> LaneList(
+            state.users, state.error, onRetry, onLoadMore, onPageChange, paginated = true,
+        ) { user ->
             UserHit(user, keywords, Modifier.padding(horizontal = 12.dp)) { onOpenUser(user.id) }
         }
-        SearchTab.RESOURCES -> LaneList(state.resources, state.error, onRetry, onLoadMore) { resource ->
+        SearchTab.RESOURCES -> LaneList(
+            state.resources, state.error, onRetry, onLoadMore, onPageChange, paginated = true,
+        ) { resource ->
             ResourceHit(resource, keywords, Modifier.padding(horizontal = 12.dp)) {
                 onOpenResource(resource.id)
             }
         }
-        SearchTab.TOOLSETS -> LaneList(state.toolsets, state.error, onRetry, onLoadMore) { toolset ->
+        SearchTab.TOOLSETS -> LaneList(
+            state.toolsets, state.error, onRetry, onLoadMore, onPageChange, paginated = true,
+        ) { toolset ->
             Box(Modifier.padding(horizontal = 12.dp, vertical = 2.dp)) {
                 ToolsetCard(toolset, onClick = { onOpenToolset(toolset.id) })
             }
         }
-        SearchTab.WALL -> LaneList(state.wallComments, state.error, onRetry, onLoadMore) { hit ->
+        SearchTab.WALL -> LaneList(
+            state.wallComments, state.error, onRetry, onLoadMore, onPageChange, paginated = false,
+        ) { hit ->
             WallHit(hit, keywords, Modifier.padding(horizontal = 12.dp)) { onOpenPath(hit.subjectPath) }
         }
         else -> Unit
@@ -561,6 +580,9 @@ private fun <T> LaneList(
     error: String?,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit,
+    onPageChange: (Int) -> Unit,
+    paginated: Boolean,
+    pageSize: Int = 24,
     itemContent: @Composable (T) -> Unit,
 ) {
     when {
@@ -571,22 +593,47 @@ private fun <T> LaneList(
             modifier = Modifier.fillMaxSize(),
         )
         lane.items.isEmpty() && lane.page > 0 -> EmptyHint()
-        else -> LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(vertical = 6.dp),
-        ) {
+        else -> {
+            val listState = rememberLazyListState()
+            LaunchedEffect(lane.page) {
+                if (lane.page > 1 && listState.firstVisibleItemIndex > 0) {
+                    listState.scrollToItem(0)
+                }
+            }
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 6.dp),
+            ) {
             items(lane.items) { item -> itemContent(item) }
-            if (lane.hasMore) {
-                item {
-                    TextButton(
-                        onClick = onLoadMore,
-                        enabled = !lane.loading,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(if (lane.loading) "加载中…" else "加载更多") }
+            item(key = "lane-footer") {
+                Column(
+                    Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    if (paginated) {
+                        if (lane.loading) {
+                            LoadingBox()
+                        } else {
+                            PaginationBar(
+                                page = lane.page,
+                                totalPages = pageCount(lane.total, pageSize),
+                                onPageChange = onPageChange,
+                                enabled = !lane.loading,
+                            )
+                        }
+                    } else if (lane.hasMore) {
+                        TextButton(
+                            onClick = onLoadMore,
+                            enabled = !lane.loading,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(if (lane.loading) "加载中…" else "加载更多") }
+                    }
                 }
             }
         }
     }
+}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -669,13 +716,18 @@ private fun WorksTab(
                         if (row.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
-                if (state.works.hasMore) {
+                if (state.works.hasMore || state.works.page > 1) {
                     item {
-                        TextButton(
-                            onClick = vm::loadMore,
-                            enabled = !state.works.loading,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text(if (state.works.loading) "加载中…" else "加载更多") }
+                        if (state.works.loading) {
+                            LoadingBox()
+                        } else {
+                            PaginationBar(
+                                page = state.works.page,
+                                totalPages = pageCount(state.works.total, 24),
+                                onPageChange = vm::goToPage,
+                                enabled = !state.works.loading,
+                            )
+                        }
                     }
                 }
             }
@@ -774,7 +826,7 @@ private fun EntitiesTab(
     keywords: String,
     onFamily: (EntityFamily) -> Unit,
     onRetry: () -> Unit,
-    onLoadMore: () -> Unit,
+    onPageChange: (Int) -> Unit,
     onOpenEntity: (EntityFamily, String) -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -819,13 +871,20 @@ private fun EntitiesTab(
                         if (row.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
-                if (state.entities.hasMore) {
+                if (state.entityFamily != EntityFamily.ALL &&
+                    (state.entities.hasMore || state.entities.page > 1)
+                ) {
                     item {
-                        TextButton(
-                            onClick = onLoadMore,
-                            enabled = !state.entities.loading,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text(if (state.entities.loading) "加载中…" else "加载更多") }
+                        if (state.entities.loading) {
+                            LoadingBox()
+                        } else {
+                            PaginationBar(
+                                page = state.entities.page,
+                                totalPages = pageCount(state.entities.total, 24),
+                                onPageChange = onPageChange,
+                                enabled = !state.entities.loading,
+                            )
+                        }
                     }
                 }
             }
