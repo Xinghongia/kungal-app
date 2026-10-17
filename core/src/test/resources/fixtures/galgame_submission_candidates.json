@@ -1,0 +1,72 @@
+{
+  "object": "list",
+  "items": [
+    {
+      "object": "work_submission_candidate",
+      "work_summary": {
+        "object": "work",
+        "id": "229",
+        "display_name": "示例作品",
+        "latin": "Sample Work",
+        "localized": {
+          "ja": { "value": "サンプル作品", "is_machine": false },
+          "zh-Hans": { "value": "示例作品", "is_machine": false }
+        },
+        "cover": {
+          "url": "https://image.kungal.iloveren.link/aa/bb/aabb.webp",
+          "hash": "aabb",
+          "width": 600,
+          "height": 900,
+          "thumbhash": "T+cRDQIHiIt3dohXh3Rpd76QzU35",
+          "sexual": "safe"
+        },
+        "banner": null,
+        "is_nsfw": false,
+        "is_published": true,
+        "release_date": "2024-06-28",
+        "release_date_precision": "day",
+        "maker": {
+          "object": "company",
+          "id": "166",
+          "display_name": "示例会社",
+          "latin": null,
+          "localized": {}
+        },
+        "view_count": 120,
+        "like_count": 3,
+        "rating_score": 8.1,
+        "rating_count": 12,
+        "resource_platforms": ["win"],
+        "resource_languages": ["zh-cn"],
+        "resource_updated_at": "2026-10-17T05:42:10Z"
+      },
+      "state": "live"
+    },
+    {
+      "object": "work_submission_candidate",
+      "work_summary": {
+        "object": "work",
+        "id": "4301",
+        "display_name": "另一个示例",
+        "latin": null,
+        "localized": {},
+        "cover": null,
+        "banner": null,
+        "is_nsfw": true,
+        "is_published": false,
+        "release_date": null,
+        "release_date_precision": null,
+        "maker": null,
+        "view_count": 0,
+        "like_count": 0,
+        "rating_score": null,
+        "rating_count": 0,
+        "resource_platforms": [],
+        "resource_languages": [],
+        "resource_updated_at": null
+      },
+      "state": "pending"
+    }
+  ],
+  "next_cursor": "cur_candidate_2"
+}

@@ -1,0 +1,40 @@
+{
+  "object": "work_submission",
+  "id": "4501",
+  "work_id": "4501",
+  "display_name": "新投稿作品",
+  "state": "pending",
+  "is_nsfw": true,
+  "content_rating": "r18",
+  "submitter": {
+    "object": "user",
+    "id": "77",
+    "name": "提交者",
+    "avatar": null,
+    "avatar_frame": null
+  },
+  "last_event": {
+    "object": "claim_event",
+    "id": "9101",
+    "from_state": null,
+    "to_state": "pending",
+    "note": null,
+    "actor": {
+      "object": "user",
+      "id": "77",
+      "name": "提交者",
+      "avatar": null,
+      "avatar_frame": null
+    },
+    "created_at": "2026-10-17T08:00:00Z"
+  },
+  "first_acted_at": "2026-10-17T08:00:00Z",
+  "acted_count": 1,
+  "viewer": {
+    "can_submit": false,
+    "can_withdraw": true,
+    "can_delete": false,
+    "can_review": false
+  },
+  "has_banner_attached": true
+}

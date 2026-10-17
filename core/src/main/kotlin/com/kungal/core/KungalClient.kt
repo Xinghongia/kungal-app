@@ -32,7 +32,7 @@ class KungalClient(
 ) {
     companion object {
         const val DEFAULT_BASE_URL = "https://www.kungal.com/api/v1"
-        const val USER_AGENT = "kungal-app/0.3.1 (Android)"
+        const val USER_AGENT = "kungal-app/0.4.0 (Android)"
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         private val EMPTY_BODY = ByteArray(0).toRequestBody(null, 0, 0)
 
@@ -256,10 +256,12 @@ class KungalClient(
         }
     }
 
-    /** 无响应体的 DELETE（如删除回复/评论/草稿，204）。 */
-    suspend fun deleteNoBody(path: String) {
+    /** 无响应体的 DELETE（如删除回复/评论/草稿/投稿，204）；headers 用于 If-Match。 */
+    suspend fun deleteNoBody(path: String, headers: Map<String, String> = emptyMap()) {
+        val builder = request(url(path)).delete()
+        headers.forEach { (key, value) -> builder.header(key, value) }
         withContext(Dispatchers.IO) {
-            val response = http.newCall(request(url(path)).delete().build()).execute()
+            val response = http.newCall(builder.build()).execute()
             response.use { r ->
                 if (!r.isSuccessful) {
                     throw toException(r.code, r.header("Retry-After"), r.body.string())

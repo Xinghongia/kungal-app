@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
@@ -88,6 +89,7 @@ fun ProfileScreen(
     onOpenSelfProfile: () -> Unit,
     onOpenCollections: () -> Unit,
     onOpenProposals: () -> Unit,
+    onOpenSubmissions: () -> Unit,
     onEditProfile: () -> Unit,
     onOpenPoints: () -> Unit,
     onOpenShop: () -> Unit,
@@ -202,6 +204,7 @@ fun ProfileScreen(
                     onOpenSelfProfile = onOpenSelfProfile,
                     onOpenCollections = onOpenCollections,
                     onOpenProposals = onOpenProposals,
+                    onOpenSubmissions = onOpenSubmissions,
                     onEditProfile = onEditProfile,
                     onOpenPoints = onOpenPoints,
                     onOpenShop = onOpenShop,
@@ -295,6 +298,7 @@ private fun LoggedInContent(
     onOpenSelfProfile: () -> Unit,
     onOpenCollections: () -> Unit,
     onOpenProposals: () -> Unit,
+    onOpenSubmissions: () -> Unit,
     onEditProfile: () -> Unit,
     onOpenPoints: () -> Unit,
     onOpenShop: () -> Unit,
@@ -424,6 +428,13 @@ private fun LoggedInContent(
             supporting = "你提交的 Galgame 资料修改与审核结果",
             icon = Icons.Outlined.EditNote,
             onClick = onOpenProposals,
+            trailing = { TrailingChevron() },
+        )
+        item(
+            headline = "我的 Galgame 投稿",
+            supporting = "新建申请的状态、拒绝原因与撤回",
+            icon = Icons.Outlined.UploadFile,
+            onClick = onOpenSubmissions,
             trailing = { TrailingChevron() },
         )
     }
