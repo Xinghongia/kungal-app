@@ -67,6 +67,7 @@ import com.kungal.app.ui.galgame.MySubmissionsScreen
 import com.kungal.app.ui.galgame.ProposalDetailScreen
 import com.kungal.app.ui.galgame.RatingDetailScreen
 import com.kungal.app.ui.galgame.RatingListScreen
+import com.kungal.app.ui.galgame.ResourceListScreen
 import com.kungal.app.ui.galgame.ReviewQueueScreen
 import com.kungal.app.ui.galgame.SeriesDetailScreen
 import com.kungal.app.ui.galgame.SeriesListScreen
@@ -132,6 +133,7 @@ private object Routes {
     const val CHAT_SETTINGS = "messages/chat/settings"
     const val RANKING = "ranking?tab={tab}"
     const val GALGAME_WORKS = "galgame/works"
+    const val GALGAME_RESOURCE_LIST = "galgame/resources"
     const val GALGAME_LIBRARY = "galgame/library"
     const val GALGAME_WORK = "galgame/work/{workId}"
     const val GALGAME_EDIT = "galgame/edit/{workId}"
@@ -224,6 +226,11 @@ fun AppNav(app: KungalApp) {
         val looksId = segment.isNotEmpty() && segment.all(Char::isDigit)
         when {
             clean == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
+            clean == "/galgame/resource" -> nav.navigate(Routes.GALGAME_RESOURCE_LIST)
+            // 资源详情原生页在 BP-03 U3 接入；接入前先把详情路径交给浏览器，
+            // 避免被下面的 /galgame/{id} 分支误当成作品页。
+            clean.startsWith("/galgame/resource/") && looksId ->
+                AndroidActions.openInBrowser(context, "https://www.kungal.com$path")
             clean == "/gallib" -> nav.navigate(Routes.GALGAME_LIBRARY)
             clean == "/galgame/official" -> nav.navigate(Routes.GALGAME_COMPANIES)
             clean == "/galgame/tag" -> nav.navigate(Routes.GALGAME_TAGS)
@@ -291,6 +298,7 @@ fun AppNav(app: KungalApp) {
         when {
             rankingTab != null -> nav.navigate(Routes.ranking(rankingTab))
             entry.webPath == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
+            entry.webPath == "/galgame/resource" -> nav.navigate(Routes.GALGAME_RESOURCE_LIST)
             entry.webPath == "/gallib" -> nav.navigate(Routes.GALGAME_LIBRARY)
             entry.webPath == "/galgame/official" -> nav.navigate(Routes.GALGAME_COMPANIES)
             entry.webPath == "/galgame/tag" -> nav.navigate(Routes.GALGAME_TAGS)
@@ -666,6 +674,20 @@ fun AppNav(app: KungalApp) {
                     nsfwDisplay = nsfwDisplay,
                     onBack = { nav.popBackStack() },
                     onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                )
+            }
+            composable(Routes.GALGAME_RESOURCE_LIST) {
+                ResourceListScreen(
+                    app = app,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenResource = { resource ->
+                        // U3 换成原生资源详情页；当前与网页行为一致，先开网页。
+                        AndroidActions.openInBrowser(
+                            context,
+                            "https://www.kungal.com/galgame/resource/${resource.id}",
+                        )
+                    },
                 )
             }
             composable(
