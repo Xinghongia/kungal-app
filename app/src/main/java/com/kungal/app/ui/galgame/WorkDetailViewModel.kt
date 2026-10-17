@@ -141,17 +141,18 @@ class WorkDetailViewModel(
         viewModelScope.launch {
             runCatching { app.galgameApi.setWorkLike(work.id, next) }
                 .onSuccess { result ->
+                    val nowLiked = result.viewer?.hasLiked ?: next
                     _state.update {
                         it.copy(
                             likePending = false,
                             work = it.work?.copy(
                                 likeCount = result.likeCount,
-                                viewer = it.work.viewer?.copy(
-                                    hasLiked = result.viewer?.hasLiked ?: next,
-                                ),
+                                viewer = it.work.viewer?.copy(hasLiked = nowLiked)
+                                    ?: com.kungal.core.model.WorkViewer(hasLiked = nowLiked),
                             ),
                         )
                     }
+                    AppMessages.show(if (nowLiked) "已点赞" else "已取消点赞")
                 }
                 .onFailure { e ->
                     _state.update {

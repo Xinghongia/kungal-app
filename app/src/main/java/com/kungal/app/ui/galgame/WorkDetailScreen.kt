@@ -22,8 +22,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.OpenInNew
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -63,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kungal.app.KungalApp
 import com.kungal.app.NsfwDisplayMode
+import com.kungal.app.ui.components.AppMessages
 import com.kungal.app.ui.components.Chip
 import com.kungal.app.ui.components.EmptyBox
 import com.kungal.app.ui.components.ErrorBox
@@ -265,7 +268,10 @@ fun WorkDetailScreen(
             app = app,
             workId = work.id,
             onDismiss = { showCollectionPicker = false },
-            onSaved = { favorited -> vm.applyFavoriteState(favorited) },
+            onSaved = { favorited ->
+                vm.applyFavoriteState(favorited)
+                AppMessages.show(if (favorited) "已收藏" else "已取消收藏")
+            },
         )
     }
 
@@ -418,10 +424,14 @@ private fun WorkHeader(
                     )
                     Spacer(Modifier.width(10.dp))
                     Icon(
-                        Icons.Outlined.ThumbUp,
+                        if (work.viewer?.hasLiked == true) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (work.viewer?.hasLiked == true) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                     Spacer(Modifier.width(2.dp))
                     Text(
@@ -431,10 +441,14 @@ private fun WorkHeader(
                     )
                     Spacer(Modifier.width(10.dp))
                     Icon(
-                        Icons.Outlined.FavoriteBorder,
+                        if (hasFavorited == true) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (hasFavorited == true) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                     Spacer(Modifier.width(2.dp))
                     Text(
@@ -453,40 +467,48 @@ private fun WorkHeader(
                 .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            val liked = work.viewer?.hasLiked == true
+            val favorited = hasFavorited == true
             FilledTonalButton(
                 onClick = onLike,
                 enabled = !likePending,
+                colors = if (liked) {
+                    ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    )
+                } else {
+                    ButtonDefaults.filledTonalButtonColors()
+                },
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
             ) {
                 Icon(
-                    Icons.Outlined.ThumbUp,
+                    if (liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = if (work.viewer?.hasLiked == true) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
                 )
                 Spacer(Modifier.width(4.dp))
-                Text(if (work.viewer?.hasLiked == true) "已点赞" else "点赞", style = MaterialTheme.typography.labelMedium)
+                Text(if (liked) "已点赞" else "点赞", style = MaterialTheme.typography.labelMedium)
             }
             FilledTonalButton(
                 onClick = onFavorite,
+                colors = if (favorited) {
+                    ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    )
+                } else {
+                    ButtonDefaults.filledTonalButtonColors()
+                },
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
             ) {
                 Icon(
-                    if (hasFavorited == true) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
+                    if (favorited) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = if (hasFavorited == true) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
                 )
                 Spacer(Modifier.width(4.dp))
-                Text(if (hasFavorited == true) "已收藏" else "收藏", style = MaterialTheme.typography.labelMedium)
+                Text(if (favorited) "已收藏" else "收藏", style = MaterialTheme.typography.labelMedium)
             }
             TextButton(onClick = onRate, contentPadding = PaddingValues(horizontal = 8.dp)) {
                 Icon(Icons.Outlined.Star, contentDescription = null, modifier = Modifier.size(16.dp))
