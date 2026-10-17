@@ -34,6 +34,7 @@ import com.kungal.app.KungalApp
 import com.kungal.app.ui.components.AppMessages
 import com.kungal.app.ui.components.ErrorBox
 import com.kungal.app.ui.components.LoadingBox
+import com.kungal.app.ui.components.SheetMessageHost
 import com.kungal.app.ui.galgame.parseResourceLinkInput
 import com.kungal.app.ui.topic.friendlyError
 import com.kungal.core.model.ToolsetResource
@@ -102,6 +103,7 @@ fun ToolsetResourceEditorSheet(
                 .padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            SheetMessageHost()
             Text(
                 if (editing) "编辑工具资源" else "发布工具资源",
                 style = MaterialTheme.typography.titleMedium,

@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kungal.app.ui.components.KungalImage
 import com.kungal.app.ui.components.NsfwCoverImage
+import com.kungal.app.ui.components.SheetMessageHost
 import com.kungal.core.model.Work
 import com.kungal.core.model.WorkCover
 
@@ -68,6 +69,7 @@ fun CoverGallerySheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            SheetMessageHost()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("所有封面", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.weight(1f))

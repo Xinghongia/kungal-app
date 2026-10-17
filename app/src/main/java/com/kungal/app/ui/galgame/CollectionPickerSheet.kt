@@ -41,6 +41,7 @@ import com.kungal.app.KungalApp
 import com.kungal.app.ui.components.AppMessages
 import com.kungal.app.ui.components.ErrorBox
 import com.kungal.app.ui.components.LoadingBox
+import com.kungal.app.ui.components.SheetMessageHost
 import com.kungal.app.ui.topic.friendlyError
 import com.kungal.core.model.CollectionChoice
 import kotlinx.coroutines.launch
@@ -94,6 +95,7 @@ fun CollectionPickerSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            SheetMessageHost()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("收藏到收藏夹", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.weight(1f))

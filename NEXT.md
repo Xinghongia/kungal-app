@@ -1,7 +1,7 @@
 ---
 handoff_schema: tavernweave/next/v1
 project_id: kungal-android-client
-status: bp03-u4-delivered
+status: bp03-u4-fix1
 updated: 2026-10-17
 ---
 
@@ -29,6 +29,14 @@ updated: 2026-10-17
 
 ## 最近证据
 
+- 2026-10-17 **弹窗内提示与滑动关闭（版本 0.5.4）**（驾驶员反馈复制提示被弹窗挡住）：
+  - 根因：提示挂在根 Scaffold，ModalBottomSheet 是独立窗口、层级更高；
+  - 修复：提示条支持左右滑动关闭；新增 `SheetMessageHost`，弹窗打开时提示显示在
+    弹窗内容顶部，根部提示自动让位；已接入下载/资源编辑/工具资源编辑/收藏夹/封面/
+    游玩记录弹窗
+  - 证据：core 161 + app 59 = **220 项单测全绿**；`assembleDebug` 通过；已装机
+    （0.5.4/code 12）；启动冒烟无崩溃；详见
+    `docs/devlog/2026-10-17-弹窗内提示与滑动关闭.md`
 - 2026-10-17 **BP-03 U4 工具集列表与详情交付（版本 0.5.3；U5 创建/编辑提前并入）**：
   - core：`ToolsetApi`（列表筛选排序、详情、源数据、创建/编辑/删除、收藏、
     实用性评分、工具资源增删改/下载、S3 上传会话）、全套模型、8 项新单测

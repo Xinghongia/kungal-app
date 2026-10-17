@@ -65,6 +65,7 @@ import com.kungal.app.ui.components.Chip
 import com.kungal.app.ui.components.EmptyBox
 import com.kungal.app.ui.components.ErrorBox
 import com.kungal.app.ui.components.LoadingBox
+import com.kungal.app.ui.components.SheetMessageHost
 import com.kungal.app.ui.content.ContentDocumentView
 import com.kungal.app.ui.content.documentPlainText
 import com.kungal.app.ui.topic.friendlyError
@@ -642,6 +643,7 @@ private fun ResourceDownloadSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            SheetMessageHost()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     if (resource.isExpired) Icons.Outlined.WarningAmber else Icons.Outlined.CheckCircle,
@@ -838,6 +840,7 @@ fun ResourceEditorSheet(
                 .padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            SheetMessageHost()
             Text(
                 if (editing) "重新编辑资源信息" else "发布 Galgame 资源",
                 style = MaterialTheme.typography.titleMedium,

@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kungal.app.KungalApp
 import com.kungal.app.ui.components.AppMessages
+import com.kungal.app.ui.components.SheetMessageHost
 import com.kungal.app.ui.components.ErrorBox
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.topic.friendlyError
@@ -145,6 +146,7 @@ fun WorkRecordDialog(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            SheetMessageHost()
             Text("评分与游玩记录", style = MaterialTheme.typography.titleMedium)
             Text(
                 workName,
