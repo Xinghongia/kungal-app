@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -153,12 +154,14 @@ fun WallCommentSection(
                 value = composer,
                 onValueChange = { if (it.length <= maxLength) composer = it },
                 modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
                 placeholder = { Text("友善地发表你的看法…") },
                 minLines = 2,
                 supportingText = { Text("${composer.length}/$maxLength") },
             )
             Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
                 Button(
+                    shape = RoundedCornerShape(50),
                     onClick = {
                         val text = composer.trim()
                         if (text.isEmpty() || sending) return@Button

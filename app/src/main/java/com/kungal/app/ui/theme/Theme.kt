@@ -2,9 +2,11 @@ package com.kungal.app.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MotionScheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -12,12 +14,28 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
 /** 深浅模式偏好（跟随系统 / 固定浅色 / 固定深色） */
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 private val AmoledBlack = Color(0xFF000000)
+
+/**
+ * 全局圆角：输入框、菜单、对话框统一走大圆角，避免默认 4dp 的直角观感。
+ * extraSmall 是 OutlinedTextField 的默认形状来源，调大后全 App 的输入框都会变圆。
+ */
+private val KungalShapes = Shapes(
+    extraSmall = RoundedCornerShape(24.dp),
+    small = RoundedCornerShape(20.dp),
+    medium = RoundedCornerShape(24.dp),
+    large = RoundedCornerShape(28.dp),
+    largeIncreased = RoundedCornerShape(26.dp),
+    extraLarge = RoundedCornerShape(32.dp),
+    extraLargeIncreased = RoundedCornerShape(34.dp),
+    extraExtraLarge = RoundedCornerShape(40.dp),
+)
 
 /**
  * 应用主题（与 saku 同一套外观体系）：
@@ -76,6 +94,7 @@ fun KungalTheme(
     MaterialExpressiveTheme(
         colorScheme = colorScheme,
         motionScheme = MotionScheme.expressive(),
+        shapes = KungalShapes,
         content = content,
     )
 }
