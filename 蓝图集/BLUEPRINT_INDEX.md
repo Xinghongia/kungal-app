@@ -36,7 +36,12 @@ P4 通过后 → 按领域蓝图候选（下方）逐个提取并交付；不得
 | BP-04 | 用户中心与消息域（用户主页/积分/商城/通知/私信实时聊天）— **驾驶员 2026-10-17 决定提前** | BP-01 交付后 | OpenAPI me/users/notifications/shop/rankings + chat relay（线上 chatEnabled=true） |
 | BP-02 | Galgame 资料库域（词条/评分/编辑提案与历史/投稿）— ✅ 已全部交付（U1–U6） | BP-04 交付后 | OpenAPI works/library-works/tags/companies/engines/series/characters/credit-names/traits + ratings/wall-comments/collections/edit-proposals/work-submissions 组 |
 | BP-03 | 资源与工具集域（资源/下载/过期报告/工具集）— ✅ 已全部交付（U1–U7） | BP-02 交付后 | OpenAPI galgame-resources/toolsets 组 |
-| BP-05 | 搜索、排行、月历、题库、情报、设置域 — 搜/排行部分随 BP-04 U5 收尾 | BP-04 交付后 | OpenAPI search/rankings/release-calendar/quizzes/news/docs + /me/preferences |
+| BP-05 | 搜索、排行、月历、题库、情报、设置域 — 排行与设置已在 BP-04 交付，其余待交付 | BP-04 交付后 | OpenAPI search/rankings/release-calendar/quizzes/news/docs/websites/activities/update-logs/todos/friend-links + /me/preferences |
+
+BP-05 已提取：`蓝图集/BP-05-搜索排行月历题库情报设置域.md`
+（U1 全站搜索 → U2 发售月历 → U3 题库浏览与答题 → U4 题库创作 → U5 情报阅读 →
+U6 情报投稿 → U7 网站资料库 → U8 动态/更新日志/待办 → U9 文档/友链/子站与收尾）。
+排行榜与设置域已在 BP-04 交付，本蓝图不重做。
 
 BP-04 已提取：`蓝图集/BP-04-用户中心与消息域.md`（U1 用户主页与资料 → U2 我的菜单/积分/商店 →
 U3 消息中心 → U4 私信 REST → U5 实时私信/排行/收尾），已全部交付。
@@ -50,7 +55,7 @@ U3 目录实体与收藏夹 → U4 评分/游玩记录/评论墙 → U5 编辑�
 
 ## 活动阶段合同
 
-当前活动阶段：**BP-03 已交付；等待驾驶员走查与 BP-05 门**。
+当前活动阶段：**BP-05 已提取（U1–U9）；U1 全站搜索待开工**。
 
 任意活动步骤只允许由真实问题触发的一层临时问题支线（绑定父步骤、保存触发证据、
 `persistent: false`、不扩大产品范围），解决或确认阻塞后关闭并回到父步骤。
