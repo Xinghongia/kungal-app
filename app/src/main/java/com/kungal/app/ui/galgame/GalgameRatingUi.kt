@@ -1,5 +1,6 @@
 package com.kungal.app.ui.galgame
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,9 +29,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.kungal.app.ui.components.AvatarImage
 import com.kungal.app.ui.components.Chip
 import com.kungal.app.ui.components.KungalImage
@@ -40,6 +48,10 @@ import com.kungal.core.model.AspectScores
 import com.kungal.core.model.RatingSummary
 import com.kungal.core.model.WorkRef
 import java.util.Locale
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.min
+import kotlin.math.sin
 
 val RatingRecommendLabels = listOf(
     "strong_no" to "强烈不推荐",
@@ -78,10 +90,10 @@ val AspectLabels = listOf(
     "story" to "剧情",
     "music" to "音乐",
     "character" to "角色",
-    "route" to "路线",
+    "route" to "分支",
     "system" to "系统",
     "voice" to "配音",
-    "replay_value" to "重玩价值",
+    "replay_value" to "重玩",
 )
 
 fun recommendLabel(key: String): String =
@@ -101,11 +113,23 @@ fun aspectItems(scores: AspectScores): List<Pair<String, Int>> = listOf(
     "剧情" to scores.story,
     "音乐" to scores.music,
     "角色" to scores.character,
-    "路线" to scores.route,
+    "分支" to scores.route,
     "系统" to scores.system,
     "配音" to scores.voice,
-    "重玩价值" to scores.replayValue,
+    "重玩" to scores.replayValue,
 ).mapNotNull { (label, value) -> value?.let { label to it } }
+
+/** 雷达图固定八轴，未填写的维度按 0（与网页 aspectDims 的默认值一致）。 */
+fun aspectRadarItems(scores: AspectScores): List<Pair<String, Int>> = listOf(
+    "画面" to (scores.art ?: 0),
+    "剧情" to (scores.story ?: 0),
+    "音乐" to (scores.music ?: 0),
+    "角色" to (scores.character ?: 0),
+    "分支" to (scores.route ?: 0),
+    "系统" to (scores.system ?: 0),
+    "配音" to (scores.voice ?: 0),
+    "重玩" to (scores.replayValue ?: 0),
+)
 
 fun scoreText(value: Int): String = String.format(Locale.US, "%d", value)
 
@@ -241,6 +265,88 @@ private fun RatingWorkCover(work: WorkRef?, blurCover: Boolean) {
 fun workTitleOf(work: WorkRef): String =
     work.localized["zh-Hans"]?.value?.takeIf { it.isNotBlank() }
         ?: work.displayName.ifBlank { "#${work.id}" }
+
+/** 八维评分雷达图（对应网页评分详情的 Radar）；0 分维度落在中心。 */
+@Composable
+fun AspectRadarChart(scores: AspectScores, modifier: Modifier = Modifier) {
+    val axes = aspectRadarItems(scores)
+    val textMeasurer = rememberTextMeasurer()
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val fillColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+    val strokeColor = MaterialTheme.colorScheme.primary
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(
+        fontSize = 10.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Canvas(modifier) {
+        val labelPad = 26.dp.toPx()
+        val radius = (min(size.width, size.height) / 2f - labelPad).coerceAtLeast(1f)
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val count = axes.size
+
+        fun vertex(index: Int, r: Float): Offset {
+            val angle = -PI / 2 + index * (2 * PI / count)
+            return Offset(
+                x = center.x + r * cos(angle).toFloat(),
+                y = center.y + r * sin(angle).toFloat(),
+            )
+        }
+
+        fun polygonPath(radiusAt: (Int) -> Float): Path {
+            val path = Path()
+            for (index in 0 until count) {
+                val point = vertex(index, radiusAt(index))
+                if (index == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
+            }
+            path.close()
+            return path
+        }
+
+        // 10 圈网格（网页 max = 10）
+        for (level in 1..10) {
+            drawPath(
+                polygonPath { radius * level / 10f },
+                gridColor.copy(alpha = if (level == 10) 0.7f else 0.35f),
+                style = Stroke(width = 0.7.dp.toPx()),
+            )
+        }
+        for (index in 0 until count) {
+            drawLine(
+                gridColor.copy(alpha = 0.5f),
+                center,
+                vertex(index, radius),
+                strokeWidth = 0.7.dp.toPx(),
+            )
+        }
+
+        val valuePath = polygonPath { index ->
+            radius * (axes[index].second.coerceIn(0, 10) / 10f)
+        }
+        drawPath(valuePath, fillColor)
+        drawPath(valuePath, strokeColor, style = Stroke(width = 1.5.dp.toPx()))
+
+        axes.forEachIndexed { index, (label, value) ->
+            if (value > 0) {
+                drawCircle(
+                    color = strokeColor,
+                    radius = 2.dp.toPx(),
+                    center = vertex(index, radius * (value.coerceIn(0, 10) / 10f)),
+                )
+            }
+            val labelCenter = vertex(index, radius + labelPad * 0.62f)
+            val layout = textMeasurer.measure(AnnotatedString(label), style = labelStyle)
+            drawText(
+                textLayoutResult = layout,
+                topLeft = Offset(
+                    (labelCenter.x - layout.size.width / 2f)
+                        .coerceIn(0f, (size.width - layout.size.width).coerceAtLeast(0f)),
+                    (labelCenter.y - layout.size.height / 2f)
+                        .coerceIn(0f, (size.height - layout.size.height).coerceAtLeast(0f)),
+                ),
+            )
+        }
+    }
+}
 
 /** 八维评分条形展示。 */
 @Composable

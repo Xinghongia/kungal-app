@@ -19,7 +19,17 @@ class GalgameRatingUiTest {
     @Test
     fun `八维评分只展示已填维度`() {
         val items = aspectItems(AspectScores(art = 8, story = 7, replayValue = 9))
-        assertEquals(listOf("画面" to 8, "剧情" to 7, "重玩价值" to 9), items)
+        assertEquals(listOf("画面" to 8, "剧情" to 7, "重玩" to 9), items)
         assertEquals(emptyList<Pair<String, Int>>(), aspectItems(AspectScores()))
+    }
+
+    @Test
+    fun `雷达图固定八轴且未填维度按0`() {
+        val axes = aspectRadarItems(AspectScores(art = 10, route = 5))
+        assertEquals(
+            listOf("画面", "剧情", "音乐", "角色", "分支", "系统", "配音", "重玩"),
+            axes.map { it.first },
+        )
+        assertEquals(listOf(10, 0, 0, 0, 5, 0, 0, 0), axes.map { it.second })
     }
 }

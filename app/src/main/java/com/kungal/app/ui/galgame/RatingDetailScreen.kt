@@ -251,6 +251,12 @@ fun RatingDetailScreen(
                                         style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
+                                    AspectRadarChart(
+                                        scores = value.aspectScores,
+                                        modifier = Modifier
+                                            .align(Alignment.CenterHorizontally)
+                                            .size(250.dp),
+                                    )
                                     AspectScoreBars(value.aspectScores)
                                 }
 

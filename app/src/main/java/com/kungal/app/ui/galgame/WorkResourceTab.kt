@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ThumbUp
@@ -636,118 +637,121 @@ private fun ResourceDownloadSheet(
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            SheetMessageHost()
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    if (resource.isExpired) Icons.Outlined.WarningAmber else Icons.Outlined.CheckCircle,
-                    contentDescription = null,
-                    tint = if (resource.isExpired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    if (resource.isExpired) "该资源链接已被标记失效" else "该资源链接可用",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-            Text(
-                "${resource.author.name ?: "已注销用户"} 发布于 ${relativeTime(resource.createdAt)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (resource.providerNames.isNotEmpty()) {
-                Text(
-                    resource.providerNames.joinToString(" / "),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-
-            val noteText = remember(resource.content) { documentPlainText(resource.content).trim() }
-            if (noteText.isNotBlank()) {
-                Text("发布者备注", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                Text(noteText, style = MaterialTheme.typography.bodySmall)
-            }
-
-            when {
-                loading -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+        // 长按可选中备注、链接、提取码等文字并复制
+        SelectionContainer {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                SheetMessageHost()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        if (resource.isExpired) Icons.Outlined.WarningAmber else Icons.Outlined.CheckCircle,
+                        contentDescription = null,
+                        tint = if (resource.isExpired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        if (resource.isExpired) "该资源链接已被标记失效" else "该资源链接可用",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
                 }
-                error != null -> {
-                    Text(error!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                    TextButton(onClick = { retry += 1 }) { Text("重试") }
+                Text(
+                    "${resource.author.name ?: "已注销用户"} 发布于 ${relativeTime(resource.createdAt)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (resource.providerNames.isNotEmpty()) {
+                    Text(
+                        resource.providerNames.joinToString(" / "),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 }
-                else -> {
-                    val data = download
-                    if (data == null) {
-                        Text("没有获取到下载信息", style = MaterialTheme.typography.bodySmall)
-                    } else {
-                        if (data.downloadUrls.isEmpty()) {
+
+                val noteText = remember(resource.content) { documentPlainText(resource.content).trim() }
+                if (noteText.isNotBlank()) {
+                    Text("发布者备注", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                    Text(noteText, style = MaterialTheme.typography.bodySmall)
+                }
+
+                when {
+                    loading -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    }
+                    error != null -> {
+                        Text(error!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        TextButton(onClick = { retry += 1 }) { Text("重试") }
+                    }
+                    else -> {
+                        val data = download
+                        if (data == null) {
+                            Text("没有获取到下载信息", style = MaterialTheme.typography.bodySmall)
+                        } else {
+                            if (data.downloadUrls.isEmpty()) {
+                                Text(
+                                    "这个资源没有登记下载链接，链接可能写在提取码或备注里",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            } else {
+                                Text("点击链接由系统浏览器/网盘 App 打开：", style = MaterialTheme.typography.labelMedium)
+                                data.downloadUrls.forEachIndexed { index, url ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            "${index + 1}. $url",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            maxLines = 3,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clickable { onOpenBrowser(url) },
+                                        )
+                                        TextButton(onClick = {
+                                            AndroidActions.copyText(context, "链接", url)
+                                        }) { Text("复制", style = MaterialTheme.typography.labelSmall) }
+                                    }
+                                }
+                            }
+                            if (data.extractionCode.isNotBlank() || data.archivePassword.isNotBlank()) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    if (data.extractionCode.isNotBlank()) {
+                                        FilledTonalButton(onClick = {
+                                            AndroidActions.copyText(context, "提取码", data.extractionCode)
+                                        }) { Text("提取码 ${data.extractionCode}") }
+                                    }
+                                    if (data.archivePassword.isNotBlank()) {
+                                        FilledTonalButton(onClick = {
+                                            AndroidActions.copyText(context, "解压码", data.archivePassword)
+                                        }) { Text("解压码 ${data.archivePassword}") }
+                                    }
+                                }
+                            }
                             Text(
-                                "这个资源没有登记下载链接，链接可能写在提取码或备注里",
-                                style = MaterialTheme.typography.bodySmall,
+                                "下载游玩后，欢迎回到词条页给这部作品评分，帮助更多人发现好作品。",
+                                style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                        } else {
-                            Text("点击链接由系统浏览器/网盘 App 打开：", style = MaterialTheme.typography.labelMedium)
-                            data.downloadUrls.forEachIndexed { index, url ->
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        "${index + 1}. $url",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        maxLines = 3,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clickable { onOpenBrowser(url) },
-                                    )
-                                    TextButton(onClick = {
-                                        AndroidActions.copyText(context, "链接", url)
-                                    }) { Text("复制", style = MaterialTheme.typography.labelSmall) }
-                                }
+                            resource.dlsite?.let { offer ->
+                                Text(
+                                    "支持正版：DLsite 购买",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.clickable { onOpenBrowser(offer.purchaseUrl) },
+                                )
                             }
-                        }
-                        if (data.extractionCode.isNotBlank() || data.archivePassword.isNotBlank()) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                if (data.extractionCode.isNotBlank()) {
-                                    FilledTonalButton(onClick = {
-                                        AndroidActions.copyText(context, "提取码", data.extractionCode)
-                                    }) { Text("提取码 ${data.extractionCode}") }
-                                }
-                                if (data.archivePassword.isNotBlank()) {
-                                    FilledTonalButton(onClick = {
-                                        AndroidActions.copyText(context, "解压码", data.archivePassword)
-                                    }) { Text("解压码 ${data.archivePassword}") }
-                                }
-                            }
-                        }
-                        Text(
-                            "下载游玩后，欢迎回到词条页给这部作品评分，帮助更多人发现好作品。",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        resource.dlsite?.let { offer ->
-                            Text(
-                                "支持正版：DLsite 购买",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.clickable { onOpenBrowser(offer.purchaseUrl) },
-                            )
                         }
                     }
                 }
-            }
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDismiss) { Text("关闭") }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("关闭") }
+                }
             }
         }
     }
