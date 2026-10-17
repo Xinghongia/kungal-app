@@ -112,9 +112,15 @@ fun WorkDetailScreen(
     var viewerUrl by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(nsfwDisplay.allowsNsfw) { vm.setIncludeNsfw(nsfwDisplay.allowsNsfw) }
+    LaunchedEffect(tab) { if (tab == WorkTab.RESOURCE) vm.loadResources() }
 
     val work = state.work
     val gated = work?.isNsfw == true && nsfwDisplay == NsfwDisplayMode.HIDE && !nsfwRevealed
+    // 与网页一致：只有 moyu 有补丁资源时才显示「补丁资源下载」标签页
+    val visibleTabs = WorkTab.entries.filter { it != WorkTab.PATCH || state.moyuPatches.isNotEmpty() }
+    LaunchedEffect(visibleTabs) {
+        if (tab !in visibleTabs) tab = WorkTab.INTRO
+    }
 
     Scaffold(
         topBar = {
@@ -182,12 +188,12 @@ fun WorkDetailScreen(
                     }
                     item(key = "tabs") {
                         ScrollableTabRow(
-                            selectedTabIndex = tab.ordinal,
+                            selectedTabIndex = visibleTabs.indexOf(tab).coerceAtLeast(0),
                             edgePadding = 12.dp,
                             containerColor = MaterialTheme.colorScheme.surface,
                             divider = {},
                         ) {
-                            WorkTab.entries.forEach { item ->
+                            visibleTabs.forEach { item ->
                                 Tab(
                                     selected = tab == item,
                                     onClick = { tab = item },
@@ -206,20 +212,28 @@ fun WorkDetailScreen(
                             onOpenWeb = onOpenWeb,
                             onOpenImage = { url -> viewerUrl = url },
                         )
-                        WorkTab.RESOURCE -> item(key = "resource-placeholder") {
-                            UpcomingPanel(
-                                icon = Icons.Outlined.Visibility,
-                                title = "本体资源下载",
-                                description = "资源列表、下载与失效报告将在 BP-03 资源域接入。当前可先在网页查看。",
-                                onOpenWeb = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}?tab=resource") },
+                        WorkTab.RESOURCE -> item(key = "work-resources") {
+                            WorkResourceSection(
+                                app = app,
+                                work = work,
+                                state = state,
+                                onOpenUser = onOpenUser,
+                                onOpenLogin = onOpenLogin,
+                                onOpenBrowser = onOpenBrowser,
+                                onRefresh = { vm.refreshResources() },
+                                onLike = { resource ->
+                                    if (app.isLoggedIn) vm.toggleResourceLike(resource) else onOpenLogin()
+                                },
+                                onReport = { resource -> vm.reportResourceExpiry(resource.id) },
+                                onMarkValid = { resource -> vm.markResourceValid(resource.id) },
+                                onDelete = { resource -> vm.deleteResource(resource.id) },
                             )
                         }
-                        WorkTab.PATCH -> item(key = "patch-placeholder") {
-                            UpcomingPanel(
-                                icon = Icons.Outlined.Visibility,
-                                title = "补丁资源下载",
-                                description = "补丁资源（moyu）将在 BP-03 资源域接入。当前可先在网页查看。",
-                                onOpenWeb = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}?tab=patch") },
+                        WorkTab.PATCH -> item(key = "work-patches") {
+                            WorkPatchSection(
+                                state = state,
+                                onRetry = { vm.loadMoyuPatches() },
+                                onOpenBrowser = onOpenBrowser,
                             )
                         }
                         WorkTab.COMMENT -> item(key = "comment-wall") {

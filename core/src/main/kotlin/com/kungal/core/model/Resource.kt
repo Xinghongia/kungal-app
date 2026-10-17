@@ -53,3 +53,90 @@ data class ResourceRelocation(
     @SerialName("work_id") val workId: String = "",
     val url: String = "",
 )
+
+/** 领取到的下载信息（POST /galgame-resources/{id}/downloads）。 */
+@Serializable
+data class ResourceDownload(
+    @SerialName("object") val obj: String = "galgame_resource_download",
+    @SerialName("download_urls") val downloadUrls: List<String> = emptyList(),
+    @SerialName("extraction_code") val extractionCode: String = "",
+    @SerialName("archive_password") val archivePassword: String = "",
+)
+
+/** 资源点赞结果（PUT/DELETE /galgame-resources/{id}/like）。 */
+@Serializable
+data class ResourceEngagement(
+    @SerialName("object") val obj: String = "galgame_resource_engagement",
+    @SerialName("resource_id") val resourceId: String = "",
+    @SerialName("like_count") val likeCount: Int = 0,
+    val viewer: ResourceEngagementViewer? = null,
+)
+
+@Serializable
+data class ResourceEngagementViewer(
+    @SerialName("has_liked") val hasLiked: Boolean = false,
+)
+
+/** 失效报告结果（POST /galgame-resources/{id}/expiry-reports）。 */
+@Serializable
+data class ResourceExpiryReport(
+    @SerialName("object") val obj: String = "galgame_resource_expiry_report",
+    @SerialName("resource_id") val resourceId: String = "",
+    /** alive / dead / unchecked */
+    val verdict: String = "unchecked",
+    /** 报告后的资源状态：valid / expired */
+    val state: String = "valid",
+)
+
+/** 资源编辑源数据（GET /galgame-resources/{id}/source）。 */
+@Serializable
+data class ResourceSource(
+    @SerialName("object") val obj: String = "galgame_resource_source",
+    @SerialName("resource_id") val resourceId: String = "",
+    @SerialName("resource_type") val resourceType: String = "game",
+    val title: String = "",
+    @SerialName("version_label") val versionLabel: String? = null,
+    @SerialName("resource_languages") val resourceLanguages: List<String> = emptyList(),
+    @SerialName("resource_platforms") val resourcePlatforms: List<String> = emptyList(),
+    @SerialName("resource_runtimes") val resourceRuntimes: List<String> = emptyList(),
+    val size: String = "",
+    @SerialName("download_urls") val downloadUrls: List<String> = emptyList(),
+    @SerialName("extraction_code") val extractionCode: String = "",
+    @SerialName("archive_password") val archivePassword: String = "",
+    @SerialName("content_markdown") val contentMarkdown: String = "",
+)
+
+/** moyu 补丁页（GET /works/{id}/moyu-patches）。 */
+@Serializable
+data class MoyuPatchList(
+    @SerialName("object") val obj: String = "list",
+    val items: List<MoyuPatch> = emptyList(),
+    @SerialName("next_cursor") val nextCursor: String? = null,
+)
+
+@Serializable
+data class MoyuPatch(
+    @SerialName("object") val obj: String = "moyu_patch",
+    val id: String = "",
+    @SerialName("web_url") val webUrl: String = "",
+    val resources: List<MoyuPatchResource> = emptyList(),
+)
+
+/** moyu 上的补丁资源；只有网页地址，没有下载链接。 */
+@Serializable
+data class MoyuPatchResource(
+    @SerialName("object") val obj: String = "moyu_patch_resource",
+    val id: String = "",
+    val name: String? = null,
+    val storage: String = "",
+    val size: String = "",
+    @SerialName("model_name") val modelName: String? = null,
+    @SerialName("note_markdown") val noteMarkdown: String? = null,
+    val types: List<String> = emptyList(),
+    val languages: List<String> = emptyList(),
+    val platforms: List<String> = emptyList(),
+    @SerialName("download_count") val downloadCount: Int = 0,
+    @SerialName("web_url") val webUrl: String = "",
+    @SerialName("updated_at") val updatedAt: String = "",
+    val publisher: UserRef = UserRef(),
+)
