@@ -87,6 +87,8 @@ class TopicListViewModel(
         val sortField: String = "bumped",
         val sortOrder: String = "desc",
         val error: String? = null,
+        /** 话题 id → 收藏数（话题列表接口不含，来自 /activities 的 topic_digest）。 */
+        val favoriteCounts: Map<String, Int> = emptyMap(),
     )
 
     private val _state = MutableStateFlow(State())
@@ -95,6 +97,10 @@ class TopicListViewModel(
     private var includeNsfw = includeNsfw
 
     private var loadJob: Job? = null
+
+    private val favoriteCounts = mutableMapOf<String, Int>()
+    private var favoriteCursor: String? = null
+    private var favoriteEnded = false
 
     init {
         parseDefaultSort(defaultSort)?.let { (field, order) ->
@@ -107,6 +113,9 @@ class TopicListViewModel(
     fun setIncludeNsfw(value: Boolean) {
         if (includeNsfw == value) return
         includeNsfw = value
+        favoriteCounts.clear()
+        favoriteCursor = null
+        favoriteEnded = false
         load(reset = true)
     }
 
@@ -185,6 +194,7 @@ class TopicListViewModel(
                         endReached = page.nextCursor == null,
                     )
                 }
+                ensureFavoriteCounts(page.items)
             }.onFailure { e ->
                 if (e is kotlinx.coroutines.CancellationException) return@onFailure
                 _state.update {
@@ -192,6 +202,41 @@ class TopicListViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * 补齐当前页话题的收藏数。话题摘要（/topics）没有 favorite_count，
+     * 网页首页卡片取自动态的 topic_digest；这里按 bumped 顺序遍历一次动态，
+     * 结果按话题 id 缓存，翻页/换排序时不重复请求。
+     */
+    private suspend fun ensureFavoriteCounts(topics: List<Topic>) {
+        val missing = topics.filter { it.id.isNotBlank() && it.id !in favoriteCounts }
+        if (missing.isEmpty()) return
+        var attempts = 0
+        while (
+            missing.any { it.id !in favoriteCounts } &&
+            !favoriteEnded &&
+            attempts < 6
+        ) {
+            val page = runCatching {
+                app.activityApi.activities(
+                    cursor = favoriteCursor,
+                    limit = 100,
+                    activityTypes = listOf("topic_creation"),
+                    sort = "bumped_desc",
+                    topicSections = "all",
+                    includeNsfw = includeNsfw,
+                )
+            }.getOrNull() ?: break
+            for (activity in page.items) {
+                val id = activity.topic?.id ?: continue
+                activity.topicDigest?.let { favoriteCounts[id] = it.favoriteCount }
+            }
+            favoriteCursor = page.nextCursor
+            favoriteEnded = page.nextCursor == null
+            attempts++
+        }
+        _state.update { it.copy(favoriteCounts = favoriteCounts.toMap()) }
     }
 
     private fun parseDefaultSort(token: String): Pair<String, String>? {

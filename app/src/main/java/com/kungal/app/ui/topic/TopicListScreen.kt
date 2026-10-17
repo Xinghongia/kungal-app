@@ -280,6 +280,7 @@ fun TopicListScreen(
                         items(state.items, key = { it.id }) { topic ->
                             TopicCard(
                                 topic = topic,
+                                favoriteCount = state.favoriteCounts[topic.id],
                                 blurCover = nsfwDisplay.blursMedia,
                                 onClick = { onOpenTopic(topic.id) },
                                 onOpenUser = onOpenUser,
@@ -323,6 +324,7 @@ private fun neutralTextButtonColors() = ButtonDefaults.textButtonColors(
 @Composable
 private fun TopicCard(
     topic: Topic,
+    favoriteCount: Int?,
     blurCover: Boolean,
     onClick: () -> Unit,
     onOpenUser: (String) -> Unit,
@@ -387,8 +389,9 @@ private fun TopicCard(
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 CountIcon(Icons.Outlined.Visibility, topic.viewCount)
-                CountIcon(Icons.Outlined.ChatBubbleOutline, topic.replyCount)
-                CountIcon(Icons.Outlined.FavoriteBorder, topic.likeCount)
+                CountIcon(Icons.Outlined.ChatBubbleOutline, topic.replyCount + topic.commentCount)
+                // 心形 = 收藏数（与网页首页卡片一致）；数字来自动态的 topic_digest
+                CountIcon(Icons.Outlined.FavoriteBorder, favoriteCount ?: 0)
             }
         }
     }

@@ -1,7 +1,7 @@
 ---
 handoff_schema: tavernweave/next/v1
 project_id: kungal-android-client
-status: bp05-u1-pager
+status: bp05-u1-pager-icons
 updated: 2026-10-17
 ---
 
@@ -32,6 +32,15 @@ updated: 2026-10-17
 
 ## 最近证据
 
+- 2026-10-17 **话题列表收藏数修正（版本 0.7.5）**（驾驶员对比网页发现不一致）：
+  - 根因：卡片心形用的是 `like_count`，网页心形是**收藏数**；`GET /topics`
+    不返回 `favorite_count`，网页取自动态的 `topic_digest`
+  - core：新增 `ActivityApi`（/activities）+ `FeedActivity/TopicDigest` 模型与 1 项单测
+  - app：话题列表按页用动态补齐话题收藏数并缓存；气泡改为「回复 + 评论」；
+    心形恢复收藏图标并常显（撤回上一版误改的点赞图标 + 为 0 隐藏）
+  - 证据：core 172 + app 81 = **253 项单测全绿**；`assembleDebug` 通过；已装机
+    （0.7.5/code 26）；驾驶员已确认效果；详见
+    `docs/devlog/2026-10-17-话题列表收藏数修正.md`
 - 2026-10-17 **全站页码分页器（版本 0.7.2）**（驾驶员发现所有列表只有加载更多）：
   - 新增共享 `PaginationBar`（首页/末页固定、当前页圆形高亮、省略号、跳转弹窗），
     对齐网页 `KunPagination`；`PagedListContent` 增加页码模式

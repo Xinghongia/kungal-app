@@ -10,6 +10,7 @@ import coil3.gif.GifDecoder
 import com.kungal.app.ui.components.AvatarPool
 import com.kungal.core.KungalClient
 import com.kungal.core.api.AccountAuthApi
+import com.kungal.core.api.ActivityApi
 import com.kungal.core.api.ChatApi
 import com.kungal.core.api.CollectionApi
 import com.kungal.core.api.EditApi
@@ -114,6 +115,9 @@ class KungalApp : Application() {
     lateinit var searchApi: SearchApi
         private set
 
+    lateinit var activityApi: ActivityApi
+        private set
+
     lateinit var sessionStore: SessionStore
         private set
 
@@ -206,6 +210,7 @@ class KungalApp : Application() {
         resourceApi = ResourceApi(client)
         toolsetApi = ToolsetApi(client)
         searchApi = SearchApi(client)
+        activityApi = ActivityApi(client)
         chatRealtime = ChatRealtimeHub(this)
         sessionStore = SessionStore(this)
         settingsStore = SettingsStore(this)
