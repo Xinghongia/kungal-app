@@ -87,12 +87,14 @@ fun UserProfileScreen(
     app: KungalApp,
     userId: String,
     nsfwDisplay: NsfwDisplayMode,
+    initialTab: String? = null,
     onBack: () -> Unit,
     onOpenLogin: () -> Unit,
     onOpenTopic: (String) -> Unit,
     onOpenUser: (String) -> Unit,
     onOpenFollowList: (userId: String, followers: Boolean) -> Unit,
     onOpenChat: (userId: String) -> Unit,
+    onOpenResource: (String) -> Unit,
     onOpenWeb: (String) -> Unit,
     onEditProfile: () -> Unit,
 ) {
@@ -105,7 +107,10 @@ fun UserProfileScreen(
     val context = LocalContext.current
     val snackbarHost = remember { SnackbarHostState() }
     val includeNsfw = nsfwDisplay.allowsNsfw
-    var selectedTab by remember(userId) { mutableStateOf(UserTab.ACTIVITY) }
+    var selectedTab by remember(userId, initialTab) {
+        mutableStateOf(if (initialTab == "resource-expire") UserTab.RESOURCE else UserTab.ACTIVITY)
+    }
+    val resourceInitialState = if (initialTab == "resource-expire") "expired" else "valid"
     var overflowOpen by remember { mutableStateOf(false) }
     var reportOpen by remember { mutableStateOf(false) }
 
@@ -241,7 +246,9 @@ fun UserProfileScreen(
                             onSelectTab = { selectedTab = it },
                             onOpenTopic = onOpenTopic,
                             onOpenUser = onOpenUser,
+                            onOpenResource = onOpenResource,
                             onOpenWeb = onOpenWeb,
+                            resourceInitialState = resourceInitialState,
                         )
                     }
                 }
@@ -413,7 +420,9 @@ private fun UserTabContent(
     onSelectTab: (UserTab) -> Unit,
     onOpenTopic: (String) -> Unit,
     onOpenUser: (String) -> Unit,
+    onOpenResource: (String) -> Unit,
     onOpenWeb: (String) -> Unit,
+    resourceInitialState: String = "valid",
 ) {
     when (tab) {
         UserTab.ACTIVITY -> ActivityOverviewTab(
@@ -431,7 +440,16 @@ private fun UserTabContent(
         UserTab.TOPIC -> TopicsTab(app, userId, includeNsfw, header, onOpenTopic)
         UserTab.GALGAME -> WorksTab(app, userId, includeNsfw, blurNsfw, header, onOpenWeb)
         UserTab.RATING -> RatingsTab(app, userId, includeNsfw, blurNsfw, header, onOpenWeb)
-        UserTab.RESOURCE -> ResourcesTab(app, userId, includeNsfw, blurNsfw, header, onOpenWeb)
+        UserTab.RESOURCE -> ResourcesTab(
+            app = app,
+            userId = userId,
+            isSelf = isSelf,
+            includeNsfw = includeNsfw,
+            blurNsfw = blurNsfw,
+            header = header,
+            initialState = resourceInitialState,
+            onOpenResource = onOpenResource,
+        )
         UserTab.QUIZ -> QuizTab(app, userId, isSelf, header, onOpenWeb)
         UserTab.TOOLSET -> ToolsetTab(app, userId, header, onOpenWeb)
         UserTab.PLAYTIME -> PlaytimeTab(app, header, onOpenWeb)

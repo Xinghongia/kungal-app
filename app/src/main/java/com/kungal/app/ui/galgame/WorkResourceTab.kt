@@ -129,12 +129,15 @@ fun WorkResourceSection(
     onOpenUser: (String) -> Unit,
     onOpenLogin: () -> Unit,
     onOpenBrowser: (String) -> Unit,
+    onOpenResource: (String) -> Unit,
+    onOpenExpireResources: (String) -> Unit,
     onRefresh: () -> Unit,
     onLike: (GalgameResource) -> Unit,
     onReport: (GalgameResource) -> Unit,
     onMarkValid: (GalgameResource) -> Unit,
     onDelete: (GalgameResource) -> Unit,
 ) {
+    val currentUserId by app.currentUserId.collectAsState()
     var editing by remember { mutableStateOf<GalgameResource?>(null) }
     var creating by remember { mutableStateOf(false) }
     var downloading by remember { mutableStateOf<GalgameResource?>(null) }
@@ -180,6 +183,14 @@ fun WorkResourceSection(
                 }
             }
         }
+        if (currentUserId != null) {
+            TextButton(
+                onClick = { currentUserId?.let(onOpenExpireResources) },
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+            ) {
+                Text("批量更改已失效资源链接", style = MaterialTheme.typography.labelMedium)
+            }
+        }
 
         when {
             state.resourcesLoading && state.resources.isEmpty() -> LoadingBox()
@@ -216,6 +227,7 @@ fun WorkResourceSection(
                                 if (app.isLoggedIn) reporting = resource else onOpenLogin()
                             },
                             onOpenLogin = onOpenLogin,
+                            onOpenDetail = { onOpenResource(resource.id) },
                         )
                     }
                 }
@@ -228,7 +240,7 @@ fun WorkResourceSection(
         ResourceEditorSheet(
             app = app,
             workId = work.id,
-            resource = editing,
+            resourceId = editing?.id,
             onDismiss = {
                 creating = false
                 editing = null
@@ -320,6 +332,7 @@ private fun ResourceCard(
     onMarkValid: () -> Unit,
     onReport: () -> Unit,
     onOpenLogin: () -> Unit,
+    onOpenDetail: () -> Unit,
 ) {
     val note = remember(resource.content) { documentPlainText(resource.content).trim() }
     var noteExpanded by remember { mutableStateOf(false) }
@@ -482,6 +495,9 @@ private fun ResourceCard(
                         Text("报告失效", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
                     }
                 }
+                TextButton(onClick = onOpenDetail) {
+                    Text("详情", style = MaterialTheme.typography.labelMedium)
+                }
                 Button(
                     onClick = onDownload,
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
@@ -526,8 +542,7 @@ private fun LikeButton(
 }
 
 @Composable
-private fun ResourceExpiryStatusBox(status: String) {
-    val (icon, line1, line2) = when (status) {
+internal fun ResourceExpiryStatusBox(status: String) {    val (icon, line1, line2) = when (status) {
         "checking" -> Triple(Icons.Outlined.ErrorOutline, "正在检测链接有效性，请稍候…", "等待标记失效")
         "alive" -> Triple(Icons.Outlined.CheckCircle, "检测完成：链接仍然有效", "无需标记，链接仍可访问")
         "unchecked" -> Triple(Icons.Outlined.CheckCircle, "检测完成：未能核验链接", "已按失效处理，已通知发布者")
@@ -763,15 +778,15 @@ private data class ResourceFormState(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ResourceEditorSheet(
+fun ResourceEditorSheet(
     app: KungalApp,
     workId: String,
-    resource: GalgameResource?,
+    resourceId: String?,
     onDismiss: () -> Unit,
     onSaved: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val editing = resource != null
+    val editing = resourceId != null
     var loadingSource by remember { mutableStateOf(editing) }
     var source by remember { mutableStateOf<ResourceSource?>(null) }
     var loadError by remember { mutableStateOf<String?>(null) }
@@ -780,10 +795,10 @@ private fun ResourceEditorSheet(
     var picker by remember { mutableStateOf<String?>(null) }
     var sourceRetry by remember { mutableStateOf(0) }
 
-    LaunchedEffect(resource?.id, sourceRetry) {
-        if (resource == null) return@LaunchedEffect
+    LaunchedEffect(resourceId, sourceRetry) {
+        if (resourceId == null) return@LaunchedEffect
         loadingSource = true
-        runCatching { app.resourceApi.source(resource.id) }
+        runCatching { app.resourceApi.source(resourceId) }
             .onSuccess { src ->
                 source = src
                 val (amount, unit) = splitResourceSize(src.size)
@@ -970,10 +985,10 @@ private fun ResourceEditorSheet(
                         saving = true
                         scope.launch {
                             val result = runCatching {
-                                if (editing && resource != null) {
+                                if (editing && resourceId != null) {
                                     val patch = buildResourcePatch(form, source, links)
                                     if (patch.isEmpty()) return@runCatching null
-                                    app.resourceApi.patch(resource.id, patch)
+                                    app.resourceApi.patch(resourceId, patch)
                                 } else {
                                     app.resourceApi.create(
                                         workId = workId,

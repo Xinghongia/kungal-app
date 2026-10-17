@@ -161,11 +161,11 @@ class UserApi(private val client: KungalClient) {
         deserializer = PagedList.serializer(RatingSummary.serializer()),
     )
 
-    /** relation: published / liked；state: valid / expired。 */
+    /** relation: published / liked；state: valid / expired（null 表示不限，点赞列表用）。 */
     suspend fun resources(
         userId: String,
         relation: String = "published",
-        state: String = "valid",
+        state: String? = "valid",
         page: Int = 1,
         limit: Int = 50,
         includeNsfw: Boolean = false,

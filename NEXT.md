@@ -1,7 +1,7 @@
 ---
 handoff_schema: tavernweave/next/v1
 project_id: kungal-android-client
-status: bp03-u2-delivered
+status: bp03-u3-delivered
 updated: 2026-10-17
 ---
 
@@ -29,6 +29,16 @@ updated: 2026-10-17
 
 ## 最近证据
 
+- 2026-10-17 **BP-03 U3 资源详情与我的资源交付（版本 0.5.2）**：
+  - app：资源详情页（作品卡、资源面板、备注渲染、领取链接/复制、编辑/删除/
+    报告失效/标记有效、同作品推荐、`galgame_resource` 评论墙、404 迁移 LetMoe）；
+    用户资源 tab 增加标记有效/更改链接（过期 tab 保存后自动标记有效）、
+    点赞列表不再过滤 state；词条资源区新增批量失效入口；
+    资源列表、通知、用户资源条目全部改跳原生详情
+  - core：`UserApi.resources` 的 `state` 改为可空（点赞列表不传）
+  - 证据：core 153 + app 56 = **209 项单测全绿**；`assembleDebug` 通过；已装机
+    （0.5.2/code 10）；启动冒烟无崩溃；详见
+    `docs/devlog/2026-10-17-BP03-U3资源详情与我的资源.md`
 - 2026-10-17 **BP-03 U2 词条资源标签页与补丁交付（版本 0.5.1）**：
   - core：`ResourceApi` 增加领取下载、点赞、失效报告（幂等键）、源数据、发布
     （幂等键 + Location/ETag）、编辑、删除、moyu 补丁；新增资源下载/互动/报告/
@@ -206,8 +216,8 @@ updated: 2026-10-17
      `docs/devlog/2026-10-17-BP02-U4评分游玩记录与评论墙.md`、
      `docs/devlog/2026-10-17-BP02-U5编辑提案与修订历史.md`、
      `docs/devlog/2026-10-17-BP02-U6投稿与我的提交.md`
-3. **BP-03 资源与工具集域进行中**：U1 公共资源列表、U2 词条资源与补丁已交付；
-   下一批 U3 资源详情页与我的资源（`蓝图集/BP-03-资源与工具集域.md`）。
+3. **BP-03 资源与工具集域进行中**：U1 公共资源列表、U2 词条资源与补丁、U3 资源详情与
+   我的资源已交付；下一批 U4 工具集列表与详情（`蓝图集/BP-03-资源与工具集域.md`）。
    调研记录：`research/probe/2026-10-17/resource/RESEARCH.md`。
 4. BP-04 已全部交付（U1–U5，证据见上）；每批证据：core 单测 + app 单测 +
    assembleDebug + **主动装机**；不主动做 adb 点击/截图走查，由驾驶员点名后再测。

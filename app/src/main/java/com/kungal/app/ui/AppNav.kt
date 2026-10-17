@@ -67,6 +67,7 @@ import com.kungal.app.ui.galgame.MySubmissionsScreen
 import com.kungal.app.ui.galgame.ProposalDetailScreen
 import com.kungal.app.ui.galgame.RatingDetailScreen
 import com.kungal.app.ui.galgame.RatingListScreen
+import com.kungal.app.ui.galgame.ResourceDetailScreen
 import com.kungal.app.ui.galgame.ResourceListScreen
 import com.kungal.app.ui.galgame.ReviewQueueScreen
 import com.kungal.app.ui.galgame.SeriesDetailScreen
@@ -118,7 +119,7 @@ private object Routes {
     const val FOLLOWING = "following"
     const val SEARCH = "search"
     const val SUBSCRIPTIONS = "subscriptions"
-    const val USER = "user/{userId}"
+    const val USER = "user/{userId}?tab={tab}"
     const val FOLLOW_LIST = "user/{userId}/follow?followers={followers}"
     const val PROFILE_SETTINGS = "profile/settings"
     const val POINTS = "points"
@@ -136,6 +137,7 @@ private object Routes {
     const val GALGAME_RESOURCE_LIST = "galgame/resources"
     const val GALGAME_LIBRARY = "galgame/library"
     const val GALGAME_WORK = "galgame/work/{workId}"
+    const val GALGAME_RESOURCE = "galgame/resource/{resourceId}"
     const val GALGAME_EDIT = "galgame/edit/{workId}"
     const val GALGAME_HISTORY = "galgame/history/{workId}"
     const val GALGAME_PROPOSALS = "galgame/proposals"
@@ -173,6 +175,8 @@ private object Routes {
             "&userId=${Uri.encode(userId.orEmpty())}"
     fun ranking(tab: String) = "ranking?tab=$tab"
     fun galgameWork(id: String) = "galgame/work/$id"
+    fun galgameResource(id: String) = "galgame/resource/$id"
+    fun userResourceExpire(id: String) = "user/$id?tab=resource-expire"
     fun galgameEdit(id: String) = "galgame/edit/$id"
     fun galgameHistory(id: String) = "galgame/history/$id"
     fun galgameProposal(id: String) = "galgame/proposal/$id"
@@ -227,10 +231,7 @@ fun AppNav(app: KungalApp) {
         when {
             clean == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
             clean == "/galgame/resource" -> nav.navigate(Routes.GALGAME_RESOURCE_LIST)
-            // 资源详情原生页在 BP-03 U3 接入；接入前先把详情路径交给浏览器，
-            // 避免被下面的 /galgame/{id} 分支误当成作品页。
-            clean.startsWith("/galgame/resource/") && looksId ->
-                AndroidActions.openInBrowser(context, "https://www.kungal.com$path")
+            clean.startsWith("/galgame/resource/") && looksId -> nav.navigate(Routes.galgameResource(segment))
             clean == "/gallib" -> nav.navigate(Routes.GALGAME_LIBRARY)
             clean == "/galgame/official" -> nav.navigate(Routes.GALGAME_COMPANIES)
             clean == "/galgame/tag" -> nav.navigate(Routes.GALGAME_TAGS)
@@ -319,11 +320,14 @@ fun AppNav(app: KungalApp) {
         val topicId = clean.removePrefix("/topic/")
         val userId = clean.removePrefix("/user/")
         val workId = clean.removePrefix("/galgame/")
+        val resourceId = clean.removePrefix("/galgame/resource/")
         when {
             clean.startsWith("/topic/") && topicId.isNotEmpty() && topicId.all { it.isDigit() } ->
                 nav.navigate(Routes.topic(topicId))
             clean.startsWith("/user/") && userId.isNotEmpty() && userId.all { it.isDigit() } ->
                 nav.navigate(Routes.user(userId))
+            clean.startsWith("/galgame/resource/") && resourceId.isNotEmpty() && resourceId.all { it.isDigit() } ->
+                nav.navigate(Routes.galgameResource(resourceId))
             clean.startsWith("/galgame/") && workId.isNotEmpty() && workId.all { it.isDigit() } ->
                 nav.navigate(Routes.galgameWork(workId))
             else -> AndroidActions.openInBrowser(context, "https://www.kungal.com$path")
@@ -536,13 +540,17 @@ fun AppNav(app: KungalApp) {
             }
             composable(
                 route = Routes.USER,
-                arguments = listOf(navArgument("userId") { type = NavType.StringType }),
+                arguments = listOf(
+                    navArgument("userId") { type = NavType.StringType },
+                    navArgument("tab") { type = NavType.StringType; defaultValue = "" },
+                ),
             ) { entry ->
                 val userId = entry.arguments?.getString("userId").orEmpty()
                 UserProfileScreen(
                     app = app,
                     userId = userId,
                     nsfwDisplay = nsfwDisplay,
+                    initialTab = entry.arguments?.getString("tab").orEmpty(),
                     onBack = { nav.popBackStack() },
                     onOpenLogin = { nav.navigate(Routes.LOGIN) },
                     onOpenTopic = { id -> nav.navigate(Routes.topic(id)) },
@@ -551,6 +559,7 @@ fun AppNav(app: KungalApp) {
                         nav.navigate(Routes.followList(id, followers))
                     },
                     onOpenChat = { id -> nav.navigate(Routes.chat(userId = id)) },
+                    onOpenResource = { id -> nav.navigate(Routes.galgameResource(id)) },
                     onOpenWeb = ::openUrlOrPath,
                     onEditProfile = { nav.navigate(Routes.PROFILE_SETTINGS) },
                 )
@@ -682,11 +691,7 @@ fun AppNav(app: KungalApp) {
                     nsfwDisplay = nsfwDisplay,
                     onBack = { nav.popBackStack() },
                     onOpenResource = { resource ->
-                        // U3 换成原生资源详情页；当前与网页行为一致，先开网页。
-                        AndroidActions.openInBrowser(
-                            context,
-                            "https://www.kungal.com/galgame/resource/${resource.id}",
-                        )
+                        nav.navigate(Routes.galgameResource(resource.id))
                     },
                 )
             }
@@ -704,8 +709,27 @@ fun AppNav(app: KungalApp) {
                     onOpenLogin = { nav.navigate(Routes.LOGIN) },
                     onOpenWeb = ::openUrlOrPath,
                     onOpenBrowser = { url -> AndroidActions.openInBrowser(context, url) },
+                    onOpenResource = { id -> nav.navigate(Routes.galgameResource(id)) },
+                    onOpenExpireResources = { id -> nav.navigate(Routes.userResourceExpire(id)) },
                     onOpenEdit = { nav.navigate(Routes.galgameEdit(entry.arguments?.getString("workId").orEmpty())) },
                     onOpenHistory = { nav.navigate(Routes.galgameHistory(entry.arguments?.getString("workId").orEmpty())) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_RESOURCE,
+                arguments = listOf(navArgument("resourceId") { type = NavType.StringType }),
+            ) { entry ->
+                ResourceDetailScreen(
+                    app = app,
+                    resourceId = entry.arguments?.getString("resourceId").orEmpty(),
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                    onOpenResourceList = { nav.navigate(Routes.GALGAME_RESOURCE_LIST) },
+                    onOpenResource = { id -> nav.navigate(Routes.galgameResource(id)) },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
+                    onOpenLogin = { nav.navigate(Routes.LOGIN) },
+                    onOpenBrowser = { url -> AndroidActions.openInBrowser(context, url) },
                 )
             }
             composable(

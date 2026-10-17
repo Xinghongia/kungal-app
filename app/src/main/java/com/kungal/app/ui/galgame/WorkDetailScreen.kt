@@ -97,6 +97,8 @@ fun WorkDetailScreen(
     onOpenLogin: () -> Unit,
     onOpenWeb: (String) -> Unit,
     onOpenBrowser: (String) -> Unit,
+    onOpenResource: (String) -> Unit,
+    onOpenExpireResources: (String) -> Unit,
     onOpenEdit: () -> Unit,
     onOpenHistory: () -> Unit,
 ) {
@@ -220,6 +222,8 @@ fun WorkDetailScreen(
                                 onOpenUser = onOpenUser,
                                 onOpenLogin = onOpenLogin,
                                 onOpenBrowser = onOpenBrowser,
+                                onOpenResource = onOpenResource,
+                                onOpenExpireResources = onOpenExpireResources,
                                 onRefresh = { vm.refreshResources() },
                                 onLike = { resource ->
                                     if (app.isLoggedIn) vm.toggleResourceLike(resource) else onOpenLogin()

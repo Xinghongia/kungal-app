@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,8 +23,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kungal.app.KungalApp
+import com.kungal.app.ui.components.AppMessages
 import com.kungal.app.ui.components.Chip
 import com.kungal.app.ui.components.EmptyBox
 import com.kungal.app.ui.components.ErrorBox
@@ -42,6 +46,7 @@ import com.kungal.app.ui.components.NsfwCoverImage
 import com.kungal.app.ui.components.PageResult
 import com.kungal.app.ui.components.PagedListContent
 import com.kungal.app.ui.content.documentPlainText
+import com.kungal.app.ui.galgame.ResourceEditorSheet
 import com.kungal.app.ui.topic.friendlyError
 import com.kungal.app.ui.util.relativeTime
 import com.kungal.core.model.CollectionSummary
@@ -690,18 +695,55 @@ private fun RatingRow(rating: RatingSummary, blurNsfw: Boolean, onClick: () -> U
 fun ResourcesTab(
     app: KungalApp,
     userId: String,
+    isSelf: Boolean,
     includeNsfw: Boolean,
     blurNsfw: Boolean,
     header: @Composable () -> Unit,
-    onOpenWeb: (String) -> Unit,
+    initialState: String = "valid",
+    onOpenResource: (String) -> Unit,
 ) {
     var relation by remember(userId) { mutableStateOf("published") }
-    var state by remember(userId) { mutableStateOf("valid") }
+    var state by remember(userId, initialState) { mutableStateOf(initialState) }
+    var reload by remember(userId) { mutableIntStateOf(0) }
+    var editing by remember { mutableStateOf<GalgameResourceSummary?>(null) }
+    var confirmValid by remember { mutableStateOf<GalgameResourceSummary?>(null) }
+    var savingValid by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val canManage = isSelf && relation == "published"
+
+    fun refresh() {
+        reload += 1
+    }
+
+    fun markValid(resource: GalgameResourceSummary) {
+        if (savingValid) return
+        savingValid = true
+        scope.launch {
+            runCatching {
+                app.resourceApi.patch(
+                    resource.id,
+                    kotlinx.serialization.json.buildJsonObject {
+                        put("state", kotlinx.serialization.json.JsonPrimitive("valid"))
+                    },
+                )
+            }.onSuccess {
+                AppMessages.show("已重新标记为有效")
+                refresh()
+            }.onFailure { AppMessages.show(friendlyError(it)) }
+            savingValid = false
+        }
+    }
+
     PagedListContent(
-        key = listOf(userId, relation, state, includeNsfw),
+        key = listOf(userId, relation, state, includeNsfw, reload),
         load = { page, _ ->
             val result = app.userApi.resources(
-                userId, relation = relation, state = state, page = page, limit = 50, includeNsfw = includeNsfw,
+                userId,
+                relation = relation,
+                state = if (relation == "published") state else null,
+                page = page,
+                limit = 50,
+                includeNsfw = includeNsfw,
             )
             PageResult(result.items, ended = result.items.size < 50)
         },
@@ -714,56 +756,120 @@ fun ResourcesTab(
                 selected = relation,
                 onSelect = { relation = it },
             )
-            FilterChips(
-                options = listOf("valid" to "有效", "expired" to "过期"),
-                selected = state,
-                onSelect = { state = it },
-            )
+            if (relation == "published") {
+                FilterChips(
+                    options = listOf("valid" to "有效", "expired" to "过期"),
+                    selected = state,
+                    onSelect = { state = it },
+                )
+            }
         },
         keyOf = { it.id },
     ) { resource ->
         ResourceRow(
             resource = resource,
             blurNsfw = blurNsfw,
-            onClick = { onOpenWeb(siteUrl("/galgame/resource/${resource.id}")) },
+            onClick = { onOpenResource(resource.id) },
+            actions = if (canManage) {
+                {
+                    if (resource.state == "expired") {
+                        TextButton(
+                            onClick = { confirmValid = resource },
+                            enabled = !savingValid,
+                        ) { Text("标记为有效", style = MaterialTheme.typography.labelMedium) }
+                    }
+                    TextButton(onClick = { editing = resource }) {
+                        Text(
+                            if (state == "expired") "更改链接并标记为有效" else "更改链接",
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                }
+            } else {
+                null
+            },
+        )
+    }
+
+    editing?.let { resource ->
+        ResourceEditorSheet(
+            app = app,
+            workId = resource.work?.id.orEmpty(),
+            resourceId = resource.id,
+            onDismiss = { editing = null },
+            onSaved = {
+                editing = null
+                // 失效列表里改完链接按网页行为顺带标记有效
+                if (state == "expired") markValid(resource) else refresh()
+            },
+        )
+    }
+
+    confirmValid?.let { resource ->
+        AlertDialog(
+            onDismissRequest = { confirmValid = null },
+            title = { Text("重新标记有效") },
+            text = { Text("资源链接修复后，或核实过链接依然可用时，可以重新标记为有效。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmValid = null
+                    markValid(resource)
+                }) { Text("确认") }
+            },
+            dismissButton = { TextButton(onClick = { confirmValid = null }) { Text("取消") } },
         )
     }
 }
 
 @Composable
-private fun ResourceRow(resource: GalgameResourceSummary, blurNsfw: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        WorkCoverImage(
-            url = resource.work?.cover?.url,
-            isNsfw = resource.work?.isNsfw == true,
-            blurNsfw = blurNsfw,
-            modifier = Modifier.size(44.dp, 60.dp).clip(RoundedCornerShape(6.dp)),
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(
-                resource.title.ifBlank { resource.work?.displayName ?: "资源 #${resource.id}" },
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+private fun ResourceRow(
+    resource: GalgameResourceSummary,
+    blurNsfw: Boolean,
+    onClick: () -> Unit,
+    actions: (@Composable () -> Unit)? = null,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            WorkCoverImage(
+                url = resource.work?.cover?.url,
+                isNsfw = resource.work?.isNsfw == true,
+                blurNsfw = blurNsfw,
+                modifier = Modifier.size(44.dp, 60.dp).clip(RoundedCornerShape(6.dp)),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (resource.size.isNotBlank()) Chip(resource.size)
-                if (resource.state == "expired") Chip("已过期")
-                resource.resourcePlatforms.take(2).forEach { Chip(PlatformLabels[it] ?: it) }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    resource.title.ifBlank { resource.work?.displayName ?: "资源 #${resource.id}" },
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (resource.size.isNotBlank()) Chip(resource.size)
+                    if (resource.state == "expired") Chip("已过期")
+                    resource.resourcePlatforms.take(2).forEach { Chip(PlatformLabels[it] ?: it) }
+                }
+                Text(
+                    "下载 ${resource.downloadCount} · 点赞 ${resource.likeCount} · ${relativeTime(resource.createdAt)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            Text(
-                "下载 ${resource.downloadCount} · 点赞 ${resource.likeCount} · ${relativeTime(resource.createdAt)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        }
+        if (actions != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                actions()
+            }
         }
     }
 }

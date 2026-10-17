@@ -225,4 +225,14 @@ class UserApiTest {
         assertEquals("/api/v1/me/following/2", request.url.encodedPath)
         assertEquals("""{"notify":"feed"}""", request.body!!.utf8())
     }
+
+    @Test
+    fun `点赞资源列表不传 state`() = runBlocking {
+        server.enqueue(ok("""{"object":"list","items":[],"total":0,"total_relation":"eq"}"""))
+        api.resources("42", relation = "liked", state = null)
+        val url = server.takeRequest().url
+        assertEquals("/api/v1/users/42/galgame-resources", url.encodedPath)
+        assertEquals("liked", url.queryParameter("relation"))
+        assertNull(url.queryParameter("state"))
+    }
 }
