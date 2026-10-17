@@ -16,12 +16,14 @@ import com.kungal.core.api.GalgameEntityApi
 import com.kungal.core.api.ImageApi
 import com.kungal.core.api.MeApi
 import com.kungal.core.api.NotificationApi
+import com.kungal.core.api.RatingApi
 import com.kungal.core.api.RankingApi
 import com.kungal.core.api.SectionApi
 import com.kungal.core.api.ShopApi
 import com.kungal.core.api.SocialApi
 import com.kungal.core.api.TopicApi
 import com.kungal.core.api.UserApi
+import com.kungal.core.api.WallCommentApi
 import com.kungal.core.model.Account
 import com.kungal.core.session.Session
 import kotlinx.coroutines.CoroutineScope
@@ -80,6 +82,12 @@ class KungalApp : Application() {
         private set
 
     lateinit var entityApi: GalgameEntityApi
+        private set
+
+    lateinit var ratingApi: RatingApi
+        private set
+
+    lateinit var wallCommentApi: WallCommentApi
         private set
 
     lateinit var sessionStore: SessionStore
@@ -163,6 +171,8 @@ class KungalApp : Application() {
         galgameApi = GalgameApi(client)
         collectionApi = CollectionApi(client)
         entityApi = GalgameEntityApi(client)
+        ratingApi = RatingApi(client)
+        wallCommentApi = WallCommentApi(client)
         chatRealtime = ChatRealtimeHub(this)
         sessionStore = SessionStore(this)
         settingsStore = SettingsStore(this)

@@ -99,6 +99,7 @@ fun WorkDetailScreen(
     var nsfwRevealed by rememberSaveable { mutableStateOf(false) }
     var showCovers by remember { mutableStateOf(false) }
     var showCollectionPicker by remember { mutableStateOf(false) }
+    var showRecordDialog by remember { mutableStateOf(false) }
     var viewerUrl by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(nsfwDisplay.allowsNsfw) { vm.setIncludeNsfw(nsfwDisplay.allowsNsfw) }
@@ -158,7 +159,9 @@ fun WorkDetailScreen(
                             onFavorite = {
                                 if (app.isLoggedIn) showCollectionPicker = true else onOpenLogin()
                             },
-                            onRate = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}") },
+                            onRate = {
+                                if (app.isLoggedIn) showRecordDialog = true else onOpenLogin()
+                            },
                             onEdit = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}/edit") },
                             onHistory = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}/history") },
                             onOpenCovers = { showCovers = true },
@@ -208,12 +211,15 @@ fun WorkDetailScreen(
                                 onOpenWeb = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}?tab=patch") },
                             )
                         }
-                        WorkTab.COMMENT -> item(key = "comment-placeholder") {
-                            UpcomingPanel(
-                                icon = Icons.Outlined.Visibility,
-                                title = "评论区",
-                                description = "词条评论墙（发帖/回复/点赞/举报）将在 BP-02 U4 接入。",
-                                onOpenWeb = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}?tab=comment") },
+                        WorkTab.COMMENT -> item(key = "comment-wall") {
+                            WallCommentSection(
+                                app = app,
+                                subjectType = "galgame",
+                                subjectId = work.id,
+                                maxLength = 5000,
+                                title = "游戏评论",
+                                onOpenUser = onOpenUser,
+                                onOpenLogin = onOpenLogin,
                             )
                         }
                         WorkTab.QUIZ -> item(key = "quiz-placeholder") {
@@ -252,6 +258,16 @@ fun WorkDetailScreen(
             workId = work.id,
             onDismiss = { showCollectionPicker = false },
             onSaved = { favorited -> vm.applyFavoriteState(favorited) },
+        )
+    }
+
+    if (showRecordDialog && work != null) {
+        WorkRecordDialog(
+            app = app,
+            workId = work.id,
+            workName = workTitle(work),
+            onDismiss = { showRecordDialog = false },
+            onSaved = { vm.refresh() },
         )
     }
 

@@ -1,15 +1,20 @@
 package com.kungal.core.api
 
 import com.kungal.core.KungalClient
+import com.kungal.core.KungalJson
 import com.kungal.core.model.MyCoverVoteList
 import com.kungal.core.model.MyWorkList
+import com.kungal.core.model.PlaytimePutBody
 import com.kungal.core.model.TagBlock
 import com.kungal.core.model.TagBlockList
 import com.kungal.core.model.Work
 import com.kungal.core.model.WorkCollectedMonths
 import com.kungal.core.model.WorkCoverEngagement
 import com.kungal.core.model.WorkEngagement
+import com.kungal.core.model.WorkRecord
+import com.kungal.core.model.WorkRecordPutBody
 import com.kungal.core.model.WorkSummary
+import com.kungal.core.model.WorkViewerPlaytime
 import com.kungal.core.net.PagedList
 
 /**
@@ -162,6 +167,32 @@ class GalgameApi(private val client: KungalClient) {
         path = "/me/works",
         query = mapOf("work_ids" to workIds),
         deserializer = MyWorkList.serializer(),
+    )
+
+    /** 本人对一部作品的评分、游玩状态与本站游玩时长。 */
+    suspend fun workRecord(workId: String): WorkRecord = client.get(
+        path = "/works/$workId/record",
+        deserializer = WorkRecord.serializer(),
+    )
+
+    /** 整体替换记录：漏发的部分会被删除（评分/时长/状态）。 */
+    suspend fun putWorkRecord(workId: String, body: WorkRecordPutBody): WorkRecord =
+        client.putJson(
+            path = "/works/$workId/record",
+            body = KungalJson.encodeToString(WorkRecordPutBody.serializer(), body),
+            deserializer = WorkRecord.serializer(),
+        )
+
+    suspend fun putPlaytime(workId: String, body: PlaytimePutBody): WorkViewerPlaytime =
+        client.putJson(
+            path = "/works/$workId/playtime",
+            body = KungalJson.encodeToString(PlaytimePutBody.serializer(), body),
+            deserializer = WorkViewerPlaytime.serializer(),
+        )
+
+    suspend fun deletePlaytime(workId: String): WorkViewerPlaytime = client.delete(
+        path = "/works/$workId/playtime",
+        deserializer = WorkViewerPlaytime.serializer(),
     )
 
     /** 登录用户的标签屏蔽；列表请求据此追加 exclude_tag_ids / exclude_tag_trees。 */

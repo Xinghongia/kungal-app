@@ -60,6 +60,8 @@ import com.kungal.app.ui.galgame.EngineListScreen
 import com.kungal.app.ui.galgame.GalgameListMode
 import com.kungal.app.ui.galgame.GalgameListScreen
 import com.kungal.app.ui.galgame.MyCollectionsScreen
+import com.kungal.app.ui.galgame.RatingDetailScreen
+import com.kungal.app.ui.galgame.RatingListScreen
 import com.kungal.app.ui.galgame.SeriesDetailScreen
 import com.kungal.app.ui.galgame.SeriesListScreen
 import com.kungal.app.ui.galgame.StaffDetailScreen
@@ -139,6 +141,8 @@ private object Routes {
     const val GALGAME_TRAIT = "galgame/trait/{traitId}"
     const val COLLECTION = "collection/{collectionId}"
     const val MY_COLLECTIONS = "collections"
+    const val GALGAME_RATINGS = "galgame/ratings"
+    const val GALGAME_RATING = "galgame/rating/{ratingId}"
     const val SOON = "soon?title={title}&note={note}&path={path}"
 
     fun topic(id: String) = "topic/$id"
@@ -161,6 +165,7 @@ private object Routes {
     fun galgameCharacters(traitId: String? = null) =
         "galgame/characters?traitId=${Uri.encode(traitId.orEmpty())}"
     fun collection(id: String) = "collection/$id"
+    fun galgameRating(id: String) = "galgame/rating/$id"
     fun soon(entry: HubEntry): String =
         "soon?title=${Uri.encode(entry.label)}&note=${Uri.encode(entry.note)}&path=${Uri.encode(entry.webPath)}"
 }
@@ -206,6 +211,8 @@ fun AppNav(app: KungalApp) {
             clean == "/galgame/series" -> nav.navigate(Routes.GALGAME_SERIES_LIST)
             clean == "/galgame/character" -> nav.navigate(Routes.galgameCharacters())
             clean == "/galgame/trait" -> nav.navigate(Routes.GALGAME_TRAITS)
+            clean == "/galgame-rating" -> nav.navigate(Routes.GALGAME_RATINGS)
+            clean.startsWith("/galgame-rating/") && looksId -> nav.navigate(Routes.galgameRating(segment))
             clean.startsWith("/galgame/official/") && looksId -> nav.navigate(Routes.galgameCompany(segment))
             clean.startsWith("/galgame/tag/") && looksId -> nav.navigate(Routes.galgameTag(segment))
             clean.startsWith("/galgame/engine/") && looksId -> nav.navigate(Routes.galgameEngine(segment))
@@ -250,6 +257,7 @@ fun AppNav(app: KungalApp) {
             entry.webPath == "/galgame/character" -> nav.navigate(Routes.galgameCharacters())
             entry.webPath == "/galgame/engine" -> nav.navigate(Routes.GALGAME_ENGINES)
             entry.webPath == "/galgame/series" -> nav.navigate(Routes.GALGAME_SERIES_LIST)
+            entry.webPath == "/galgame-rating" -> nav.navigate(Routes.GALGAME_RATINGS)
             else -> nav.navigate(Routes.soon(entry))
         }
     }
@@ -797,6 +805,28 @@ fun AppNav(app: KungalApp) {
                     nsfwDisplay = nsfwDisplay,
                     onBack = { nav.popBackStack() },
                     onOpenCollection = { id -> nav.navigate(Routes.collection(id)) },
+                )
+            }
+            composable(Routes.GALGAME_RATINGS) {
+                RatingListScreen(
+                    app = app,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenRating = { id -> nav.navigate(Routes.galgameRating(id)) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_RATING,
+                arguments = listOf(navArgument("ratingId") { type = NavType.StringType }),
+            ) { entry ->
+                RatingDetailScreen(
+                    app = app,
+                    ratingId = entry.arguments?.getString("ratingId").orEmpty(),
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
+                    onOpenLogin = { nav.navigate(Routes.LOGIN) },
                 )
             }
             composable(

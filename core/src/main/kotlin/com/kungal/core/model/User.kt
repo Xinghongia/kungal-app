@@ -229,6 +229,7 @@ data class RatingSummary(
     @SerialName("created_at") val createdAt: String = "",
     @SerialName("updated_at") val updatedAt: String = "",
     @SerialName("work_summary") val workSummary: WorkSummary? = null,
+    val viewer: RatingViewer? = null,
 )
 
 /** 八维评分；没填的维度为 null。 */
