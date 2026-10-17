@@ -1,7 +1,7 @@
 ---
 handoff_schema: tavernweave/next/v1
 project_id: kungal-android-client
-status: p1-in-progress
+status: p3-in-progress
 updated: 2026-10-17
 ---
 
@@ -31,9 +31,10 @@ updated: 2026-10-17
 
 - 2026-10-17 设计确认门通过：驾驶员「不错不错」+ 定名 kungal-app
 - 2026-10-17 官方源码浅克隆在 `research/reference/kun-galgame-forum/`（gitignored，仅作契约参考）
-- 2026-10-17 **P1 构建通过**：`./gradlew :core:test :app:assembleDebug` → BUILD SUCCESSFUL in 1m 31s；
-  APK `app/build/outputs/apk/debug/app-debug.apk`（21.6MB debug）；权威文件验证器通过；
-  详见 `docs/devlog/2026-10-17-P1工程骨架.md`
+- 2026-10-17 **P1 关闭**：构建通过 + Git 授权（私有仓库 https://github.com/Xinghongia/kungal-app）+ 首提交 bb8ae3f
+- 2026-10-17 **P2 关闭**：core API 客户端/会话/模型 + **21 项单测全绿**；提交 62885b7 已推送
+  （真实样本夹具 `core/src/test/resources/fixtures/`；样本原件 `research/probe/2026-10-17/`）
+- 详见 `docs/devlog/2026-10-17-P1工程骨架.md` 与 `-P2接口与会话层.md`
 
 ## 开放风险
 
@@ -45,9 +46,9 @@ updated: 2026-10-17
 
 ## 下一道门
 
-1. **Git 授权门**：`git init` + GitHub 私有仓库（同 saku 私有做法）——需驾驶员单独授权
-2. P1 退出条件已满足（构建通过 + 验证器通过）；Git 授权后提交首个版本即关闭 P1
-3. 之后进入 P2（接口与会话层）
+1. **P3 进行中**：首版界面（话题列表/详情/登录页 WebView 会话捕获与持久化/正文树渲染/点赞或回复写通道）
+2. P3 退出条件 = 编译通过 + 静态产物 + 真机主路径；完成后进 **P4 驾驶员真机验收门**
+   （需要驾驶员的 kungal 账号亲手登录走查）
 
 ## 一句续接
 

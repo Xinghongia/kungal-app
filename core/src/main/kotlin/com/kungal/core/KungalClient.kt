@@ -30,6 +30,7 @@ class KungalClient(
         const val DEFAULT_BASE_URL = "https://www.kungal.com/api/v1"
         const val USER_AGENT = "kungal-app/0.1.0 (Android)"
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+        private val EMPTY_BODY = ByteArray(0).toRequestBody(null, 0, 0)
 
         fun defaultHttp(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
@@ -62,6 +63,30 @@ class KungalClient(
         val builder = request(url(path)).post(body.toRequestBody(JSON_MEDIA_TYPE))
         if (idempotencyKey != null) builder.header("Idempotency-Key", idempotencyKey)
         return execute(builder.build(), deserializer)
+    }
+
+    /** 无请求体的 PUT（如 PUT /topics/{id}/reactions/{reaction}）。 */
+    suspend fun <T> put(
+        path: String,
+        deserializer: DeserializationStrategy<T>,
+    ): T = execute(request(url(path)).put(EMPTY_BODY).build(), deserializer)
+
+    /** DELETE。 */
+    suspend fun <T> delete(
+        path: String,
+        deserializer: DeserializationStrategy<T>,
+    ): T = execute(request(url(path)).delete().build(), deserializer)
+
+    /** 无请求体、无响应体的 POST（如浏览计数 /topics/{id}/views，204）。 */
+    suspend fun postNoBody(path: String) {
+        withContext(Dispatchers.IO) {
+            val response = http.newCall(request(url(path)).post(EMPTY_BODY).build()).execute()
+            response.use { r ->
+                if (!r.isSuccessful) {
+                    throw toException(r.code, r.header("Retry-After"), r.body.string())
+                }
+            }
+        }
     }
 
     private fun request(url: HttpUrl): Request.Builder {

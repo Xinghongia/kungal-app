@@ -15,9 +15,9 @@ updated: 2026-10-17
 
 | 阶段 | 输出 | 允许修改范围 | 退出条件 | 证据 |
 |---|---|---|---|---|
-| P1 工程骨架 | Gradle 工程（:core + :app）、可安装 debug APK、AGENTS.md 与权威链文件 | 项目根、`core/`、`app/`、`.tavernweave/` | `assembleDebug` 成功；权威文件验证器通过 | automated |
-| P2 接口与会话层 | core：API 客户端（分页/错误映射/幂等键）、WebView 登录会话捕获与持久化、话题/回复读取模型 + 离线单测 | `core/` | 单测全绿（样本来自真实响应，脱敏） | automated |
-| P3 首版界面 | app：话题列表/详情/登录页/Markdown 渲染/点赞或回复写通道 | `app/`（+ core 必要写接口） | 编译通过；静态产物；真机主路径 | static-preview + real-host |
+| P1 工程骨架 ✅ | Gradle 工程（:core + :app）、可安装 debug APK、AGENTS.md 与权威链文件 | 项目根、`core/`、`app/`、`.tavernweave/` | `assembleDebug` 成功；权威文件验证器通过 | automated（BUILD SUCCESSFUL 2026-10-17；首提交 bb8ae3f） |
+| P2 接口与会话层 ✅ | core：API 客户端（分页/错误映射/幂等键）、会话模型、话题/回复/正文树读取模型 + 离线单测 | `core/` | 单测全绿（样本来自真实响应，脱敏） | automated（**21 项测试全绿** 2026-10-17，62885b7） |
+| P3 首版界面（进行中） | app：话题列表/详情/登录页（WebView 捕获会话 + 持久化）/**Markdown 树渲染**/点赞或回复写通道；会话接入 | `app/`（+ core 必要写接口） | 编译通过；静态产物；真机主路径 | static-preview + real-host |
 | P4 首版真机验收 | 驾驶员手机完整主路径体验 | 只许修复，不得扩范围 | 驾驶员亲手跑通并确认 | real-host + driver |
 
 P4 通过后 → 按领域蓝图候选（下方）逐个提取并交付；不得跳过 P4 直接开工。
