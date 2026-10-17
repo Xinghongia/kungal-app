@@ -3,6 +3,7 @@ package com.kungal.app.ui.topic
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -17,12 +18,19 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowDropDown
+import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
@@ -30,11 +38,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,16 +61,9 @@ import com.kungal.app.ui.components.ErrorBox
 import com.kungal.app.ui.components.KungalImage
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
+import com.kungal.app.ui.util.TopicLabels
 import com.kungal.app.ui.util.relativeTime
 import com.kungal.core.model.Topic
-
-/** 话题分类（与站点 TopicCategory 对齐；null = 全部） */
-private val categories = listOf(
-    null to "全部",
-    "galgame" to "Galgame",
-    "technique" to "技术交流",
-    "others" to "其它",
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,6 +78,8 @@ fun TopicListScreen(
     }
     val state by vm.state.collectAsState()
     val listState = rememberLazyListState()
+    var categoryExpanded by remember { mutableStateOf(false) }
+    var sortExpanded by remember { mutableStateOf(false) }
 
     // 触底加载：接近列表末尾时请求下一页
     LaunchedEffect(listState) {
@@ -83,11 +90,49 @@ fun TopicListScreen(
         }.collect { nearEnd -> if (nearEnd) vm.loadMore() }
     }
 
+    val categoryLabel = TopicLabels.filterOptions
+        .firstOrNull { it.first == state.category }?.second ?: "全部话题"
+    val sortLabel = TopicSortFields.firstOrNull { it.key == state.sortField }?.label ?: "更新时间"
+
     Scaffold(
         topBar = {
             KungalTopAppBar(
                 title = "话题",
                 subtitle = "鲲 Galgame 论坛的全部话题",
+                actions = {
+                    // 分类切换：右上角按钮 + 下拉
+                    androidx.compose.foundation.layout.Box {
+                        TextButton(onClick = { categoryExpanded = true }) {
+                            Text(categoryLabel, style = MaterialTheme.typography.labelLarge)
+                            Icon(Icons.Outlined.ArrowDropDown, contentDescription = "切换分类")
+                        }
+                        DropdownMenu(
+                            expanded = categoryExpanded,
+                            onDismissRequest = { categoryExpanded = false },
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        ) {
+                            TopicLabels.filterOptions.forEach { (value, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        categoryExpanded = false
+                                        vm.setCategory(value)
+                                    },
+                                    trailingIcon = {
+                                        if (state.category == value) {
+                                            Icon(
+                                                Icons.Outlined.Check,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
+                },
             )
         },
         floatingActionButton = {
@@ -104,29 +149,98 @@ fun TopicListScreen(
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             Column(Modifier.fillMaxSize()) {
+                // 子分类（版块）chip 行 + 排序控件
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    categories.forEach { (value, label) ->
-                        FilterChip(
-                            selected = state.category == value,
-                            onClick = { vm.setCategory(value) },
-                            label = { Text(label) },
+                    if (state.category != null) {
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            FilterChip(
+                                selected = state.section == null,
+                                onClick = { vm.setSection(null) },
+                                label = { Text("全部版块") },
+                            )
+                            state.sections.forEach { section ->
+                                FilterChip(
+                                    selected = state.section == section.section,
+                                    onClick = { vm.setSection(section.section) },
+                                    label = { Text(TopicLabels.section(section.section)) },
+                                )
+                            }
+                        }
+                    } else {
+                        Spacer(Modifier.weight(1f))
+                    }
+
+                    // 排序：字段下拉 + 升降序切换
+                    androidx.compose.foundation.layout.Box {
+                        TextButton(onClick = { sortExpanded = true }) {
+                            Icon(Icons.Outlined.Sort, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(sortLabel, style = MaterialTheme.typography.labelMedium)
+                        }
+                        DropdownMenu(
+                            expanded = sortExpanded,
+                            onDismissRequest = { sortExpanded = false },
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        ) {
+                            TopicSortFields.forEach { field ->
+                                DropdownMenuItem(
+                                    text = { Text(field.label) },
+                                    onClick = {
+                                        sortExpanded = false
+                                        vm.setSortField(field.key)
+                                    },
+                                    trailingIcon = {
+                                        if (state.sortField == field.key) {
+                                            Icon(
+                                                Icons.Outlined.Check,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    TextButton(
+                        onClick = { vm.setSortOrder(if (state.sortOrder == "desc") "asc" else "desc") },
+                    ) {
+                        Icon(
+                            if (state.sortOrder == "desc") Icons.Outlined.ArrowDownward else Icons.Outlined.ArrowUpward,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Text(
+                            if (state.sortOrder == "desc") "降序" else "升序",
+                            style = MaterialTheme.typography.labelMedium,
                         )
                     }
                 }
+
                 when {
                     state.items.isEmpty() && state.loading -> LoadingBox(Modifier.fillMaxSize())
                     state.items.isEmpty() && state.error != null ->
                         ErrorBox(state.error!!, onRetry = { vm.refresh() }, modifier = Modifier.fillMaxSize())
+                    state.items.isEmpty() -> Text(
+                        text = "该分类下暂无话题",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                    )
                     else -> LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 96.dp),
+                        contentPadding = PaddingValues(bottom = 96.dp),
                     ) {
                         items(state.items, key = { it.id }) { topic ->
                             TopicCard(topic = topic, onClick = { onOpenTopic(topic.id) })
@@ -175,9 +289,9 @@ private fun TopicCard(topic: Topic, onClick: () -> Unit) {
             )
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (topic.isNsfw) Chip("NSFW")
-                Chip(topic.category)
-                topic.sections.take(2).forEach { Chip(it) }
-                if (topic.miniApps.contains("lottery")) Chip("抽奖")
+                Chip(TopicLabels.category(topic.category))
+                topic.sections.take(2).forEach { Chip(TopicLabels.section(it)) }
+                if (topic.miniApps.contains("lottery")) Chip("抽奖话题")
                 if (topic.hasBestAnswer) Chip("已解决")
             }
             Row(verticalAlignment = Alignment.CenterVertically) {

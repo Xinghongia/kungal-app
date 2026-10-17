@@ -185,9 +185,9 @@ private fun TopicHeader(topic: Topic) {
         )
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             if (topic.isNsfw) Chip("NSFW")
-            Chip(topic.category)
-            topic.sections.forEach { Chip(it) }
-            if (topic.miniApps.contains("lottery")) Chip("抽奖")
+            Chip(com.kungal.app.ui.util.TopicLabels.category(topic.category))
+            topic.sections.forEach { Chip(com.kungal.app.ui.util.TopicLabels.section(it)) }
+            if (topic.miniApps.contains("lottery")) Chip("抽奖话题")
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             AvatarImage(url = topic.author.avatar?.url, modifier = Modifier.size(28.dp))

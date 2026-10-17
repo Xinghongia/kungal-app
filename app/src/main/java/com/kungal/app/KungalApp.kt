@@ -3,6 +3,7 @@ package com.kungal.app
 import android.app.Application
 import com.kungal.core.KungalClient
 import com.kungal.core.api.MeApi
+import com.kungal.core.api.SectionApi
 import com.kungal.core.api.TopicApi
 import com.kungal.core.session.Session
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +15,9 @@ class KungalApp : Application() {
         private set
 
     lateinit var topicApi: TopicApi
+        private set
+
+    lateinit var sectionApi: SectionApi
         private set
 
     lateinit var meApi: MeApi
@@ -35,6 +39,7 @@ class KungalApp : Application() {
         super.onCreate()
         client = KungalClient()
         topicApi = TopicApi(client)
+        sectionApi = SectionApi(client)
         meApi = MeApi(client)
         sessionStore = SessionStore(this)
         settingsStore = SettingsStore(this)

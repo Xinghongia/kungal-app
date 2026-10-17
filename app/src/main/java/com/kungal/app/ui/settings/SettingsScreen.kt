@@ -73,12 +73,14 @@ import com.kungal.app.ui.util.AndroidActions
 private const val SITE_URL = "https://www.kungal.com"
 private const val REPO_URL = "https://github.com/Xinghongia/kungal-app"
 
-/** 话题排序选项：与站点 TopicSort 对齐（空字符串 = 站点默认 bumped_desc） */
+/** 话题排序选项：与官方网站话题列表一致（字段见 apps/web/app/components/topic/Container.vue） */
 private val sortOptions = listOf(
-    "" to "最新回复",
-    "created_desc" to "最新发布",
-    "views_desc" to "最多浏览",
-    "likes_desc" to "最多点赞",
+    "" to "更新时间",
+    "created_desc" to "创建时间",
+    "views_1d_desc" to "日浏览数",
+    "views_7d_desc" to "周浏览数",
+    "views_30d_desc" to "月浏览数",
+    "views_desc" to "总浏览数",
 )
 
 /** 设置页：外观（主题模式/动态取色/预设主题/纯黑）、浏览（默认排序）、数据、关于 */
@@ -180,8 +182,10 @@ fun SettingsScreen(app: KungalApp, onBack: () -> Unit) {
             }
 
             SettingsGroup(title = "浏览") {
-                val currentSortLabel = sortOptions.firstOrNull { it.first == settings.defaultSort }?.second
-                    ?: "最新回复"
+                val currentSortLabel = sortOptions.firstOrNull {
+                    val expected = settings.defaultSort.ifBlank { "" }
+                    it.first == expected || (expected == "" && it.first == "")
+                }?.second ?: "更新时间"
                 item(
                     headline = "话题默认排序",
                     supporting = "打开话题列表时使用的排序方式",
