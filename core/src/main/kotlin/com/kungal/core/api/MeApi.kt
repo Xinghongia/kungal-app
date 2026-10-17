@@ -14,6 +14,7 @@ import com.kungal.core.model.ImageInfo
 import com.kungal.core.model.Me
 import com.kungal.core.model.MoemoepointEntry
 import com.kungal.core.model.NsfwDisplayResult
+import com.kungal.core.model.PermissionList
 import com.kungal.core.model.PrivacySettings
 import com.kungal.core.model.ProfileSettings
 import com.kungal.core.model.ProfileUpdate
@@ -59,6 +60,12 @@ class MeApi(private val client: KungalClient) {
     suspend fun me(): Me = client.get("/me", deserializer = Me.serializer())
 
     suspend fun account(): Account = client.get("/me/account", deserializer = Account.serializer())
+
+    /** 当前账号持有的权限键；只用于决定是否展示审阅入口，写操作仍由服务端复核。 */
+    suspend fun permissions(): PermissionList = client.get(
+        path = "/me/permissions",
+        deserializer = PermissionList.serializer(),
+    )
 
     /**
      * 修改成人向内容显示方式（hide / blur / show）。设置跟随 NextMoe 账号，

@@ -11,6 +11,7 @@ import com.kungal.app.ui.components.AvatarPool
 import com.kungal.core.KungalClient
 import com.kungal.core.api.ChatApi
 import com.kungal.core.api.CollectionApi
+import com.kungal.core.api.EditApi
 import com.kungal.core.api.GalgameApi
 import com.kungal.core.api.GalgameEntityApi
 import com.kungal.core.api.ImageApi
@@ -88,6 +89,9 @@ class KungalApp : Application() {
         private set
 
     lateinit var wallCommentApi: WallCommentApi
+        private set
+
+    lateinit var editApi: EditApi
         private set
 
     lateinit var sessionStore: SessionStore
@@ -173,6 +177,7 @@ class KungalApp : Application() {
         entityApi = GalgameEntityApi(client)
         ratingApi = RatingApi(client)
         wallCommentApi = WallCommentApi(client)
+        editApi = EditApi(client)
         chatRealtime = ChatRealtimeHub(this)
         sessionStore = SessionStore(this)
         settingsStore = SettingsStore(this)

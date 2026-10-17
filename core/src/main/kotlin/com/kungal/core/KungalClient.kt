@@ -1,5 +1,6 @@
 package com.kungal.core
 
+import com.kungal.core.net.ApiResponse
 import com.kungal.core.net.KungalApiException
 import com.kungal.core.net.Problem
 import com.kungal.core.session.SessionHolder
@@ -62,15 +63,32 @@ class KungalClient(
         deserializer: DeserializationStrategy<T>,
     ): T = execute(request(url(path, query)).get().build(), deserializer)
 
+    /** 同 [get]，但保留 ETag / Location 响应头（编辑提案并发控制用）。 */
+    suspend fun <T> getWithResponse(
+        path: String,
+        query: Map<String, Any?> = emptyMap(),
+        deserializer: DeserializationStrategy<T>,
+    ): ApiResponse<T> = executeWithResponse(request(url(path, query)).get().build(), deserializer)
+
     suspend fun <T> postJson(
         path: String,
         body: String,
         idempotencyKey: String? = null,
         deserializer: DeserializationStrategy<T>,
-    ): T {
+    ): T = postJsonWithResponse(path, body, idempotencyKey = idempotencyKey, deserializer = deserializer).body
+
+    /** 同 [postJson]，但保留 ETag / Location 响应头（修正提案用）。 */
+    suspend fun <T> postJsonWithResponse(
+        path: String,
+        body: String,
+        headers: Map<String, String> = emptyMap(),
+        idempotencyKey: String? = null,
+        deserializer: DeserializationStrategy<T>,
+    ): ApiResponse<T> {
         val builder = request(url(path)).post(body.toRequestBody(JSON_MEDIA_TYPE))
+        headers.forEach { (key, value) -> builder.header(key, value) }
         if (idempotencyKey != null) builder.header("Idempotency-Key", idempotencyKey)
-        return execute(builder.build(), deserializer)
+        return executeWithResponse(builder.build(), deserializer)
     }
 
     /** 无请求体的 PUT（如 PUT /topics/{id}/reactions/{reaction}）。 */
@@ -103,15 +121,25 @@ class KungalClient(
         }
     }
 
-    /** 带 JSON 请求体的 PATCH（如编辑话题/回复/评论）。 */
+    /** 带 JSON 请求体的 PATCH（如编辑话题/回复/评论）。headers 用于 If-Match 等。 */
     suspend fun <T> patchJson(
         path: String,
         body: String,
+        headers: Map<String, String> = emptyMap(),
         deserializer: DeserializationStrategy<T>,
-    ): T = execute(
-        request(url(path)).patch(body.toRequestBody(JSON_MEDIA_TYPE)).build(),
-        deserializer,
-    )
+    ): T = patchJsonWithResponse(path, body, headers, deserializer).body
+
+    /** 同 [patchJson]，但保留 ETag 响应头（审阅提案用）。 */
+    suspend fun <T> patchJsonWithResponse(
+        path: String,
+        body: String,
+        headers: Map<String, String> = emptyMap(),
+        deserializer: DeserializationStrategy<T>,
+    ): ApiResponse<T> {
+        val builder = request(url(path)).patch(body.toRequestBody(JSON_MEDIA_TYPE))
+        headers.forEach { (key, value) -> builder.header(key, value) }
+        return executeWithResponse(builder.build(), deserializer)
+    }
 
     /** multipart 上传（如 POST /images）。 */
     suspend fun <T> postMultipart(
@@ -250,25 +278,34 @@ class KungalClient(
     }
 
     private suspend fun <T> execute(request: Request, deserializer: DeserializationStrategy<T>): T =
-        withContext(Dispatchers.IO) {
-            val response = http.newCall(request).execute()
-            response.use { r ->
-                val bodyText = r.body.string()
-                if (!r.isSuccessful) {
-                    throw toException(r.code, r.header("Retry-After"), bodyText)
-                }
-                try {
-                    json.decodeFromString(deserializer, bodyText)
-                } catch (e: SerializationException) {
-                    throw KungalApiException(
-                        problem = null,
-                        httpStatus = r.code,
-                        message = "响应解析失败：${e.message}",
-                        cause = e,
-                    )
-                }
+        executeWithResponse(request, deserializer).body
+
+    private suspend fun <T> executeWithResponse(
+        request: Request,
+        deserializer: DeserializationStrategy<T>,
+    ): ApiResponse<T> = withContext(Dispatchers.IO) {
+        val response = http.newCall(request).execute()
+        response.use { r ->
+            val bodyText = r.body.string()
+            if (!r.isSuccessful) {
+                throw toException(r.code, r.header("Retry-After"), bodyText)
+            }
+            try {
+                ApiResponse(
+                    body = json.decodeFromString(deserializer, bodyText),
+                    etag = r.header("ETag"),
+                    location = r.header("Location"),
+                )
+            } catch (e: SerializationException) {
+                throw KungalApiException(
+                    problem = null,
+                    httpStatus = r.code,
+                    message = "响应解析失败：${e.message}",
+                    cause = e,
+                )
             }
         }
+    }
 
     private fun toException(status: Int, retryAfterHeader: String?, body: String): KungalApiException {
         val problem = runCatching { json.decodeFromString(Problem.serializer(), body) }.getOrNull()

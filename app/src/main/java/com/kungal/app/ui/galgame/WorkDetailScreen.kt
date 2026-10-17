@@ -90,6 +90,8 @@ fun WorkDetailScreen(
     onOpenLogin: () -> Unit,
     onOpenWeb: (String) -> Unit,
     onOpenBrowser: (String) -> Unit,
+    onOpenEdit: () -> Unit,
+    onOpenHistory: () -> Unit,
 ) {
     val vm: WorkDetailViewModel = viewModel(key = "work-detail-$workId") {
         WorkDetailViewModel(app, workId, nsfwDisplay.allowsNsfw)
@@ -162,8 +164,10 @@ fun WorkDetailScreen(
                             onRate = {
                                 if (app.isLoggedIn) showRecordDialog = true else onOpenLogin()
                             },
-                            onEdit = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}/edit") },
-                            onHistory = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}/history") },
+                            onEdit = {
+                                if (app.isLoggedIn) onOpenEdit() else onOpenLogin()
+                            },
+                            onHistory = onOpenHistory,
                             onOpenCovers = { showCovers = true },
                             onOpenCover = { url -> viewerUrl = url },
                             onOpenUrl = onOpenWeb,

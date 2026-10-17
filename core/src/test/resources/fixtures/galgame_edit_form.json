@@ -1,0 +1,150 @@
+{
+  "object": "edit_form",
+  "work_id": "229",
+  "field_values": {
+    "catalog.work.titles": [
+      {"lang": "ja", "title": "サンプル作品", "kind": 0},
+      {"lang": "zh-Hans", "title": "示例作品", "kind": 0, "latin": "Sample Work"},
+      {"lang": "", "title": "サンプル", "kind": 2}
+    ],
+    "catalog.work.titles.suppressed": ["title:1:ja:旧标题"],
+    "catalog.work.display_name": "示例作品",
+    "catalog.work.intros": [
+      {"lang": "zh-Hans", "intro": "这是一段示例简介。"}
+    ],
+    "catalog.work.olang": "ja",
+    "catalog.work.content_rating": 2,
+    "catalog.work.display_nsfw": true,
+    "catalog.work.series_ids": ["688"],
+    "catalog.work.tag_ids": ["1333", "42"],
+    "catalog.work.labels": [
+      {"label_id": 3187, "kind": 0}
+    ],
+    "catalog.work.engine_ids": ["58"],
+    "catalog.work.roster": [
+      {"character_id": 211108, "kind": 1, "spoiler": 0}
+    ],
+    "catalog.work.roster.suppressed": ["roster:999"],
+    "catalog.work.credits": [
+      {"role_id": 247, "credit_name_id": 95366}
+    ],
+    "catalog.work.credits.suppressed": ["credit:184:12345:0"],
+    "catalog.work.links": ["https://example.com/official"],
+    "catalog.work.covers": [
+      {"image_hash": "64f904b81dcf9c4a24e235466be8cdc3cd7eab31b91bfe29c5d6f1bdb95af4e3", "kind": "main", "portrait_pinned": true, "sexual": 0, "violence": 0}
+    ],
+    "catalog.work.screenshots": [
+      {"image_hash": "007339b4d5d2901f9cfe2c771994e1062e823be1ee97dc225839d51d49d6bf25", "caption": "场景一", "sexual": 0, "violence": 0}
+    ]
+  },
+  "fields": [
+    {"key": "catalog.work.titles", "field_type": "list", "diff_hint": "items", "is_deprecated": false, "max_suppressed": 50, "max_elements": 100, "vocabulary": "", "encoding": null, "base": 0, "is_nullable": false,
+      "element": {"element_type": "object", "members": [
+        {"key": "lang", "member_type": "text", "vocabulary": "", "base": 0, "is_nullable": true},
+        {"key": "title", "member_type": "text", "vocabulary": "", "base": 0, "is_nullable": false},
+        {"key": "kind", "member_type": "enum", "vocabulary": "title_kind", "base": 0, "is_nullable": false},
+        {"key": "latin", "member_type": "text", "vocabulary": "", "base": 0, "is_nullable": true}
+      ]}},
+    {"key": "catalog.work.titles.suppressed", "field_type": "list", "diff_hint": "items", "is_deprecated": false, "max_suppressed": 0, "max_elements": 50, "vocabulary": "", "encoding": null, "base": 0, "is_nullable": false,
+      "element": {"element_type": "text", "members": []}},
+    {"key": "catalog.work.display_name", "field_type": "text", "diff_hint": "inline", "is_deprecated": false, "max_suppressed": 0, "max_elements": 0, "vocabulary": "", "encoding": null, "base": 0, "is_nullable": false, "element": null},
+    {"key": "catalog.work.intros", "field_type": "list", "diff_hint": "lines", "is_deprecated": false, "max_suppressed": 0, "max_elements": 20, "vocabulary": "", "encoding": null, "base": 0, "is_nullable": false,
+      "element": {"element_type": "object", "members": [
+        {"key": "lang", "member_type": "text", "vocabulary": "", "base": 0, "is_nullable": false},
+        {"key": "intro", "member_type": "text", "vocabulary": "", "base": 0, "is_nullable": false}
+      ]}},
+    {"key": "catalog.work.olang", "field_type": "enum", "diff_hint": "inline", "is_deprecated": false, "max_suppressed": 0, "max_elements": 0, "vocabulary": "olang", "encoding": "token", "base": 0, "is_nullable": false, "element": null},
+    {"key": "catalog.work.content_rating", "field_type": "enum", "diff_hint": "inline", "is_deprecated": false, "max_suppressed": 0, "max_elements": 0, "vocabulary": "content_rating", "encoding": "int", "base": 0, "is_nullable": false, "element": null},
+    {"key": "catalog.work.display_nsfw", "field_type": "enum", "diff_hint": "inline", "is_deprecated": false, "max_suppressed": 0, "max_elements": 0, "vocabulary": "bool", "encoding": "token", "base": 0, "is_nullable": false, "element": null},
+    {"key": "catalog.work.series_ids", "field_type": "list", "diff_hint": "items", "is_deprecated": false, "max_suppressed": 0, "max_elements": 50, "vocabulary": "", "encoding": null, "base": 0, "is_nullable": false,
+      "element": {"element_type": "ref", "members": []}},
+    {"key": "catalog.work.tag_ids", "field_type": "list", "diff_hint": "items", "is_deprecated": false, "max_suppressed": 0, "max_elements": 500, "vocabulary": "", "encoding": null, "base": 0, "is_nullable": false,
+      "element": {"element_type": "ref", "members": []}},
+    {"key": "catalog.work.labels", "field_type": "list", "diff_hint": "items", "is_deprecated": false, "max_suppressed": 0, "max_elements": 100, "vocabulary": "", "encoding": null, "base": 0, "is_nullable": false,
+      "element": {"element_type": "object", "members": [
+        {"key": "label_id", "member_type": "ref", "vocabulary": "", "base": 0, "is_nullable": false},
+        {"key": "kind", "member_type": "enum", "vocabulary": "label_kind", "base": 0, "is_nullable": false}
+      ]}},
+    {"key": "catalog.work.engine_ids", "field_type": "list", "diff_hint": "items", "is_deprecated": false, "max_suppressed": 0, "max_elements": 50, "vocabulary": "", "encoding": null, "base": 0, "is_nullable": false,
+      "element": {"element_type": "ref", "members": []}},
+    {"key": "catalog.work.roster", "field_type": "list", "diff_hint": "items", "is_deprecated": false, "max_suppressed": 200, "max_elements": 1000, "vocabulary": "", "encoding": null, "base": 0, "is_nullable": false,
+      "element": {"element_type": "object", "members": [
+        {"key": "character_id", "member_type": "ref", "vocabulary": "", "base": 0, "is_nullable": false},
+        {"key": "kind", "member_type": "enum", "vocabulary": "roster_kind", "base": 0, "is_nullable": false},
+        {"key": "spoiler", "member_type": "enum", "vocabulary": "spoiler", "base": 0, "is_nullable": false}
+      ]}},
+    {"key": "catalog.work.roster.suppressed", "field_type": "list", "diff_hint": "items", "is_deprecated": false, "max_suppressed": 0, "max_elements": 200, "vocabulary": "", "encoding": null, "base": 0, "is_nullable": false,
+      "element": {"element_type": "text", "members": []}},
+    {"key": "catalog.work.credits", "field_type": "list", "diff_hint": "items", "is_deprecated": false, "max_suppressed": 200, "max_elements": 500, "vocabulary": "", "encoding": null, "base": 0, "is_nullable": false,
+      "element": {"element_type": "object", "members": [
+        {"key": "role_id", "member_type": "ref", "vocabulary": "", "base": 0, "is_nullable": false},
+        {"key": "credit_name_id", "member_type": "ref", "vocabulary": "", "base": 0, "is_nullable": false},
+        {"key": "character_id", "member_type": "ref", "vocabulary": "", "base": 0, "is_nullable": true},
+        {"key": "note", "member_type": "text", "vocabulary": "", "base": 0, "is_nullable": true}
+      ]}},
+    {"key": "catalog.work.credits.suppressed", "field_type": "list", "diff_hint": "items", "is_deprecated": false, "max_suppressed": 0, "max_elements": 200, "vocabulary": "", "encoding": null, "base": 0, "is_nullable": false,
+      "element": {"element_type": "text", "members": []}},
+    {"key": "catalog.work.links", "field_type": "list", "diff_hint": "items", "is_deprecated": false, "max_suppressed": 0, "max_elements": 50, "vocabulary": "", "encoding": null, "base": 0, "is_nullable": false,
+      "element": {"element_type": "text", "members": []}},
+    {"key": "catalog.work.covers", "field_type": "list", "diff_hint": "image", "is_deprecated": false, "max_suppressed": 0, "max_elements": 50, "vocabulary": "", "encoding": null, "base": 0, "is_nullable": false,
+      "element": {"element_type": "object", "members": [
+        {"key": "image_hash", "member_type": "imagehash", "vocabulary": "", "base": 0, "is_nullable": false},
+        {"key": "kind", "member_type": "text", "vocabulary": "", "base": 0, "is_nullable": true},
+        {"key": "portrait_pinned", "member_type": "bool", "vocabulary": "", "base": 0, "is_nullable": true},
+        {"key": "sexual", "member_type": "int", "vocabulary": "sexual", "base": 0, "is_nullable": false},
+        {"key": "violence", "member_type": "int", "vocabulary": "violence", "base": 0, "is_nullable": false}
+      ]}},
+    {"key": "catalog.work.screenshots", "field_type": "list", "diff_hint": "image", "is_deprecated": false, "max_suppressed": 0, "max_elements": 100, "vocabulary": "", "encoding": null, "base": 0, "is_nullable": false,
+      "element": {"element_type": "object", "members": [
+        {"key": "image_hash", "member_type": "imagehash", "vocabulary": "", "base": 0, "is_nullable": false},
+        {"key": "caption", "member_type": "text", "vocabulary": "", "base": 0, "is_nullable": true},
+        {"key": "sexual", "member_type": "int", "vocabulary": "sexual", "base": 0, "is_nullable": false},
+        {"key": "violence", "member_type": "int", "vocabulary": "violence", "base": 0, "is_nullable": false}
+      ]}}
+  ],
+  "vocabularies": [
+    {"object": "vocabulary", "vocabulary": "content_rating", "is_closed": true, "values": [
+      {"value": "all_ages", "display_name": "全年龄", "description": ""},
+      {"value": "sensitive", "display_name": "敏感", "description": ""},
+      {"value": "r18", "display_name": "R18", "description": "仅限成人"}
+    ]},
+    {"object": "vocabulary", "vocabulary": "olang", "is_closed": true, "values": [
+      {"value": "ja", "display_name": "日语", "description": ""},
+      {"value": "zh-Hans", "display_name": "简体中文", "description": ""},
+      {"value": "zh-Hant", "display_name": "繁体中文", "description": ""},
+      {"value": "en", "display_name": "英语", "description": ""}
+    ]},
+    {"object": "vocabulary", "vocabulary": "title_kind", "is_closed": true, "values": [
+      {"value": "official", "display_name": "官方名", "description": ""},
+      {"value": "alias", "display_name": "别名", "description": ""},
+      {"value": "abbreviation", "display_name": "缩写", "description": ""}
+    ]},
+    {"object": "vocabulary", "vocabulary": "label_kind", "is_closed": true, "values": [
+      {"value": "circle", "display_name": "同人社团", "description": ""},
+      {"value": "publisher", "display_name": "发行商", "description": ""},
+      {"value": "developer", "display_name": "开发商", "description": ""},
+      {"value": "brand", "display_name": "品牌", "description": ""}
+    ]},
+    {"object": "vocabulary", "vocabulary": "roster_kind", "is_closed": true, "values": [
+      {"value": "uncategorized", "display_name": "未分类", "description": ""},
+      {"value": "main", "display_name": "主角", "description": ""},
+      {"value": "secondary", "display_name": "配角", "description": ""},
+      {"value": "appears", "display_name": "出场", "description": ""}
+    ]},
+    {"object": "vocabulary", "vocabulary": "spoiler", "is_closed": true, "values": [
+      {"value": "none", "display_name": "无剧透", "description": ""},
+      {"value": "minor", "display_name": "轻微", "description": ""},
+      {"value": "major", "display_name": "严重", "description": ""}
+    ]},
+    {"object": "vocabulary", "vocabulary": "sexual", "is_closed": true, "values": [
+      {"value": "safe", "display_name": "无性内容", "description": ""},
+      {"value": "suggestive", "display_name": "性暗示", "description": ""},
+      {"value": "explicit", "display_name": "露骨", "description": ""}
+    ]},
+    {"object": "vocabulary", "vocabulary": "violence", "is_closed": true, "values": [
+      {"value": "tame", "display_name": "无暴力", "description": ""},
+      {"value": "violent", "display_name": "暴力", "description": ""},
+      {"value": "brutal", "display_name": "血腥", "description": ""}
+    ]}
+  ]
+}

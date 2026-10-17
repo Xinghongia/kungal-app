@@ -1,0 +1,39 @@
+{
+  "object": "edit_revert",
+  "proposal": {
+    "object": "edit_proposal",
+    "id": "1210",
+    "state": "merged",
+    "work_id": "229",
+    "work_summary": {
+      "object": "work",
+      "id": "229",
+      "display_name": "サンプル作品",
+      "localized": {"zh-Hans": {"value": "示例作品"}},
+      "cover": null,
+      "is_nsfw": false
+    },
+    "note": "回滚到版本 1",
+    "proposer": {"object": "user", "id": "64858", "name": "Sakurakouji", "avatar": null, "avatar_frame": null},
+    "decider": {"object": "user", "id": "64858", "name": "Sakurakouji", "avatar": null, "avatar_frame": null},
+    "base_revision_seq": 2,
+    "patch": {},
+    "effective_patch": {},
+    "amendments": [],
+    "created_at": "2026-10-05T08:00:00Z",
+    "updated_at": "2026-10-05T08:00:00Z",
+    "decided_at": "2026-10-05T08:00:00Z",
+    "viewer": {"is_proposer": true, "can_withdraw": false, "can_decide": false, "can_amend": false}
+  },
+  "revision": {
+    "object": "edit_revision",
+    "id": "4431",
+    "seq": 4,
+    "revision_action": "reverted",
+    "changed_fields": ["catalog.work.covers"],
+    "actor": {"object": "user", "id": "64858", "name": "Sakurakouji", "avatar": null, "avatar_frame": null},
+    "last_amender": null,
+    "proposal_id": "1210",
+    "created_at": "2026-10-05T08:00:00Z"
+  }
+}

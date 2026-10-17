@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Bookmarks
 import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Language
@@ -86,6 +87,7 @@ fun ProfileScreen(
     onOpenSubscriptions: () -> Unit,
     onOpenSelfProfile: () -> Unit,
     onOpenCollections: () -> Unit,
+    onOpenProposals: () -> Unit,
     onEditProfile: () -> Unit,
     onOpenPoints: () -> Unit,
     onOpenShop: () -> Unit,
@@ -199,6 +201,7 @@ fun ProfileScreen(
                     onOpenSubscriptions = onOpenSubscriptions,
                     onOpenSelfProfile = onOpenSelfProfile,
                     onOpenCollections = onOpenCollections,
+                    onOpenProposals = onOpenProposals,
                     onEditProfile = onEditProfile,
                     onOpenPoints = onOpenPoints,
                     onOpenShop = onOpenShop,
@@ -291,6 +294,7 @@ private fun LoggedInContent(
     onOpenSubscriptions: () -> Unit,
     onOpenSelfProfile: () -> Unit,
     onOpenCollections: () -> Unit,
+    onOpenProposals: () -> Unit,
     onEditProfile: () -> Unit,
     onOpenPoints: () -> Unit,
     onOpenShop: () -> Unit,
@@ -413,6 +417,13 @@ private fun LoggedInContent(
             supporting = "收藏夹管理与收藏的作品",
             icon = Icons.Outlined.Bookmarks,
             onClick = onOpenCollections,
+            trailing = { TrailingChevron() },
+        )
+        item(
+            headline = "我的资料编辑提案",
+            supporting = "你提交的 Galgame 资料修改与审核结果",
+            icon = Icons.Outlined.EditNote,
+            onClick = onOpenProposals,
             trailing = { TrailingChevron() },
         )
     }

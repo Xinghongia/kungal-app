@@ -57,11 +57,16 @@ import com.kungal.app.ui.galgame.CompanyDetailScreen
 import com.kungal.app.ui.galgame.CompanyListScreen
 import com.kungal.app.ui.galgame.EngineDetailScreen
 import com.kungal.app.ui.galgame.EngineListScreen
+import com.kungal.app.ui.galgame.GalgameEditScreen
+import com.kungal.app.ui.galgame.GalgameHistoryScreen
 import com.kungal.app.ui.galgame.GalgameListMode
 import com.kungal.app.ui.galgame.GalgameListScreen
 import com.kungal.app.ui.galgame.MyCollectionsScreen
+import com.kungal.app.ui.galgame.MyProposalsScreen
+import com.kungal.app.ui.galgame.ProposalDetailScreen
 import com.kungal.app.ui.galgame.RatingDetailScreen
 import com.kungal.app.ui.galgame.RatingListScreen
+import com.kungal.app.ui.galgame.ReviewQueueScreen
 import com.kungal.app.ui.galgame.SeriesDetailScreen
 import com.kungal.app.ui.galgame.SeriesListScreen
 import com.kungal.app.ui.galgame.StaffDetailScreen
@@ -126,6 +131,11 @@ private object Routes {
     const val GALGAME_WORKS = "galgame/works"
     const val GALGAME_LIBRARY = "galgame/library"
     const val GALGAME_WORK = "galgame/work/{workId}"
+    const val GALGAME_EDIT = "galgame/edit/{workId}"
+    const val GALGAME_HISTORY = "galgame/history/{workId}"
+    const val GALGAME_PROPOSALS = "galgame/proposals"
+    const val GALGAME_REVIEW = "galgame/review"
+    const val GALGAME_PROPOSAL = "galgame/proposal/{proposalId}"
     const val GALGAME_TAGS = "galgame/tags"
     const val GALGAME_TAG = "galgame/tag/{tagId}"
     const val GALGAME_COMPANIES = "galgame/companies"
@@ -155,6 +165,9 @@ private object Routes {
             "&userId=${Uri.encode(userId.orEmpty())}"
     fun ranking(tab: String) = "ranking?tab=$tab"
     fun galgameWork(id: String) = "galgame/work/$id"
+    fun galgameEdit(id: String) = "galgame/edit/$id"
+    fun galgameHistory(id: String) = "galgame/history/$id"
+    fun galgameProposal(id: String) = "galgame/proposal/$id"
     fun galgameTag(id: String) = "galgame/tag/$id"
     fun galgameCompany(id: String) = "galgame/company/$id"
     fun galgameEngine(id: String) = "galgame/engine/$id"
@@ -212,6 +225,16 @@ fun AppNav(app: KungalApp) {
             clean == "/galgame/character" -> nav.navigate(Routes.galgameCharacters())
             clean == "/galgame/trait" -> nav.navigate(Routes.GALGAME_TRAITS)
             clean == "/galgame-rating" -> nav.navigate(Routes.GALGAME_RATINGS)
+            clean == "/galgame-edit/mine" -> nav.navigate(Routes.GALGAME_PROPOSALS)
+            clean == "/galgame-edit/review" -> nav.navigate(Routes.GALGAME_REVIEW)
+            clean.startsWith("/galgame-edit/review/") && looksId ->
+                nav.navigate(Routes.galgameProposal(segment))
+            clean.startsWith("/galgame/") && clean.endsWith("/edit") &&
+                clean.removeSuffix("/edit").substringAfterLast('/').all(Char::isDigit) ->
+                nav.navigate(Routes.galgameEdit(clean.removeSuffix("/edit").substringAfterLast('/')))
+            clean.startsWith("/galgame/") && clean.endsWith("/history") &&
+                clean.removeSuffix("/history").substringAfterLast('/').all(Char::isDigit) ->
+                nav.navigate(Routes.galgameHistory(clean.removeSuffix("/history").substringAfterLast('/')))
             clean.startsWith("/galgame-rating/") && looksId -> nav.navigate(Routes.galgameRating(segment))
             clean.startsWith("/galgame/official/") && looksId -> nav.navigate(Routes.galgameCompany(segment))
             clean.startsWith("/galgame/tag/") && looksId -> nav.navigate(Routes.galgameTag(segment))
@@ -370,6 +393,7 @@ fun AppNav(app: KungalApp) {
                         currentUserId?.let { nav.navigate(Routes.user(it)) }
                     },
                     onOpenCollections = { nav.navigate(Routes.MY_COLLECTIONS) },
+                    onOpenProposals = { nav.navigate(Routes.GALGAME_PROPOSALS) },
                     onEditProfile = { nav.navigate(Routes.PROFILE_SETTINGS) },
                     onOpenPoints = { nav.navigate(Routes.POINTS) },
                     onOpenShop = { nav.navigate(Routes.SHOP) },
@@ -638,6 +662,72 @@ fun AppNav(app: KungalApp) {
                     onOpenLogin = { nav.navigate(Routes.LOGIN) },
                     onOpenWeb = ::openUrlOrPath,
                     onOpenBrowser = { url -> AndroidActions.openInBrowser(context, url) },
+                    onOpenEdit = { nav.navigate(Routes.galgameEdit(entry.arguments?.getString("workId").orEmpty())) },
+                    onOpenHistory = { nav.navigate(Routes.galgameHistory(entry.arguments?.getString("workId").orEmpty())) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_EDIT,
+                arguments = listOf(navArgument("workId") { type = NavType.StringType }),
+            ) { entry ->
+                GalgameEditScreen(
+                    app = app,
+                    workId = entry.arguments?.getString("workId").orEmpty(),
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenHistory = {
+                        nav.navigate(Routes.galgameHistory(entry.arguments?.getString("workId").orEmpty()))
+                    },
+                    onOpenMyProposals = { nav.navigate(Routes.GALGAME_PROPOSALS) },
+                    onOpenReviewQueue = { nav.navigate(Routes.GALGAME_REVIEW) },
+                    onOpenProposal = { id -> nav.navigate(Routes.galgameProposal(id)) },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                    onOpenLogin = { nav.navigate(Routes.LOGIN) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_HISTORY,
+                arguments = listOf(navArgument("workId") { type = NavType.StringType }),
+            ) { entry ->
+                GalgameHistoryScreen(
+                    app = app,
+                    workId = entry.arguments?.getString("workId").orEmpty(),
+                    onBack = { nav.popBackStack() },
+                    onOpenEdit = {
+                        val workId = entry.arguments?.getString("workId").orEmpty()
+                        if (app.isLoggedIn) nav.navigate(Routes.galgameEdit(workId)) else nav.navigate(Routes.LOGIN)
+                    },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                    onOpenProposal = { id -> nav.navigate(Routes.galgameProposal(id)) },
+                )
+            }
+            composable(Routes.GALGAME_PROPOSALS) {
+                MyProposalsScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                    onOpenProposal = { id -> nav.navigate(Routes.galgameProposal(id)) },
+                )
+            }
+            composable(Routes.GALGAME_REVIEW) {
+                ReviewQueueScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                    onOpenProposal = { id -> nav.navigate(Routes.galgameProposal(id)) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_PROPOSAL,
+                arguments = listOf(navArgument("proposalId") { type = NavType.StringType }),
+            ) { entry ->
+                ProposalDetailScreen(
+                    app = app,
+                    proposalId = entry.arguments?.getString("proposalId").orEmpty(),
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onDone = { nav.popBackStack() },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
                 )
             }
             composable(Routes.GALGAME_TAGS) {

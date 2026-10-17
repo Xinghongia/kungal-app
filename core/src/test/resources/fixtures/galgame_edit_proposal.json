@@ -1,0 +1,40 @@
+{
+  "object": "edit_proposal",
+  "id": "1207",
+  "state": "open",
+  "work_id": "229",
+  "work_summary": {
+    "object": "work",
+    "id": "229",
+    "display_name": "サンプル作品",
+    "localized": {"zh-Hans": {"value": "示例作品"}},
+    "cover": null,
+    "is_nsfw": false
+  },
+  "note": "补充系列信息",
+  "proposer": {"object": "user", "id": "64858", "name": "Sakurakouji", "avatar": null, "avatar_frame": null},
+  "decider": null,
+  "base_revision_seq": 2,
+  "patch": {
+    "catalog.work.series_ids": ["688"],
+    "catalog.work.display_name": "示例作品（改）"
+  },
+  "effective_patch": {
+    "catalog.work.series_ids": ["688", "700"],
+    "catalog.work.display_name": "示例作品（改）"
+  },
+  "amendments": [
+    {
+      "object": "edit_amendment",
+      "id": "55",
+      "seq": 1,
+      "amender": {"object": "user", "id": "10023", "name": "审核员", "avatar": null, "avatar_frame": null},
+      "note": "系列补全",
+      "created_at": "2026-10-02T10:00:00Z"
+    }
+  ],
+  "created_at": "2026-10-01T08:00:00Z",
+  "updated_at": "2026-10-02T10:00:00Z",
+  "decided_at": null,
+  "viewer": {"is_proposer": true, "can_withdraw": true, "can_decide": false, "can_amend": true}
+}

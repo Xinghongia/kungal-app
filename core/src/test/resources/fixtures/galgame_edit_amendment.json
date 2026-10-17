@@ -1,0 +1,8 @@
+{
+  "object": "edit_amendment",
+  "id": "56",
+  "seq": 2,
+  "amender": {"object": "user", "id": "10023", "name": "审核员", "avatar": null, "avatar_frame": null},
+  "note": "去掉多余字段",
+  "created_at": "2026-10-04T08:00:00Z"
+}
