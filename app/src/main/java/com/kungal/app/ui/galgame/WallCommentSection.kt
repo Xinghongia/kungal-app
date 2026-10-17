@@ -47,6 +47,7 @@ import com.kungal.app.ui.content.ContentDocumentView
 import com.kungal.app.ui.topic.friendlyError
 import com.kungal.app.ui.util.relativeTime
 import com.kungal.core.model.WallComment
+import com.kungal.core.model.WallCommentViewer
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -75,6 +76,7 @@ fun WallCommentSection(
     val scope = rememberCoroutineScope()
     var comments by remember(subjectType, subjectId) { mutableStateOf<List<WallComment>>(emptyList()) }
     var cursor by remember(subjectType, subjectId) { mutableStateOf<String?>(null) }
+    var likePending by remember(subjectType, subjectId) { mutableStateOf<Set<String>>(emptySet()) }
     var loading by remember(subjectType, subjectId) { mutableStateOf(true) }
     var loadingMore by remember(subjectType, subjectId) { mutableStateOf(false) }
     var error by remember(subjectType, subjectId) { mutableStateOf<String?>(null) }
@@ -218,16 +220,33 @@ fun WallCommentSection(
                         onLike = { comment ->
                             if (!app.isLoggedIn) {
                                 onOpenLogin()
-                            } else {
+                            } else if (comment.id !in likePending) {
+                                val next = comment.viewer?.hasLiked != true
+                                likePending = likePending + comment.id
+                                // 先切换本地状态，点击立即变色，不等接口
+                                comments = comments.map {
+                                    if (it.id != comment.id) it else it.copy(
+                                        likeCount = (it.likeCount + if (next) 1 else -1)
+                                            .coerceAtLeast(0),
+                                        viewer = (it.viewer ?: WallCommentViewer())
+                                            .copy(hasLiked = next),
+                                    )
+                                }
                                 scope.launch {
                                     runCatching {
-                                        app.wallCommentApi.setLike(
-                                            comment.id,
-                                            comment.viewer?.hasLiked != true,
-                                        )
+                                        app.wallCommentApi.setLike(comment.id, next)
                                     }.onSuccess { updated ->
-                                        comments = comments.map { if (it.id == updated.id) updated else it }
-                                    }.onFailure { AppMessages.show(friendlyError(it)) }
+                                        comments = comments.map {
+                                            if (it.id == updated.id) updated else it
+                                        }
+                                    }.onFailure {
+                                        // 失败回滚到点击前的样子
+                                        comments = comments.map {
+                                            if (it.id == comment.id) comment else it
+                                        }
+                                        AppMessages.show(friendlyError(it))
+                                    }
+                                    likePending = likePending - comment.id
                                 }
                             }
                         },

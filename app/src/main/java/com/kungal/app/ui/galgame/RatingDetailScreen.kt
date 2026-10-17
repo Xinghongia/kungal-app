@@ -61,6 +61,7 @@ import com.kungal.app.ui.topic.friendlyError
 import com.kungal.app.ui.util.fullDateTime
 import com.kungal.app.ui.util.relativeTime
 import com.kungal.core.model.RatingDetail
+import com.kungal.core.model.RatingViewer
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -270,6 +271,13 @@ fun RatingDetailScreen(
                                             } else if (!liking) {
                                                 val target = !liked
                                                 liking = true
+                                                // 先切换本地状态，点击立即变色，不等接口
+                                                rating = value.copy(
+                                                    likeCount = (value.likeCount +
+                                                        if (target) 1 else -1).coerceAtLeast(0),
+                                                    viewer = (value.viewer ?: RatingViewer())
+                                                        .copy(hasLiked = target),
+                                                )
                                                 scope.launch {
                                                     runCatching { app.ratingApi.setLike(ratingId, target) }
                                                         .onSuccess { result ->
@@ -277,12 +285,14 @@ fun RatingDetailScreen(
                                                                 likeCount = result.likeCount,
                                                                 // viewer 缺失时也要落成对象，否则图标不会切换
                                                                 viewer = (value.viewer
-                                                                    ?: com.kungal.core.model.RatingViewer())
+                                                                    ?: RatingViewer())
                                                                     .copy(hasLiked = result.viewer.hasLiked),
                                                             )
                                                             liking = false
                                                         }
                                                         .onFailure {
+                                                            // 失败回滚到点击前的样子
+                                                            rating = value
                                                             liking = false
                                                             AppMessages.show(friendlyError(it))
                                                         }
