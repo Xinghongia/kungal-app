@@ -1,6 +1,7 @@
 package com.kungal.app.ui.galgame
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -59,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -640,39 +643,132 @@ private fun YearRangeDialog(
     onApply: (String, String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var fromDraft by remember { mutableStateOf(from) }
-    var toDraft by remember { mutableStateOf(to) }
+    var startYear by remember { mutableStateOf(from.toIntOrNull()) }
+    var endYear by remember { mutableStateOf(to.toIntOrNull()) }
+    var pickingStart by remember { mutableStateOf(true) }
+    val currentYear = remember { java.time.LocalDate.now().year }
+    val years = remember(currentYear) { (currentYear + 1 downTo 1980).toList() }
+
+    fun pick(year: Int) {
+        if (pickingStart) {
+            if (startYear == year) {
+                startYear = null
+            } else {
+                startYear = year
+                pickingStart = false
+            }
+        } else {
+            if (endYear == year) {
+                endYear = null
+            } else {
+                endYear = year
+            }
+        }
+        // 起点晚于终点时交换，保持区间合法
+        val start = startYear
+        val end = endYear
+        if (start != null && end != null && start > end) {
+            startYear = end
+            endYear = start
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("发售年份") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = fromDraft,
-                    onValueChange = { fromDraft = it.filter(Char::isDigit).take(4) },
-                    label = { Text("起始年份 (YYYY)") },
-                    singleLine = true,
-                )
-                OutlinedTextField(
-                    value = toDraft,
-                    onValueChange = { toDraft = it.filter(Char::isDigit).take(4) },
-                    label = { Text("结束年份 (YYYY)") },
-                    singleLine = true,
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = pickingStart,
+                        onClick = { pickingStart = true },
+                        label = { Text("起始 ${startYear ?: "不限"}") },
+                    )
+                    FilterChip(
+                        selected = !pickingStart,
+                        onClick = { pickingStart = false },
+                        label = { Text("结束 ${endYear ?: "不限"}") },
+                    )
+                }
                 Text(
-                    "留空表示不限",
+                    "先点起始年份，再点结束年份；只选起始 = 至今，只选结束 = 以前",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 280.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    years.chunked(4).forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            row.forEach { year ->
+                                val isEndpoint = year == startYear || year == endYear
+                                val inRange = startYear != null && endYear != null &&
+                                    year in startYear!!..endYear!!
+                                YearCell(
+                                    year = year,
+                                    endpoint = isEndpoint,
+                                    inRange = inRange,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { pick(year) },
+                                )
+                            }
+                            repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onApply(fromDraft, toDraft) }) { Text("应用") }
+            TextButton(
+                onClick = { onApply(startYear?.toString() ?: "", endYear?.toString() ?: "") },
+            ) { Text("应用") }
         },
         dismissButton = {
-            TextButton(onClick = { onApply("", "") }) { Text("清空") }
+            TextButton(onClick = { onApply("", "") }) { Text("不限") }
         },
     )
+}
+
+@Composable
+private fun YearCell(
+    year: Int,
+    endpoint: Boolean,
+    inRange: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val container = when {
+        endpoint -> MaterialTheme.colorScheme.primary
+        inRange -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    val content = when {
+        endpoint -> MaterialTheme.colorScheme.onPrimary
+        inRange -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    Box(
+        modifier = modifier
+            .height(38.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(container)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            year.toString(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = content,
+            fontWeight = if (endpoint) FontWeight.SemiBold else FontWeight.Normal,
+        )
+    }
 }
 
 private val GalgameRatingFilterOptions = listOf(

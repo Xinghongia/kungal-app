@@ -1,7 +1,7 @@
 ---
 handoff_schema: tavernweave/next/v1
 project_id: kungal-android-client
-status: bp03-u6
+status: bp03-u6-fix1
 updated: 2026-10-17
 ---
 
@@ -29,6 +29,14 @@ updated: 2026-10-17
 
 ## 最近证据
 
+- 2026-10-17 **发售年份改为日历式选择（版本 0.5.6）**（驾驶员反馈手动输年份不直观）：
+  - 信息资料库「发售年份」弹窗改为 1980–明年的年份网格（4 列、可滚动），
+    先点起始再点结束，区间高亮，起止颠倒自动交换；只选一端按「至今/以前」处理；
+    「不限」直接清空应用
+  - 证据：core 164 + app 67 = **231 项单测全绿**；`assembleDebug` 通过；已装机
+    （0.5.6/code 14）；启动冒烟无崩溃；详见
+    `docs/devlog/2026-10-17-发售年份日历选择.md`
+  - 未验证：真机点击手感；资源资料库「更多筛选」的年份输入框未改
 - 2026-10-17 **BP-03 U6 工具集文件上传（版本 0.5.5）**：
   - core：`KungalClient.putExternalStream`（预签名 S3 流式 PUT、进度、可取消、
     返回 ETag、不带会话 cookie/App UA、关闭写超时）；3 项新单测
