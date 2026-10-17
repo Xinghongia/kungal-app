@@ -947,6 +947,7 @@ fun ToolsetTab(
     userId: String,
     header: @Composable () -> Unit,
     onOpenWeb: (String) -> Unit,
+    onOpenToolset: (String) -> Unit = onOpenWeb,
 ) {
     var relation by remember(userId) { mutableStateOf("authored") }
     PagedListContent(
@@ -966,7 +967,7 @@ fun ToolsetTab(
             )
         },
         keyOf = { it.id },
-    ) { toolset -> ToolsetRow(toolset, onClick = { onOpenWeb(siteUrl("/toolset/${toolset.id}")) }) }
+    ) { toolset -> ToolsetRow(toolset, onClick = { onOpenToolset(toolset.id) }) }
 }
 
 @Composable

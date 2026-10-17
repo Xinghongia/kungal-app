@@ -24,6 +24,7 @@ import com.kungal.core.api.SectionApi
 import com.kungal.core.api.ShopApi
 import com.kungal.core.api.SocialApi
 import com.kungal.core.api.SubmissionApi
+import com.kungal.core.api.ToolsetApi
 import com.kungal.core.api.TopicApi
 import com.kungal.core.api.UserApi
 import com.kungal.core.api.WallCommentApi
@@ -100,6 +101,9 @@ class KungalApp : Application() {
         private set
 
     lateinit var resourceApi: ResourceApi
+        private set
+
+    lateinit var toolsetApi: ToolsetApi
         private set
 
     lateinit var sessionStore: SessionStore
@@ -188,6 +192,7 @@ class KungalApp : Application() {
         editApi = EditApi(client)
         submissionApi = SubmissionApi(client)
         resourceApi = ResourceApi(client)
+        toolsetApi = ToolsetApi(client)
         chatRealtime = ChatRealtimeHub(this)
         sessionStore = SessionStore(this)
         settingsStore = SettingsStore(this)

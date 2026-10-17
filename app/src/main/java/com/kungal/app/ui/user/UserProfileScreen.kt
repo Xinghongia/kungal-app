@@ -95,6 +95,7 @@ fun UserProfileScreen(
     onOpenFollowList: (userId: String, followers: Boolean) -> Unit,
     onOpenChat: (userId: String) -> Unit,
     onOpenResource: (String) -> Unit,
+    onOpenToolset: (String) -> Unit,
     onOpenWeb: (String) -> Unit,
     onEditProfile: () -> Unit,
 ) {
@@ -247,6 +248,7 @@ fun UserProfileScreen(
                             onOpenTopic = onOpenTopic,
                             onOpenUser = onOpenUser,
                             onOpenResource = onOpenResource,
+                            onOpenToolset = onOpenToolset,
                             onOpenWeb = onOpenWeb,
                             resourceInitialState = resourceInitialState,
                         )
@@ -421,6 +423,7 @@ private fun UserTabContent(
     onOpenTopic: (String) -> Unit,
     onOpenUser: (String) -> Unit,
     onOpenResource: (String) -> Unit,
+    onOpenToolset: (String) -> Unit,
     onOpenWeb: (String) -> Unit,
     resourceInitialState: String = "valid",
 ) {
@@ -451,7 +454,13 @@ private fun UserTabContent(
             onOpenResource = onOpenResource,
         )
         UserTab.QUIZ -> QuizTab(app, userId, isSelf, header, onOpenWeb)
-        UserTab.TOOLSET -> ToolsetTab(app, userId, header, onOpenWeb)
+        UserTab.TOOLSET -> ToolsetTab(
+            app = app,
+            userId = userId,
+            header = header,
+            onOpenWeb = onOpenWeb,
+            onOpenToolset = onOpenToolset,
+        )
         UserTab.PLAYTIME -> PlaytimeTab(app, header, onOpenWeb)
         UserTab.ABOUT -> AboutTab(profile, userId, header)
     }

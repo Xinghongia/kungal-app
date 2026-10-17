@@ -286,7 +286,7 @@ data class QuizSummary(
     @SerialName("updated_at") val updatedAt: String = "",
 )
 
-/** 工具集摘要（/users/{id}/toolsets）。 */
+/** 工具集摘要（/users/{id}/toolsets 与 /toolsets）。 */
 @Serializable
 data class ToolsetSummary(
     @SerialName("object") val obj: String = "toolset",
@@ -298,6 +298,7 @@ data class ToolsetSummary(
     val platform: String = "windows",
     @SerialName("interface_language") val interfaceLanguage: String = "zh-cn",
     @SerialName("release_channel") val releaseChannel: String = "stable",
+    val author: UserRef = UserRef(),
     @SerialName("practicality_average") val practicalityAverage: Double? = null,
     @SerialName("practicality_count") val practicalityCount: Int = 0,
     @SerialName("download_count") val downloadCount: Int = 0,

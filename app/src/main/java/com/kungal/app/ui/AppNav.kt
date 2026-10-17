@@ -74,6 +74,9 @@ import com.kungal.app.ui.galgame.SeriesDetailScreen
 import com.kungal.app.ui.galgame.SeriesListScreen
 import com.kungal.app.ui.galgame.StaffDetailScreen
 import com.kungal.app.ui.galgame.SubmissionCreateScreen
+import com.kungal.app.ui.toolset.ToolsetDetailScreen
+import com.kungal.app.ui.toolset.ToolsetEditorScreen
+import com.kungal.app.ui.toolset.ToolsetListScreen
 import com.kungal.app.ui.galgame.SubmissionWizardScreen
 import com.kungal.app.ui.galgame.TagDetailScreen
 import com.kungal.app.ui.galgame.TagListScreen
@@ -163,6 +166,10 @@ private object Routes {
     const val MY_COLLECTIONS = "collections"
     const val GALGAME_RATINGS = "galgame/ratings"
     const val GALGAME_RATING = "galgame/rating/{ratingId}"
+    const val TOOLSET_LIST = "toolset/list"
+    const val TOOLSET_DETAIL = "toolset/detail/{toolsetId}"
+    const val TOOLSET_CREATE = "toolset/create"
+    const val TOOLSET_EDIT = "toolset/edit/{toolsetId}"
     const val SOON = "soon?title={title}&note={note}&path={path}"
 
     fun topic(id: String) = "topic/$id"
@@ -176,6 +183,8 @@ private object Routes {
     fun ranking(tab: String) = "ranking?tab=$tab"
     fun galgameWork(id: String) = "galgame/work/$id"
     fun galgameResource(id: String) = "galgame/resource/$id"
+    fun toolset(id: String) = "toolset/detail/$id"
+    fun toolsetEdit(id: String) = "toolset/edit/$id"
     fun userResourceExpire(id: String) = "user/$id?tab=resource-expire"
     fun galgameEdit(id: String) = "galgame/edit/$id"
     fun galgameHistory(id: String) = "galgame/history/$id"
@@ -231,6 +240,17 @@ fun AppNav(app: KungalApp) {
         when {
             clean == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
             clean == "/galgame/resource" -> nav.navigate(Routes.GALGAME_RESOURCE_LIST)
+            clean == "/toolset" -> nav.navigate(Routes.TOOLSET_LIST)
+            clean == "/edit/toolset/create" ->
+                if (app.isLoggedIn) nav.navigate(Routes.TOOLSET_CREATE) else nav.navigate(Routes.LOGIN)
+            clean.startsWith("/edit/toolset/rewrite") ->
+                if (app.isLoggedIn) {
+                    val id = clean.substringBefore('?').substringAfterLast('/')
+                    if (id.all(Char::isDigit) && id.isNotEmpty()) nav.navigate(Routes.toolsetEdit(id))
+                } else {
+                    nav.navigate(Routes.LOGIN)
+                }
+            clean.startsWith("/toolset/") && looksId -> nav.navigate(Routes.toolset(segment))
             clean.startsWith("/galgame/resource/") && looksId -> nav.navigate(Routes.galgameResource(segment))
             clean == "/gallib" -> nav.navigate(Routes.GALGAME_LIBRARY)
             clean == "/galgame/official" -> nav.navigate(Routes.GALGAME_COMPANIES)
@@ -300,6 +320,9 @@ fun AppNav(app: KungalApp) {
             rankingTab != null -> nav.navigate(Routes.ranking(rankingTab))
             entry.webPath == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
             entry.webPath == "/galgame/resource" -> nav.navigate(Routes.GALGAME_RESOURCE_LIST)
+            entry.webPath == "/toolset" -> nav.navigate(Routes.TOOLSET_LIST)
+            entry.webPath == "/edit/toolset/create" ->
+                if (app.isLoggedIn) nav.navigate(Routes.TOOLSET_CREATE) else nav.navigate(Routes.LOGIN)
             entry.webPath == "/gallib" -> nav.navigate(Routes.GALGAME_LIBRARY)
             entry.webPath == "/galgame/official" -> nav.navigate(Routes.GALGAME_COMPANIES)
             entry.webPath == "/galgame/tag" -> nav.navigate(Routes.GALGAME_TAGS)
@@ -321,6 +344,7 @@ fun AppNav(app: KungalApp) {
         val userId = clean.removePrefix("/user/")
         val workId = clean.removePrefix("/galgame/")
         val resourceId = clean.removePrefix("/galgame/resource/")
+        val toolsetId = clean.removePrefix("/toolset/")
         when {
             clean.startsWith("/topic/") && topicId.isNotEmpty() && topicId.all { it.isDigit() } ->
                 nav.navigate(Routes.topic(topicId))
@@ -328,6 +352,8 @@ fun AppNav(app: KungalApp) {
                 nav.navigate(Routes.user(userId))
             clean.startsWith("/galgame/resource/") && resourceId.isNotEmpty() && resourceId.all { it.isDigit() } ->
                 nav.navigate(Routes.galgameResource(resourceId))
+            clean.startsWith("/toolset/") && toolsetId.isNotEmpty() && toolsetId.all { it.isDigit() } ->
+                nav.navigate(Routes.toolset(toolsetId))
             clean.startsWith("/galgame/") && workId.isNotEmpty() && workId.all { it.isDigit() } ->
                 nav.navigate(Routes.galgameWork(workId))
             else -> AndroidActions.openInBrowser(context, "https://www.kungal.com$path")
@@ -560,6 +586,7 @@ fun AppNav(app: KungalApp) {
                     },
                     onOpenChat = { id -> nav.navigate(Routes.chat(userId = id)) },
                     onOpenResource = { id -> nav.navigate(Routes.galgameResource(id)) },
+                    onOpenToolset = { id -> nav.navigate(Routes.toolset(id)) },
                     onOpenWeb = ::openUrlOrPath,
                     onEditProfile = { nav.navigate(Routes.PROFILE_SETTINGS) },
                 )
@@ -692,6 +719,56 @@ fun AppNav(app: KungalApp) {
                     onBack = { nav.popBackStack() },
                     onOpenResource = { resource ->
                         nav.navigate(Routes.galgameResource(resource.id))
+                    },
+                )
+            }
+            composable(Routes.TOOLSET_LIST) {
+                ToolsetListScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenToolset = { id -> nav.navigate(Routes.toolset(id)) },
+                    onCreate = { nav.navigate(Routes.TOOLSET_CREATE) },
+                    onOpenLogin = { nav.navigate(Routes.LOGIN) },
+                )
+            }
+            composable(
+                route = Routes.TOOLSET_DETAIL,
+                arguments = listOf(navArgument("toolsetId") { type = NavType.StringType }),
+            ) { entry ->
+                ToolsetDetailScreen(
+                    app = app,
+                    toolsetId = entry.arguments?.getString("toolsetId").orEmpty(),
+                    onBack = { nav.popBackStack() },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
+                    onOpenLogin = { nav.navigate(Routes.LOGIN) },
+                    onOpenBrowser = { url -> AndroidActions.openInBrowser(context, url) },
+                    onEditToolset = { id -> nav.navigate(Routes.toolsetEdit(id)) },
+                    onDeleted = { nav.popBackStack() },
+                    onRequireLoginThenUpload = { nav.navigate(Routes.LOGIN) },
+                )
+            }
+            composable(Routes.TOOLSET_CREATE) {
+                ToolsetEditorScreen(
+                    app = app,
+                    toolsetId = null,
+                    onBack = { nav.popBackStack() },
+                    onSaved = { id ->
+                        nav.popBackStack()
+                        nav.navigate(Routes.toolset(id))
+                    },
+                )
+            }
+            composable(
+                route = Routes.TOOLSET_EDIT,
+                arguments = listOf(navArgument("toolsetId") { type = NavType.StringType }),
+            ) { entry ->
+                ToolsetEditorScreen(
+                    app = app,
+                    toolsetId = entry.arguments?.getString("toolsetId").orEmpty(),
+                    onBack = { nav.popBackStack() },
+                    onSaved = { id ->
+                        nav.popBackStack()
+                        nav.navigate(Routes.toolset(id))
                     },
                 )
             }
