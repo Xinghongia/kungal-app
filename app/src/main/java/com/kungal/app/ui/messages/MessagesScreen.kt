@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Timeline
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +43,7 @@ import com.kungal.app.ui.util.AndroidActions
 fun MessagesScreen(
     app: KungalApp,
     onOpenLogin: () -> Unit,
+    onOpenFollowing: () -> Unit,
 ) {
     val session by app.session.collectAsState()
     val context = LocalContext.current
@@ -117,6 +119,14 @@ fun MessagesScreen(
                             )
                         }
                     }
+                }
+                SettingsGroup(title = "动态") {
+                    item(
+                        headline = "关注动态",
+                        supporting = "你关注的人发布、回复、评论与评分",
+                        icon = Icons.Outlined.Timeline,
+                        onClick = onOpenFollowing,
+                    )
                 }
                 Button(
                     onClick = { AndroidActions.openInBrowser(context, "https://www.kungal.com/message") },

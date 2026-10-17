@@ -1,8 +1,11 @@
 package com.kungal.app.ui.topic
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,16 +20,26 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Bookmark
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.outlined.Whatshot
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -38,6 +51,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +63,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -63,6 +80,7 @@ import com.kungal.app.ui.content.ContentDocumentView
 import com.kungal.app.ui.util.relativeTime
 import com.kungal.core.model.Reply
 import com.kungal.core.model.Topic
+import com.kungal.core.model.TopicViewer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,6 +90,7 @@ fun TopicDetailScreen(
     nsfwDisplay: NsfwDisplayMode,
     onBack: () -> Unit,
     onRequireLogin: () -> Unit,
+    onEditTopic: (String) -> Unit,
 ) {
     val vm: TopicDetailViewModel = viewModel(key = "topic-$topicId") { TopicDetailViewModel(app, topicId) }
     val state by vm.state.collectAsState()
@@ -79,12 +98,20 @@ fun TopicDetailScreen(
     val snackbar = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
     var replyText by remember { mutableStateOf("") }
-    // 「隐藏」模式下直接打开 NSFW 话题时，先显示门禁（与网页一致）
+    // 底部回复框默认收起，点击「写回复」或引用回复时才展开
+    var composerOpen by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
+    var historyTarget by remember { mutableStateOf<String?>(null) } // "topic" 或 reply id
+    var showSubscribe by remember { mutableStateOf(false) }
+    var showUpvote by remember { mutableStateOf(false) }
+    var hideConfirm by remember { mutableStateOf(false) }
+    var deleteReplyTarget by remember { mutableStateOf<String?>(null) }
+    var deleteCommentTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
     var nsfwRevealed by remember(topicId) { mutableStateOf(false) }
+
     val topic = state.topic
-    val nsfwGated = topic?.isNsfw == true &&
-        nsfwDisplay == NsfwDisplayMode.HIDE &&
-        !nsfwRevealed
+    val nsfwGated = topic?.isNsfw == true && nsfwDisplay == NsfwDisplayMode.HIDE && !nsfwRevealed
+    val loggedIn = session != null
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -102,6 +129,68 @@ fun TopicDetailScreen(
         }.collect { nearEnd -> if (nearEnd) vm.loadReplies() }
     }
 
+    // ---------- 弹窗 ----------
+    if (historyTarget != null) {
+        val target = historyTarget!!
+        ReactionHistoryDialog(
+            load = {
+                if (target == "topic") app.topicApi.topicReactionHistory(topicId).items
+                else app.topicApi.replyReactionHistory(target).items
+            },
+            onDismiss = { historyTarget = null },
+        )
+    }
+    if (showSubscribe) {
+        SubscriptionDialog(
+            current = state.subscription?.notificationLevel ?: "normal",
+            onSelect = {
+                showSubscribe = false
+                vm.setSubscription(it)
+            },
+            onDismiss = { showSubscribe = false },
+        )
+    }
+    if (showUpvote) {
+        UpvoteDialog(
+            onConfirm = { note ->
+                showUpvote = false
+                vm.upvote(note) {}
+            },
+            onDismiss = { showUpvote = false },
+        )
+    }
+    if (hideConfirm) {
+        AlertDialog(
+            onDismissRequest = { hideConfirm = false },
+            title = { Text("隐藏话题") },
+            text = { Text("隐藏后话题会从列表与搜索中消失，你自己仍可通过链接访问。确定隐藏吗？") },
+            confirmButton = {
+                TextButton(onClick = { hideConfirm = false; vm.setHidden(true) }) { Text("隐藏") }
+            },
+            dismissButton = { TextButton(onClick = { hideConfirm = false }) { Text("取消") } },
+        )
+    }
+    state.editingReply?.let { target ->
+        EditDialog(
+            title = "编辑回复",
+            value = target.text,
+            saving = state.replySaving,
+            onChange = vm::updateEditingReply,
+            onConfirm = vm::submitEditReply,
+            onDismiss = vm::cancelEditReply,
+        )
+    }
+    state.editingComment?.let { target ->
+        EditDialog(
+            title = "编辑评论",
+            value = target.text,
+            saving = state.commentSaving,
+            onChange = vm::updateEditingComment,
+            onConfirm = vm::submitEditComment,
+            onDismiss = vm::cancelEditComment,
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -111,21 +200,61 @@ fun TopicDetailScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
                 },
+                actions = {
+                    if (topic?.viewer?.canEdit == true) {
+                        IconButton(onClick = { onEditTopic(topicId) }) {
+                            Icon(Icons.Outlined.Edit, contentDescription = "编辑话题")
+                        }
+                    }
+                    Box {
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(Icons.Outlined.MoreVert, contentDescription = "更多")
+                        }
+                        DropdownMenu(
+                            expanded = menuOpen,
+                            onDismissRequest = { menuOpen = false },
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        ) {
+                            if (topic != null) {
+                                DropdownMenuItem(
+                                    text = { Text("反应历史") },
+                                    onClick = { menuOpen = false; historyTarget = "topic" },
+                                )
+                            }
+                            if (topic?.viewer?.canHide == true) {
+                                DropdownMenuItem(
+                                    text = { Text("隐藏话题") },
+                                    onClick = { menuOpen = false; hideConfirm = true },
+                                )
+                            }
+                            if (topic?.viewer?.canUnhide == true) {
+                                DropdownMenuItem(
+                                    text = { Text("恢复话题") },
+                                    onClick = { menuOpen = false; vm.setHidden(false) },
+                                )
+                            }
+                        }
+                    }
+                },
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             if (!nsfwGated) {
                 ReplyComposer(
+                    expanded = composerOpen,
+                    onExpandedChange = { composerOpen = it },
                     value = replyText,
                     onValueChange = { replyText = it },
                     sending = state.replySending,
                     onSubmit = {
-                        if (session == null) {
+                        if (!loggedIn) {
                             onRequireLogin()
+                            false
                         } else {
                             vm.sendReply(replyText)
                             replyText = ""
+                            true
                         }
                     },
                 )
@@ -155,24 +284,124 @@ fun TopicDetailScreen(
                     )
                 }
                 item {
-                    ReactionsRow(
-                        topic = topic,
-                        busy = state.likeBusy,
-                        onLike = {
-                            if (session == null) onRequireLogin() else vm.toggleLike()
+                    ReactionBar(
+                        reactions = topic.reactions,
+                        busy = state.reactionBusy,
+                        onToggle = {
+                            if (!loggedIn) onRequireLogin() else vm.toggleReaction(it)
                         },
+                        onShowHistory = { historyTarget = "topic" },
+                        modifier = Modifier.padding(horizontal = 8.dp),
                     )
                 }
                 item {
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                    Text(
-                        text = "回复（${topic.replyCount}）",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    TopicActionBar(
+                        topic = topic,
+                        subscriptionLevel = state.subscription?.notificationLevel ?: "normal",
+                        busy = state.actionBusy,
+                        loggedIn = loggedIn,
+                        onFavorite = { if (!loggedIn) onRequireLogin() else vm.toggleFavorite() },
+                        onSubscribe = { if (!loggedIn) onRequireLogin() else showSubscribe = true },
+                        onUpvote = { if (!loggedIn) onRequireLogin() else showUpvote = true },
                     )
                 }
-                items(state.replies, key = { it.id }) { reply -> ReplyCard(reply) }
+                if (state.polls.isNotEmpty()) {
+                    item {
+                        Text(
+                            "投票",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
+                    items(state.polls, key = { "poll-${it.id}" }) { poll ->
+                        PollCard(
+                            poll = poll,
+                            onVote = { ids ->
+                                if (!loggedIn) onRequireLogin() else vm.votePoll(poll.id, ids)
+                            },
+                            onClearVote = { vm.clearPollVote(poll.id) },
+                            onShowVotes = { app.topicApi.pollVotes(poll.id).items },
+                        )
+                    }
+                }
+                if (state.lotteries.isNotEmpty()) {
+                    item {
+                        Text(
+                            "抽奖",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
+                    items(state.lotteries, key = { "lottery-${it.id}" }) { lottery ->
+                        LotteryCard(
+                            lottery = lottery,
+                            onEnter = { if (!loggedIn) onRequireLogin() else vm.enterLottery(lottery.id) },
+                            onWithdraw = { vm.withdrawLottery(lottery.id) },
+                            loadEntries = { app.topicApi.lotteryEntries(lottery.id).items },
+                            onRevealCode = { app.topicApi.revealLotteryCode(lottery.id).code },
+                        )
+                    }
+                }
+                item {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "回复（${topic.replyCount}）",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.weight(1f))
+                        TextButton(
+                            onClick = {
+                                vm.setReplySort(
+                                    if (state.replySort == "floor_asc") "floor_desc" else "floor_asc",
+                                )
+                            },
+                        ) {
+                            Text(
+                                if (state.replySort == "floor_asc") "正序" else "倒序",
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
+                    }
+                }
+                items(state.replies, key = { it.id }) { reply ->
+                    ReplyCard(
+                        reply = reply,
+                        busy = state.replyBusyId == reply.id,
+                        loggedIn = loggedIn,
+                        canPinReply = topic.viewer?.canPinReply == true,
+                        canSetBestAnswer = topic.viewer?.canSetBestAnswer == true,
+                        commentSending = state.commentSendingReplyId == reply.id,
+                        onToggleReaction = { vm.toggleReplyReaction(reply.id, it) },
+                        onShowHistory = { historyTarget = reply.id },
+                        onQuote = {
+                            val name = reply.author.name ?: reply.author.id
+                            replyText = "> 回复 #${reply.floor} @$name\n\n" + replyText
+                            composerOpen = true
+                        },
+                        onEdit = { vm.startEditReply(reply.id) },
+                        onDelete = { deleteReplyTarget = reply.id },
+                        onPin = { vm.pinReply(reply.id) },
+                        onUnpin = { vm.unpinReply() },
+                        onSetBestAnswer = { vm.setBestAnswer(reply.id) },
+                        onClearBestAnswer = { vm.clearBestAnswer() },
+                        onSendComment = { text, parent -> vm.sendComment(reply.id, text, parent) },
+                        onToggleCommentLike = { vm.toggleCommentLike(reply.id, it) },
+                        onEditComment = { vm.startEditComment(it) },
+                        onDeleteComment = { deleteCommentTarget = reply.id to it },
+                        onRequireLogin = onRequireLogin,
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                    )
+                }
                 item {
                     when {
                         state.loadingReplies -> LoadingBox()
@@ -181,12 +410,294 @@ fun TopicDetailScreen(
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            textAlign = TextAlign.Center,
+                        )
+                        state.replies.isEmpty() && !state.loadingReplies -> Text(
+                            text = "还没有回复，来抢沙发吧",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth().padding(24.dp),
+                            textAlign = TextAlign.Center,
                         )
                     }
                 }
             }
         }
     }
+
+    deleteReplyTarget?.let { replyId ->
+        AlertDialog(
+            onDismissRequest = { deleteReplyTarget = null },
+            title = { Text("删除回复") },
+            text = { Text("删除后无法恢复，确定删除这条回复吗？") },
+            confirmButton = {
+                TextButton(onClick = { deleteReplyTarget = null; vm.deleteReply(replyId) }) { Text("删除") }
+            },
+            dismissButton = { TextButton(onClick = { deleteReplyTarget = null }) { Text("取消") } },
+        )
+    }
+    deleteCommentTarget?.let { (replyId, commentId) ->
+        AlertDialog(
+            onDismissRequest = { deleteCommentTarget = null },
+            title = { Text("删除评论") },
+            text = { Text("确定删除这条评论吗？") },
+            confirmButton = {
+                TextButton(onClick = {
+                    deleteCommentTarget = null
+                    vm.deleteComment(replyId, commentId)
+                }) { Text("删除") }
+            },
+            dismissButton = { TextButton(onClick = { deleteCommentTarget = null }) { Text("取消") } },
+        )
+    }
+}
+
+@Composable
+private fun TopicHeader(topic: Topic) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = topic.title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (topic.isNsfw) Chip("NSFW")
+            Chip(com.kungal.app.ui.util.TopicLabels.category(topic.category))
+            topic.sections.forEach { Chip(com.kungal.app.ui.util.TopicLabels.section(it)) }
+            if (topic.miniApps.contains("lottery")) Chip("抽奖话题")
+            if (topic.hasBestAnswer) Chip("已解决")
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AvatarImage(url = topic.author.avatar?.url, modifier = Modifier.size(28.dp))
+            Spacer(Modifier.width(8.dp))
+            Column {
+                Text(
+                    text = topic.author.name ?: topic.author.id,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Text(
+                    text = buildString {
+                        append(relativeTime(topic.createdAt))
+                        if (topic.editedAt != null) append("（已编辑）")
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            Icon(
+                Icons.Outlined.Visibility,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(3.dp))
+            Text(
+                text = topic.viewCount.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TopicActionBar(
+    topic: Topic,
+    subscriptionLevel: String,
+    busy: Boolean,
+    loggedIn: Boolean,
+    onFavorite: () -> Unit,
+    onSubscribe: () -> Unit,
+    onUpvote: () -> Unit,
+) {
+    val viewer = topic.viewer ?: TopicViewer()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ActionChip(
+            icon = { Icon(if (viewer.hasFavorited) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder, null, Modifier.size(16.dp)) },
+            label = "收藏 ${topic.favoriteCount}",
+            active = viewer.hasFavorited,
+            enabled = !busy,
+            onClick = onFavorite,
+        )
+        ActionChip(
+            icon = { Icon(Icons.Outlined.Notifications, null, Modifier.size(16.dp)) },
+            label = "通知：" + notificationLevelLabel(subscriptionLevel),
+            active = subscriptionLevel == "watching",
+            enabled = !busy && loggedIn,
+            onClick = onSubscribe,
+        )
+        ActionChip(
+            icon = { Icon(Icons.Outlined.Whatshot, null, Modifier.size(16.dp)) },
+            label = "推 ${topic.upvoteCount}",
+            active = viewer.hasUpvoted,
+            enabled = !busy && loggedIn && viewer.canUpvote && !viewer.hasUpvoted,
+            onClick = onUpvote,
+        )
+        if (viewer.hasUpvoted) {
+            Text(
+                "已推",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActionChip(
+    icon: @Composable () -> Unit,
+    label: String,
+    active: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                else MaterialTheme.colorScheme.surfaceVariant,
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.material3.LocalContentColor provides
+                if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        ) {
+            icon()
+            Spacer(Modifier.width(4.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium)
+        }
+    }
+}
+
+@Composable
+private fun SubscriptionDialog(
+    current: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val options = listOf(
+        Triple("watching", "关注", "每条新回复都通知（合并为一条话题通知）"),
+        Triple("normal", "正常", "只通知提到你的回复；作为作者时关注模式下也通知"),
+        Triple("muted", "屏蔽", "不接收该话题的回复、提及与评论通知"),
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("话题通知") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                options.forEach { (level, label, desc) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { onSelect(level) }
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (current == level) {
+                            Icon(
+                                Icons.Outlined.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        } else {
+                            Spacer(Modifier.size(18.dp))
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(label, style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                desc,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+    )
+}
+
+@Composable
+private fun UpvoteDialog(
+    onConfirm: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var note by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("确定推这个话题吗？") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "推话题会消耗你 10 萌萌点，并给作者增加 5 萌萌点。",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it.take(30) },
+                    placeholder = { Text("（可选）一句话，说说为什么推它") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 2,
+                )
+                Text(
+                    "${note.length}/30",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.End,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = { onConfirm(note.ifBlank { null }) }) { Text("确定推") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+    )
+}
+
+@Composable
+private fun EditDialog(
+    title: String,
+    value: String,
+    saving: Boolean,
+    onChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onChange,
+                modifier = Modifier.fillMaxWidth().height(220.dp),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = !saving) {
+                Text(if (saving) "保存中…" else "保存")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+    )
 }
 
 @Composable
@@ -216,187 +727,106 @@ private fun NsfwGate(onReveal: () -> Unit, modifier: Modifier = Modifier) {
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(16.dp))
-        Button(onClick = onReveal) { Text("仍然查看") }
-    }
-}
-
-@Composable
-private fun TopicHeader(topic: Topic) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text(
-            text = topic.title,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (topic.isNsfw) Chip("NSFW")
-            Chip(com.kungal.app.ui.util.TopicLabels.category(topic.category))
-            topic.sections.forEach { Chip(com.kungal.app.ui.util.TopicLabels.section(it)) }
-            if (topic.miniApps.contains("lottery")) Chip("抽奖话题")
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            AvatarImage(url = topic.author.avatar?.url, modifier = Modifier.size(28.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Column {
-                Text(
-                    text = topic.author.name ?: topic.author.id,
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Text(
-                    text = buildString {
-                        append(relativeTime(topic.createdAt))
-                        if (topic.editedAt != null) append("（已编辑）")
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            Icon(
-                Icons.Outlined.Visibility,
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.width(3.dp))
-            Text(
-                text = topic.viewCount.toString(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ReactionsRow(topic: Topic, busy: Boolean, onLike: () -> Unit) {
-    val liked = topic.viewer?.hasLiked == true ||
-        topic.reactions.firstOrNull { it.reaction == "like" }?.viewer?.hasReacted == true
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(
-                    if (liked) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                    else MaterialTheme.colorScheme.surfaceVariant,
-                )
-                .clickable(enabled = !busy) { onLike() }
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-        ) {
-            if (busy) {
-                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-            } else {
-                Icon(
-                    imageVector = if (liked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = "点赞",
-                    modifier = Modifier.size(18.dp),
-                    tint = if (liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = topic.likeCount.toString(),
-                style = MaterialTheme.typography.labelLarge,
-                color = if (liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ReplyCard(reply: Reply) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AvatarImage(url = reply.author.avatar?.url, modifier = Modifier.size(26.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = reply.author.name ?: reply.author.id,
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                if (reply.isBestAnswer) Chip("最佳答案")
-                if (reply.isPinned) Chip("置顶")
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = "#${reply.floor}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = relativeTime(reply.createdAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            ContentDocumentView(document = reply.content)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Outlined.FavoriteBorder,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Text(
-                    text = reply.likeCount.toString(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+        TextButton(onClick = onReveal) { Text("仍然查看") }
     }
 }
 
 @Composable
 private fun ReplyComposer(
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
     value: String,
     onValueChange: (String) -> Unit,
     sending: Boolean,
-    onSubmit: () -> Unit,
+    onSubmit: () -> Boolean,
 ) {
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+
     Surface(color = MaterialTheme.colorScheme.surfaceContainerLow) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .imePadding()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-        ) {
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                placeholder = { Text("回复（支持 Markdown）") },
-                modifier = Modifier.weight(1f),
-                maxLines = 4,
-                shape = RoundedCornerShape(12.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
-                onClick = onSubmit,
-                enabled = value.isNotBlank() && !sending,
+        if (!expanded) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        shape = CircleShape,
+                    )
+                    .clickable { onExpandedChange(true) }
+                    .padding(horizontal = 16.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (sending) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "发送")
+                Icon(
+                    Icons.Outlined.Edit,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "写回复…",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    placeholder = { Text("回复（支持 Markdown）") },
+                    modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                    maxLines = 5,
+                    shape = RoundedCornerShape(20.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+                IconButton(
+                    onClick = {
+                        if (onSubmit()) {
+                            keyboard?.hide()
+                            onExpandedChange(false)
+                        }
+                    },
+                    enabled = value.isNotBlank() && !sending,
+                ) {
+                    if (sending) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "发送")
+                    }
+                }
+                IconButton(
+                    onClick = {
+                        keyboard?.hide()
+                        onExpandedChange(false)
+                    },
+                ) {
+                    Icon(
+                        Icons.Outlined.Close,
+                        contentDescription = "收起回复框",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
+        }
+    }
+
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            focusRequester.requestFocus()
+            keyboard?.show()
         }
     }
 }

@@ -10,4 +10,6 @@ import kotlinx.serialization.json.Json
 val KungalJson: Json = Json {
     ignoreUnknownKeys = true
     explicitNulls = false
+    // 请求体的必填字段即使有默认值也要发出（如 access_scope、choice_type）
+    encodeDefaults = true
 }

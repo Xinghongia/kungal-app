@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -68,6 +69,7 @@ fun ProfileScreen(
     onOpenLogin: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenMessages: () -> Unit,
+    onOpenSubscriptions: () -> Unit,
 ) {
     val vm: ProfileViewModel = viewModel { ProfileViewModel(app) }
     val state by vm.state.collectAsState()
@@ -124,6 +126,7 @@ fun ProfileScreen(
                     state = current,
                     onOpenMessages = onOpenMessages,
                     onOpenSettings = onOpenSettings,
+                    onOpenSubscriptions = onOpenSubscriptions,
                     onLogout = { confirmLogout = true },
                 )
             }
@@ -174,6 +177,7 @@ private fun LoggedInContent(
     state: ProfileViewModel.UiState.Ready,
     onOpenMessages: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenSubscriptions: () -> Unit,
     onLogout: () -> Unit,
 ) {
     val me = state.me
@@ -241,6 +245,12 @@ private fun LoggedInContent(
             supporting = if (me.hasUnreadMessages) "有新消息" else "通知与私信",
             icon = Icons.Outlined.Mail,
             onClick = onOpenMessages,
+        )
+        item(
+            headline = "我的订阅",
+            supporting = "已订阅话题与新回复未读数",
+            icon = Icons.Outlined.Subscriptions,
+            onClick = onOpenSubscriptions,
         )
         item(
             headline = "设置",

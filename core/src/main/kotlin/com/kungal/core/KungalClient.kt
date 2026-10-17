@@ -11,6 +11,7 @@ import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -81,6 +82,36 @@ class KungalClient(
         deserializer,
     )
 
+    /** 带 JSON 请求体的 PATCH（如编辑话题/回复/评论）。 */
+    suspend fun <T> patchJson(
+        path: String,
+        body: String,
+        deserializer: DeserializationStrategy<T>,
+    ): T = execute(
+        request(url(path)).patch(body.toRequestBody(JSON_MEDIA_TYPE)).build(),
+        deserializer,
+    )
+
+    /** multipart 上传（如 POST /images）。 */
+    suspend fun <T> postMultipart(
+        path: String,
+        fileBytes: ByteArray,
+        fileName: String,
+        contentType: String,
+        fields: Map<String, String> = emptyMap(),
+        idempotencyKey: String? = null,
+        deserializer: DeserializationStrategy<T>,
+    ): T {
+        val bodyBuilder = MultipartBody.Builder().setType(MultipartBody.FORM)
+        fileBytes.toRequestBody(contentType.toMediaType()).let { part ->
+            bodyBuilder.addFormDataPart("file", fileName, part)
+        }
+        fields.forEach { (key, value) -> bodyBuilder.addFormDataPart(key, value) }
+        val builder = request(url(path)).post(bodyBuilder.build())
+        if (idempotencyKey != null) builder.header("Idempotency-Key", idempotencyKey)
+        return execute(builder.build(), deserializer)
+    }
+
     /** DELETE。 */
     suspend fun <T> delete(
         path: String,
@@ -91,6 +122,24 @@ class KungalClient(
     suspend fun postNoBody(path: String) {
         withContext(Dispatchers.IO) {
             val response = http.newCall(request(url(path)).post(EMPTY_BODY).build()).execute()
+            response.use { r ->
+                if (!r.isSuccessful) {
+                    throw toException(r.code, r.header("Retry-After"), r.body.string())
+                }
+            }
+        }
+    }
+
+    /** 无请求体、但需要解析响应的 POST（如抽奖兑换码揭示）。 */
+    suspend fun <T> postNoBodyJson(
+        path: String,
+        deserializer: DeserializationStrategy<T>,
+    ): T = execute(request(url(path)).post(EMPTY_BODY).build(), deserializer)
+
+    /** 无响应体的 DELETE（如删除回复/评论/草稿，204）。 */
+    suspend fun deleteNoBody(path: String) {
+        withContext(Dispatchers.IO) {
+            val response = http.newCall(request(url(path)).delete().build()).execute()
             response.use { r ->
                 if (!r.isSuccessful) {
                     throw toException(r.code, r.header("Retry-After"), r.body.string())

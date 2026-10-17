@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.ButtonDefaults
@@ -33,6 +34,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -73,6 +75,7 @@ fun TopicListScreen(
     nsfwDisplay: NsfwDisplayMode,
     onOpenTopic: (String) -> Unit,
     onOpenPublish: () -> Unit,
+    onOpenSearch: () -> Unit,
 ) {
     val includeNsfw = nsfwDisplay.allowsNsfw
     val vm: TopicListViewModel = viewModel(key = "topic-list-$defaultSort") {
@@ -110,6 +113,9 @@ fun TopicListScreen(
                 title = "话题",
                 subtitle = "鲲 Galgame 论坛的全部话题",
                 actions = {
+                    IconButton(onClick = onOpenSearch) {
+                        Icon(Icons.Outlined.Search, contentDescription = "搜索")
+                    }
                     // 二级分类（版块）：也放进右上角子菜单，选中分类后才出现
                     if (state.category != null) {
                         androidx.compose.foundation.layout.Box {

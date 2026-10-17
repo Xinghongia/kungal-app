@@ -23,6 +23,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -39,12 +40,18 @@ import com.kungal.app.ui.hub.GalgameSections
 import com.kungal.app.ui.hub.HubEntry
 import com.kungal.app.ui.hub.HubScreen
 import com.kungal.app.ui.hub.PublishHubScreen
+import com.kungal.app.ui.activity.FollowingScreen
+import com.kungal.app.ui.editor.DraftsScreen
+import com.kungal.app.ui.editor.TopicEditorScreen
 import com.kungal.app.ui.login.LoginScreen
 import com.kungal.app.ui.messages.MessagesScreen
 import com.kungal.app.ui.profile.ProfileScreen
+import com.kungal.app.ui.search.TopicSearchScreen
 import com.kungal.app.ui.settings.SettingsScreen
+import com.kungal.app.ui.subscriptions.SubscriptionsScreen
 import com.kungal.app.ui.topic.TopicDetailScreen
 import com.kungal.app.ui.topic.TopicListScreen
+import com.kungal.app.ui.util.AndroidActions
 
 private object Routes {
     // 一级页面（底部导航）
@@ -59,9 +66,16 @@ private object Routes {
     const val LOGIN = "login"
     const val SETTINGS = "settings"
     const val PUBLISH = "publish"
+    const val EDITOR = "editor?topicId={topicId}&draftId={draftId}"
+    const val DRAFTS = "drafts"
+    const val FOLLOWING = "following"
+    const val SEARCH = "search"
+    const val SUBSCRIPTIONS = "subscriptions"
     const val SOON = "soon?title={title}&note={note}&path={path}"
 
     fun topic(id: String) = "topic/$id"
+    fun editor(topicId: String? = null, draftId: String? = null) =
+        "editor?topicId=${Uri.encode(topicId.orEmpty())}&draftId=${Uri.encode(draftId.orEmpty())}"
     fun soon(entry: HubEntry): String =
         "soon?title=${Uri.encode(entry.label)}&note=${Uri.encode(entry.note)}&path=${Uri.encode(entry.webPath)}"
 }
@@ -86,6 +100,7 @@ fun AppNav(app: KungalApp) {
     val nav = rememberNavController()
     val settings by app.settingsStore.flow.collectAsState(initial = Settings())
     val nsfwDisplay by app.contentStance.collectAsState()
+    val context = LocalContext.current
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val showBottomBar = tabs.any { it.route == currentRoute }
@@ -122,7 +137,10 @@ fun AppNav(app: KungalApp) {
                     defaultSort = settings.defaultSort,
                     nsfwDisplay = nsfwDisplay,
                     onOpenTopic = { id -> nav.navigate(Routes.topic(id)) },
-                    onOpenPublish = { nav.navigate(Routes.PUBLISH) },
+                    onOpenPublish = {
+                        if (app.isLoggedIn) nav.navigate(Routes.PUBLISH) else nav.navigate(Routes.LOGIN)
+                    },
+                    onOpenSearch = { nav.navigate(Routes.SEARCH) },
                 )
             }
             composable(Routes.GALGAME) {
@@ -145,6 +163,7 @@ fun AppNav(app: KungalApp) {
                 MessagesScreen(
                     app = app,
                     onOpenLogin = { nav.navigate(Routes.LOGIN) },
+                    onOpenFollowing = { nav.navigate(Routes.FOLLOWING) },
                 )
             }
             composable(Routes.PROFILE) {
@@ -153,6 +172,7 @@ fun AppNav(app: KungalApp) {
                     onOpenLogin = { nav.navigate(Routes.LOGIN) },
                     onOpenSettings = { nav.navigate(Routes.SETTINGS) },
                     onOpenMessages = { nav.switchTab(Routes.MESSAGES) },
+                    onOpenSubscriptions = { nav.navigate(Routes.SUBSCRIPTIONS) },
                 )
             }
 
@@ -167,6 +187,7 @@ fun AppNav(app: KungalApp) {
                     nsfwDisplay = nsfwDisplay,
                     onBack = { nav.popBackStack() },
                     onRequireLogin = { nav.navigate(Routes.LOGIN) },
+                    onEditTopic = { id -> nav.navigate(Routes.editor(topicId = id)) },
                 )
             }
             composable(Routes.LOGIN) {
@@ -186,7 +207,62 @@ fun AppNav(app: KungalApp) {
             composable(Routes.PUBLISH) {
                 PublishHubScreen(
                     onBack = { nav.popBackStack() },
-                    onOpen = ::openEntry,
+                    onOpen = { entry ->
+                        if (entry.label == "发布话题") {
+                            if (app.isLoggedIn) nav.navigate(Routes.editor()) else nav.navigate(Routes.LOGIN)
+                        } else {
+                            openEntry(entry)
+                        }
+                    },
+                )
+            }
+            composable(
+                route = Routes.EDITOR,
+                arguments = listOf(
+                    navArgument("topicId") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("draftId") { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) { entry ->
+                TopicEditorScreen(
+                    app = app,
+                    topicId = entry.arguments?.getString("topicId")?.takeIf { it.isNotBlank() },
+                    draftId = entry.arguments?.getString("draftId")?.takeIf { it.isNotBlank() },
+                    onBack = { nav.popBackStack() },
+                    onOpenDrafts = { nav.navigate(Routes.DRAFTS) },
+                    onPublished = { id ->
+                        nav.popBackStack()
+                        nav.navigate(Routes.topic(id))
+                    },
+                )
+            }
+            composable(Routes.DRAFTS) {
+                DraftsScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenDraft = { id -> nav.navigate(Routes.editor(draftId = id)) },
+                )
+            }
+            composable(Routes.FOLLOWING) {
+                FollowingScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenTopic = { id -> nav.navigate(Routes.topic(id)) },
+                    onOpenWeb = { url -> AndroidActions.openInBrowser(context, url) },
+                )
+            }
+            composable(Routes.SEARCH) {
+                TopicSearchScreen(
+                    app = app,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenTopic = { id -> nav.navigate(Routes.topic(id)) },
+                )
+            }
+            composable(Routes.SUBSCRIPTIONS) {
+                SubscriptionsScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenTopic = { id -> nav.navigate(Routes.topic(id)) },
                 )
             }
             composable(

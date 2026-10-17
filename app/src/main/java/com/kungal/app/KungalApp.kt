@@ -2,6 +2,7 @@ package com.kungal.app
 
 import android.app.Application
 import com.kungal.core.KungalClient
+import com.kungal.core.api.ImageApi
 import com.kungal.core.api.MeApi
 import com.kungal.core.api.SectionApi
 import com.kungal.core.api.TopicApi
@@ -30,6 +31,9 @@ class KungalApp : Application() {
         private set
 
     lateinit var meApi: MeApi
+        private set
+
+    lateinit var imageApi: ImageApi
         private set
 
     lateinit var sessionStore: SessionStore
@@ -63,6 +67,7 @@ class KungalApp : Application() {
         topicApi = TopicApi(client)
         sectionApi = SectionApi(client)
         meApi = MeApi(client)
+        imageApi = ImageApi(client)
         sessionStore = SessionStore(this)
         settingsStore = SettingsStore(this)
         contentStance = combine(session, _accountStance, settingsStore.flow) { session, account, settings ->
