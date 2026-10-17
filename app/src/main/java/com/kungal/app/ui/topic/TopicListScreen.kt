@@ -1,6 +1,5 @@
 package com.kungal.app.ui.topic
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowDownward
@@ -33,7 +31,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -79,6 +76,7 @@ fun TopicListScreen(
     val state by vm.state.collectAsState()
     val listState = rememberLazyListState()
     var categoryExpanded by remember { mutableStateOf(false) }
+    var sectionExpanded by remember { mutableStateOf(false) }
     var sortExpanded by remember { mutableStateOf(false) }
 
     // 触底加载：接近列表末尾时请求下一页
@@ -92,6 +90,10 @@ fun TopicListScreen(
 
     val categoryLabel = TopicLabels.filterOptions
         .firstOrNull { it.first == state.category }?.second ?: "全部话题"
+    val sections = TopicCategorySections[state.category].orEmpty()
+    val sectionLabel = state.section?.let { key ->
+        sections.firstOrNull { it.key == key }?.label ?: TopicLabels.section(key)
+    } ?: "全部版块"
     val sortLabel = TopicSortFields.firstOrNull { it.key == state.sortField }?.label ?: "更新时间"
 
     Scaffold(
@@ -100,7 +102,44 @@ fun TopicListScreen(
                 title = "话题",
                 subtitle = "鲲 Galgame 论坛的全部话题",
                 actions = {
-                    // 分类切换：右上角按钮 + 下拉
+                    // 二级分类（版块）：也放进右上角子菜单，选中分类后才出现
+                    if (state.category != null) {
+                        androidx.compose.foundation.layout.Box {
+                            TextButton(onClick = { sectionExpanded = true }) {
+                                Text(sectionLabel, style = MaterialTheme.typography.labelLarge)
+                                Icon(Icons.Outlined.ArrowDropDown, contentDescription = "切换版块")
+                            }
+                            DropdownMenu(
+                                expanded = sectionExpanded,
+                                onDismissRequest = { sectionExpanded = false },
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("全部版块") },
+                                    onClick = {
+                                        sectionExpanded = false
+                                        vm.setSection(null)
+                                    },
+                                    trailingIcon = {
+                                        if (state.section == null) CheckMark()
+                                    },
+                                )
+                                sections.forEach { section ->
+                                    DropdownMenuItem(
+                                        text = { Text(section.label) },
+                                        onClick = {
+                                            sectionExpanded = false
+                                            vm.setSection(section.key)
+                                        },
+                                        trailingIcon = {
+                                            if (state.section == section.key) CheckMark()
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    // 一级分类切换
                     androidx.compose.foundation.layout.Box {
                         TextButton(onClick = { categoryExpanded = true }) {
                             Text(categoryLabel, style = MaterialTheme.typography.labelLarge)
@@ -149,34 +188,12 @@ fun TopicListScreen(
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             Column(Modifier.fillMaxSize()) {
-                // 子分类（版块）chip 行 + 排序控件
+                // 排序行：字段下拉 + 升降序切换
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (state.category != null) {
-                        Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            FilterChip(
-                                selected = state.section == null,
-                                onClick = { vm.setSection(null) },
-                                label = { Text("全部版块") },
-                            )
-                            state.sections.forEach { section ->
-                                FilterChip(
-                                    selected = state.section == section.section,
-                                    onClick = { vm.setSection(section.section) },
-                                    label = { Text(TopicLabels.section(section.section)) },
-                                )
-                            }
-                        }
-                    } else {
-                        Spacer(Modifier.weight(1f))
-                    }
+                    Spacer(Modifier.weight(1f))
 
                     // 排序：字段下拉 + 升降序切换
                     androidx.compose.foundation.layout.Box {
@@ -262,6 +279,16 @@ fun TopicListScreen(
             }
         }
     }
+}
+
+@Composable
+private fun CheckMark() {
+    Icon(
+        Icons.Outlined.Check,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.size(18.dp),
+    )
 }
 
 @Composable

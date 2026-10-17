@@ -3,7 +3,6 @@ package com.kungal.app.ui.topic
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kungal.app.KungalApp
-import com.kungal.core.model.Section
 import com.kungal.core.model.Topic
 import com.kungal.core.net.KungalApiException
 import kotlinx.coroutines.Job
@@ -26,6 +25,49 @@ val TopicSortFields = listOf(
     SortField("views", "总浏览数"),
 )
 
+/**
+ * 分类的二级页面结构（与官方 /category、/section 页一致）：
+ * 每个分类下固定的一组版块；「全部版块」= 不过滤。
+ */
+data class CategorySection(val key: String, val label: String)
+
+val TopicCategorySections: Map<String?, List<CategorySection>> = mapOf(
+    null to emptyList(),
+    "galgame" to listOf(
+        CategorySection("g-walkthrough", "攻略"),
+        CategorySection("g-chatting", "闲聊"),
+        CategorySection("g-article", "文章"),
+        CategorySection("g-seeking", "寻求资源"),
+        CategorySection("g-news", "资讯"),
+        CategorySection("g-releases", "新作消息"),
+        CategorySection("g-other", "其它"),
+    ),
+    "technique" to listOf(
+        CategorySection("t-crack", "逆向工程"),
+        CategorySection("t-web", "Web"),
+        CategorySection("t-languages", "编程语言"),
+        CategorySection("t-help", "请求帮助"),
+        CategorySection("t-linux", "Linux"),
+        CategorySection("t-practical", "实用技术"),
+        CategorySection("t-ai", "AI"),
+        CategorySection("t-android", "Android"),
+        CategorySection("t-adobe", "Adobe"),
+        CategorySection("t-algorithm", "算法"),
+        CategorySection("t-other", "其它"),
+    ),
+    "others" to listOf(
+        CategorySection("o-anime", "动漫"),
+        CategorySection("o-comics", "漫画"),
+        CategorySection("o-music", "音乐"),
+        CategorySection("o-novel", "轻小说"),
+        CategorySection("o-daily", "日常"),
+        CategorySection("o-essay", "个人随笔"),
+        CategorySection("o-forum", "论坛相关"),
+        CategorySection("o-patch", "补丁网站"),
+        CategorySection("o-other", "其它"),
+    ),
+)
+
 class TopicListViewModel(
     private val app: KungalApp,
     defaultSort: String = "bumped_desc",
@@ -41,8 +83,6 @@ class TopicListViewModel(
         val category: String? = null,
         /** 子分类（版块）键，如 g-news；null = 该分类全部版块 */
         val section: String? = null,
-        val sections: List<Section> = emptyList(),
-        val sectionsLoading: Boolean = false,
         val sortField: String = "bumped",
         val sortOrder: String = "desc",
         val error: String? = null,
@@ -52,7 +92,6 @@ class TopicListViewModel(
     val state: StateFlow<State> = _state.asStateFlow()
 
     private var loadJob: Job? = null
-    private var sectionsJob: Job? = null
 
     init {
         parseDefaultSort(defaultSort)?.let { (field, order) ->
@@ -71,10 +110,7 @@ class TopicListViewModel(
 
     fun setCategory(category: String?) {
         if (_state.value.category == category) return
-        _state.update {
-            it.copy(category = category, section = null, sections = emptyList())
-        }
-        loadSections()
+        _state.update { it.copy(category = category, section = null) }
         load(reset = true)
     }
 
@@ -94,26 +130,6 @@ class TopicListViewModel(
         if (_state.value.sortOrder == order) return
         _state.update { it.copy(sortOrder = order) }
         load(reset = true)
-    }
-
-    private fun loadSections() {
-        val category = _state.value.category ?: return
-        sectionsJob?.cancel()
-        sectionsJob = viewModelScope.launch {
-            _state.update { it.copy(sectionsLoading = true) }
-            runCatching { app.sectionApi.list(category) }
-                .onSuccess { page ->
-                    _state.update {
-                        // 请求期间分类可能已被切换，丢弃过期结果
-                        if (it.category != category) it
-                        else it.copy(sections = page.items, sectionsLoading = false)
-                    }
-                }
-                .onFailure { e ->
-                    if (e is kotlinx.coroutines.CancellationException) return@onFailure
-                    _state.update { it.copy(sectionsLoading = false) }
-                }
-        }
     }
 
     private fun load(reset: Boolean) {
