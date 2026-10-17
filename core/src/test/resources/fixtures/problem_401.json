@@ -1,0 +1,1 @@
+{"type":"https://developer.nextmoe.dev/problems/platform/missing-credential","title":"Missing credential","status":401,"detail":"The request has no credentials.","instance":"/api/v1/me","code":"MISSING_CREDENTIAL","request_id":"req_01M53R3BYHPMKEMYN4A96JK4Z5","errors":[]}
