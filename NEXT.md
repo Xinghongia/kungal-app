@@ -30,6 +30,12 @@ updated: 2026-10-17
 
 ## 最近证据
 
+- 2026-10-17 **登录成功提示（版本 0.6.2）**（驾驶员实测登录通过后要求）：
+  - 原生登录成功「登录成功，欢迎回来！」、注册成功「注册成功，已自动登录，欢迎加入！」、
+    网页登录兜底同样提示；统一走 `AppMessages` 主题化提示，不阻塞返回
+  - 证据：core 168 + app 76 = **244 项单测全绿**；`assembleDebug` 通过；已装机
+    （0.6.2/code 20）；启动冒烟无崩溃；详见 `docs/devlog/2026-10-17-登录成功提示.md`
+  - 未验证：提示视觉与时机需驾驶员确认；注册真实流程仍未执行
 - 2026-10-17 **原生账号密码登录与注册（版本 0.6.1）**（驾驶员要求简化登录页）：
   - core：`AccountAuthApi`（`/auth/login`、`/auth/register/send-code`、`/auth/register`、
     `/oauth/authorize/consent`、论坛 `/api/auth/oauth/callback` 换 `kungal_session`）+

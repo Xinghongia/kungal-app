@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kungal.app.KungalApp
+import com.kungal.app.ui.components.AppMessages
 import kotlinx.coroutines.launch
 
 private const val LOGIN_URL = "https://www.kungal.com/"
@@ -337,6 +338,7 @@ private fun WebLoginScreen(
         finished = true
         scope.launch {
             app.onLoggedIn(value)
+            AppMessages.show("登录成功，欢迎回来！")
             onDone()
         }
         return true

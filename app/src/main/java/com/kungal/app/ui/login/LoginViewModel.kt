@@ -3,6 +3,7 @@ package com.kungal.app.ui.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kungal.app.KungalApp
+import com.kungal.app.ui.components.AppMessages
 import com.kungal.core.api.AccountApiException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -68,6 +69,7 @@ class LoginViewModel(private val app: KungalApp) : ViewModel() {
                 _state.update {
                     it.copy(busy = false, password = "", confirmPassword = "", error = null)
                 }
+                AppMessages.show("登录成功，欢迎回来！")
                 onDone()
             }.onFailure { e ->
                 _state.update { it.copy(busy = false, error = messageOf(e)) }
@@ -122,6 +124,7 @@ class LoginViewModel(private val app: KungalApp) : ViewModel() {
                 _state.update {
                     it.copy(busy = false, password = "", confirmPassword = "", code = "", error = null)
                 }
+                AppMessages.show("注册成功，已自动登录，欢迎加入！")
                 onDone()
             }.onFailure { e ->
                 _state.update { it.copy(busy = false, error = messageOf(e)) }
