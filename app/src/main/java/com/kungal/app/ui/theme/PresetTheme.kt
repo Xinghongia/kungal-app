@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.Color
  * 预设主题：手工设计的 Material 3 全套配色（浅色 + 深色）。
  * 设计要点（沿用 saku 项目，MIT）：所有 surface 容器带主题色倾向、不发灰；
  * 浅色 primary=tone40、容器=tone90，深色 primary=tone80、容器=tone30。
- * 六套：鲲蓝（站点品牌蓝，默认）/ 樱花粉 / 海洋蓝 / 春绿 / 秋橙 / 极简。
+ * 六套：极简（黑白灰，默认）/ 鲲蓝（站点品牌蓝）/ 樱花粉 / 海洋蓝 / 春绿 / 秋橙。
  */
 data class PresetTheme(
     val id: String,
@@ -21,13 +21,13 @@ data class PresetTheme(
 }
 
 val PresetThemes: List<PresetTheme> by lazy {
-    listOf(KunPreset, SakuraPreset, OceanPreset, SpringPreset, AutumnPreset, MinimalPreset)
+    listOf(MinimalPreset, KunPreset, SakuraPreset, OceanPreset, SpringPreset, AutumnPreset)
 }
 
 val DefaultPresetThemeId: String get() = PresetThemes.first().id
 
 fun findPresetTheme(id: String): PresetTheme =
-    PresetThemes.firstOrNull { it.id == id } ?: KunPreset
+    PresetThemes.firstOrNull { it.id == id } ?: MinimalPreset
 
 // ================= 鲲蓝（站点品牌蓝的色调化，默认） =================
 

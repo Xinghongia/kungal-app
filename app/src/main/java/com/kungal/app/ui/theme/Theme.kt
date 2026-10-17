@@ -28,7 +28,7 @@ private val AmoledBlack = Color(0xFF000000)
 @Composable
 fun KungalTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     presetThemeId: String = DefaultPresetThemeId,
     amoledDark: Boolean = false,
     content: @Composable () -> Unit,
