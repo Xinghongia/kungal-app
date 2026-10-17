@@ -53,12 +53,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kungal.app.KungalApp
+import com.kungal.app.NsfwDisplayMode
 import com.kungal.app.ui.components.AvatarImage
 import com.kungal.app.ui.components.Chip
 import com.kungal.app.ui.components.ErrorBox
 import com.kungal.app.ui.components.KungalImage
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
+import com.kungal.app.ui.components.NsfwCoverImage
 import com.kungal.app.ui.util.TopicLabels
 import com.kungal.app.ui.util.relativeTime
 import com.kungal.core.model.Topic
@@ -68,17 +70,22 @@ import com.kungal.core.model.Topic
 fun TopicListScreen(
     app: KungalApp,
     defaultSort: String,
+    nsfwDisplay: NsfwDisplayMode,
     onOpenTopic: (String) -> Unit,
     onOpenPublish: () -> Unit,
 ) {
+    val includeNsfw = nsfwDisplay.allowsNsfw
     val vm: TopicListViewModel = viewModel(key = "topic-list-$defaultSort") {
-        TopicListViewModel(app, defaultSort)
+        TopicListViewModel(app, defaultSort, includeNsfw)
     }
     val state by vm.state.collectAsState()
     val listState = rememberLazyListState()
     var categoryExpanded by remember { mutableStateOf(false) }
     var sectionExpanded by remember { mutableStateOf(false) }
     var sortExpanded by remember { mutableStateOf(false) }
+
+    // 设置里的内容显示方式变化后，服务端结果集也会变，必须重新请求
+    LaunchedEffect(includeNsfw) { vm.setIncludeNsfw(includeNsfw) }
 
     // 触底加载：接近列表末尾时请求下一页
     LaunchedEffect(listState) {
@@ -262,7 +269,11 @@ fun TopicListScreen(
                         contentPadding = PaddingValues(bottom = 96.dp),
                     ) {
                         items(state.items, key = { it.id }) { topic ->
-                            TopicCard(topic = topic, onClick = { onOpenTopic(topic.id) })
+                            TopicCard(
+                                topic = topic,
+                                blurCover = nsfwDisplay.blursMedia,
+                                onClick = { onOpenTopic(topic.id) },
+                            )
                         }
                         item {
                             when {
@@ -300,7 +311,7 @@ private fun neutralTextButtonColors() = ButtonDefaults.textButtonColors(
 )
 
 @Composable
-private fun TopicCard(topic: Topic, onClick: () -> Unit) {
+private fun TopicCard(topic: Topic, blurCover: Boolean, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
@@ -309,11 +320,18 @@ private fun TopicCard(topic: Topic, onClick: () -> Unit) {
     ) {
         val cover = topic.coverImages.firstOrNull()
         if (cover != null) {
-            KungalImage(
-                url = cover.url,
-                contentDescription = null,
-                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
-            )
+            if (topic.isNsfw && blurCover) {
+                NsfwCoverImage(
+                    url = cover.url,
+                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+                )
+            } else {
+                KungalImage(
+                    url = cover.url,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+                )
+            }
         }
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(

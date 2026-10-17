@@ -31,3 +31,10 @@ data class ContentStance(
     @SerialName("is_adult_confirmed") val isAdultConfirmed: Boolean = false,
     @SerialName("nsfw_display") val nsfwDisplay: String? = null,
 )
+
+/** PUT /me/nsfw-display 的响应：账号当前的内容显示方式（hide / blur / show）。 */
+@Serializable
+data class NsfwDisplayResult(
+    @SerialName("object") val obj: String = "nsfw_display",
+    @SerialName("nsfw_display") val nsfwDisplay: String = "hide",
+)

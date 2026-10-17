@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -23,6 +24,8 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -47,9 +50,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kungal.app.KungalApp
+import com.kungal.app.NsfwDisplayMode
 import com.kungal.app.ui.components.AvatarImage
 import com.kungal.app.ui.components.Chip
 import com.kungal.app.ui.components.ErrorBox
@@ -64,6 +69,7 @@ import com.kungal.core.model.Topic
 fun TopicDetailScreen(
     app: KungalApp,
     topicId: String,
+    nsfwDisplay: NsfwDisplayMode,
     onBack: () -> Unit,
     onRequireLogin: () -> Unit,
 ) {
@@ -73,6 +79,12 @@ fun TopicDetailScreen(
     val snackbar = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
     var replyText by remember { mutableStateOf("") }
+    // 「隐藏」模式下直接打开 NSFW 话题时，先显示门禁（与网页一致）
+    var nsfwRevealed by remember(topicId) { mutableStateOf(false) }
+    val topic = state.topic
+    val nsfwGated = topic?.isNsfw == true &&
+        nsfwDisplay == NsfwDisplayMode.HIDE &&
+        !nsfwRevealed
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -103,27 +115,32 @@ fun TopicDetailScreen(
         },
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
-            ReplyComposer(
-                value = replyText,
-                onValueChange = { replyText = it },
-                sending = state.replySending,
-                onSubmit = {
-                    if (session == null) {
-                        onRequireLogin()
-                    } else {
-                        vm.sendReply(replyText)
-                        replyText = ""
-                    }
-                },
-            )
+            if (!nsfwGated) {
+                ReplyComposer(
+                    value = replyText,
+                    onValueChange = { replyText = it },
+                    sending = state.replySending,
+                    onSubmit = {
+                        if (session == null) {
+                            onRequireLogin()
+                        } else {
+                            vm.sendReply(replyText)
+                            replyText = ""
+                        }
+                    },
+                )
+            }
         },
     ) { padding ->
-        val topic = state.topic
         when {
             state.loading && topic == null -> LoadingBox(Modifier.fillMaxSize().padding(padding))
             topic == null -> ErrorBox(
                 state.error ?: "加载失败",
                 onRetry = { vm.load() },
+                modifier = Modifier.fillMaxSize().padding(padding),
+            )
+            nsfwGated -> NsfwGate(
+                onReveal = { nsfwRevealed = true },
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
             else -> LazyColumn(
@@ -169,6 +186,37 @@ fun TopicDetailScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun NsfwGate(onReveal: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            Icons.Outlined.VisibilityOff,
+            contentDescription = null,
+            modifier = Modifier.size(40.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = "该话题包含成人向内容",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "当前内容设置为「隐藏」。你可以继续查看，或到设置中调整成人向内容的显示方式。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(16.dp))
+        Button(onClick = onReveal) { Text("仍然查看") }
     }
 }
 

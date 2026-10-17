@@ -83,6 +83,37 @@ class MeApiTest {
     }
 
     @Test
+    fun `setNsfwDisplay 发送 PUT 与 JSON 体`() = runBlocking {
+        server.enqueue(
+            ok("""{"object":"nsfw_display","nsfw_display":"show"}"""),
+        )
+        val result = api.setNsfwDisplay("show")
+        assertEquals("show", result.nsfwDisplay)
+        val request = server.takeRequest()
+        assertEquals("PUT", request.method)
+        assertEquals("/api/v1/me/nsfw-display", request.url.encodedPath)
+        assertEquals("application/json; charset=utf-8", request.headers["Content-Type"])
+        assertEquals("""{"nsfw_display":"show"}""", request.body!!.utf8())
+    }
+
+    @Test
+    fun `setNsfwDisplay 缺少 preferences scope 时抛出问题码`() = runBlocking {
+        server.enqueue(
+            MockResponse.Builder().code(403)
+                .addHeader("Content-Type", "application/problem+json")
+                .body("""{"title":"Scope required","status":403,"code":"SCOPE_REQUIRED"}""")
+                .build(),
+        )
+        try {
+            api.setNsfwDisplay("blur")
+            org.junit.Assert.fail("应当失败")
+        } catch (e: com.kungal.core.net.KungalApiException) {
+            assertEquals(403, e.httpStatus)
+            assertEquals("SCOPE_REQUIRED", e.problem?.code)
+        }
+    }
+
+    @Test
     fun `me 需登录——401 会抛出 requiresLogin`() = runBlocking {
         server.enqueue(
             MockResponse.Builder().code(401)

@@ -71,6 +71,16 @@ class KungalClient(
         deserializer: DeserializationStrategy<T>,
     ): T = execute(request(url(path)).put(EMPTY_BODY).build(), deserializer)
 
+    /** 带 JSON 请求体的 PUT（如 PUT /me/nsfw-display）。 */
+    suspend fun <T> putJson(
+        path: String,
+        body: String,
+        deserializer: DeserializationStrategy<T>,
+    ): T = execute(
+        request(url(path)).put(body.toRequestBody(JSON_MEDIA_TYPE)).build(),
+        deserializer,
+    )
+
     /** DELETE。 */
     suspend fun <T> delete(
         path: String,

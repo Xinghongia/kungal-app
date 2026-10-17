@@ -71,6 +71,7 @@ val TopicCategorySections: Map<String?, List<CategorySection>> = mapOf(
 class TopicListViewModel(
     private val app: KungalApp,
     defaultSort: String = "bumped_desc",
+    includeNsfw: Boolean = false,
 ) : ViewModel() {
 
     data class State(
@@ -91,6 +92,8 @@ class TopicListViewModel(
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
+    private var includeNsfw = includeNsfw
+
     private var loadJob: Job? = null
 
     init {
@@ -98,6 +101,13 @@ class TopicListViewModel(
             _state.update { it.copy(sortField = field, sortOrder = order) }
         }
         refresh()
+    }
+
+    /** 内容显示方式变化（隐藏 ↔ 显示/模糊）时重新请求，服务端才会改变结果集。 */
+    fun setIncludeNsfw(value: Boolean) {
+        if (includeNsfw == value) return
+        includeNsfw = value
+        load(reset = true)
     }
 
     fun refresh() = load(reset = true)
@@ -158,6 +168,7 @@ class TopicListViewModel(
                     sort = sort,
                     category = category,
                     section = section,
+                    includeNsfw = includeNsfw,
                 )
             }.onSuccess { page ->
                 _state.update {

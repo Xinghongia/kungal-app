@@ -37,6 +37,8 @@ class ProfileViewModel(private val app: KungalApp) : ViewModel() {
                 val account = async { app.meApi.account() }
                 me.await() to account.await()
             }.onSuccess { (me, account) ->
+                // 顺便同步内容显示方式（可能在上次启动时没取到）
+                app.applyAccount(account)
                 _state.value = UiState.Ready(me, account)
             }.onFailure { e ->
                 if (e is KungalApiException && e.requiresLogin) {

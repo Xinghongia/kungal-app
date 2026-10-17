@@ -1,6 +1,8 @@
 package com.kungal.app.ui.components
 
+import android.os.Build
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -23,8 +26,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -80,6 +88,54 @@ fun AvatarImage(url: String?, modifier: Modifier = Modifier) {
         modifier = modifier.clip(CircleShape),
         fallbackIcon = true,
     )
+}
+
+/**
+ * 成人向封面：「模糊」模式下打码，点击在本卡片内揭示（与网站一致）。
+ * Android 12 以下没有 Modifier.blur，用近乎不透明的遮罩兜底。
+ */
+@Composable
+fun NsfwCoverImage(url: String?, modifier: Modifier = Modifier) {
+    var revealed by remember(url) { mutableStateOf(false) }
+    val canBlur = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    Box(modifier) {
+        KungalImage(
+            url = url,
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (!revealed && canBlur) Modifier.blur(18.dp) else Modifier),
+        )
+        if (!revealed) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        MaterialTheme.colorScheme.surface.copy(alpha = if (canBlur) 0.55f else 0.96f),
+                    )
+                    .clickable { revealed = true },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.Visibility,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "成人向封面已模糊",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "点击查看",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                )
+            }
+        }
+    }
 }
 
 @Composable

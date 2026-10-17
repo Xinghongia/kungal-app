@@ -22,6 +22,8 @@ data class Settings(
     val amoledDark: Boolean = false,
     /** 话题列表默认排序；空字符串 = 站点默认（bumped_desc，最新回复） */
     val defaultSort: String = "",
+    /** 未登录时的成人向内容显示方式（登录后跟随 NextMoe 账号） */
+    val nsfwDisplay: NsfwDisplayMode = NsfwDisplayMode.HIDE,
 )
 
 class SettingsStore(private val context: Context) {
@@ -31,6 +33,7 @@ class SettingsStore(private val context: Context) {
     private val presetThemeIdKey = stringPreferencesKey("preset_theme_id")
     private val amoledDarkKey = booleanPreferencesKey("amoled_dark")
     private val defaultSortKey = stringPreferencesKey("default_sort")
+    private val nsfwDisplayKey = stringPreferencesKey("nsfw_display")
 
     val flow: Flow<Settings> = context.settingsDataStore.data.map { prefs ->
         Settings(
@@ -40,6 +43,7 @@ class SettingsStore(private val context: Context) {
             presetThemeId = prefs[presetThemeIdKey] ?: DefaultPresetThemeId,
             amoledDark = prefs[amoledDarkKey] ?: false,
             defaultSort = prefs[defaultSortKey] ?: "",
+            nsfwDisplay = NsfwDisplayMode.fromWire(prefs[nsfwDisplayKey]),
         )
     }
 
@@ -61,5 +65,9 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setDefaultSort(key: String) {
         context.settingsDataStore.edit { it[defaultSortKey] = key }
+    }
+
+    suspend fun setNsfwDisplay(mode: NsfwDisplayMode) {
+        context.settingsDataStore.edit { it[nsfwDisplayKey] = mode.wire }
     }
 }

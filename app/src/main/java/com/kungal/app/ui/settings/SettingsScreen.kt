@@ -32,12 +32,14 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Sort
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -57,9 +59,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.SingletonImageLoader
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import com.kungal.app.BuildConfig
 import com.kungal.app.KungalApp
+import com.kungal.app.NsfwDisplayMode
 import com.kungal.app.Settings
 import com.kungal.app.ui.components.GroupIcon
 import com.kungal.app.ui.components.KungalTopAppBar
@@ -67,7 +71,9 @@ import com.kungal.app.ui.components.SettingsGroup
 import com.kungal.app.ui.theme.PresetTheme
 import com.kungal.app.ui.theme.PresetThemes
 import com.kungal.app.ui.theme.ThemeMode
+import com.kungal.app.ui.topic.friendlyError
 import com.kungal.app.ui.util.AndroidActions
+import com.kungal.core.net.KungalApiException
 
 private const val SITE_URL = "https://www.kungal.com"
 private const val REPO_URL = "https://github.com/Xinghongia/kungal-app"
@@ -82,14 +88,42 @@ private val sortOptions = listOf(
     "views_desc" to "总浏览数",
 )
 
-/** 设置页：外观（主题模式/动态取色/预设主题/纯黑）、浏览（默认排序）、数据、关于 */
+/** 设置页：外观（主题模式/动态取色/预设主题/纯黑）、内容分级、浏览（默认排序）、数据、关于 */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun SettingsScreen(app: KungalApp, onBack: () -> Unit) {
+fun SettingsScreen(
+    app: KungalApp,
+    nsfwDisplay: NsfwDisplayMode,
+    onBack: () -> Unit,
+) {
     val settings by app.settingsStore.flow.collectAsState(initial = Settings())
+    val session by app.session.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var sortExpanded by remember { mutableStateOf(false) }
+    var nsfwSaving by remember { mutableStateOf(false) }
+    var nsfwHint by remember { mutableStateOf<String?>(null) }
+
+    fun selectNsfw(mode: NsfwDisplayMode) {
+        if (nsfwSaving || mode == nsfwDisplay) return
+        nsfwSaving = true
+        nsfwHint = null
+        scope.launch {
+            try {
+                app.setNsfwDisplay(mode)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                nsfwHint = when {
+                    e is KungalApiException && e.problem?.code == "SCOPE_REQUIRED" ->
+                        "本站还没有拿到保存该设置的授权，请退出登录后重新登录再试。"
+                    else -> friendlyError(e)
+                }
+            } finally {
+                nsfwSaving = false
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -175,6 +209,49 @@ fun SettingsScreen(app: KungalApp, onBack: () -> Unit) {
                     checked = settings.amoledDark,
                     onCheckedChange = { on -> scope.launch { app.settingsStore.setAmoledDark(on) } },
                 )
+            }
+
+            SettingsGroup(title = "内容") {
+                block {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        GroupIcon(Icons.Outlined.Visibility)
+                        Spacer(Modifier.width(16.dp))
+                        Column {
+                            Text("成人向内容显示方式", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                if (session != null) {
+                                    "跟随你的 NextMoe 账号，在所有站点生效；修改后话题列表会自动刷新。"
+                                } else {
+                                    "未登录时只保存在本机；登录后跟随 NextMoe 账号。"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    NsfwDisplayMode.entries.forEach { mode ->
+                        NsfwOption(
+                            mode = mode,
+                            selected = nsfwDisplay == mode,
+                            enabled = !nsfwSaving,
+                            onClick = { selectNsfw(mode) },
+                        )
+                    }
+                    if (nsfwSaving) {
+                        Text(
+                            "正在保存…",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    nsfwHint?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
             }
 
             SettingsGroup(title = "浏览") {
@@ -275,8 +352,54 @@ fun SettingsScreen(app: KungalApp, onBack: () -> Unit) {
     }
 }
 
-/** 预设主题色卡网格：每张卡预览该主题的四个代表色，选中描边 + 对勾 */
-@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun NsfwOption(
+    mode: NsfwDisplayMode,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(12.dp)
+    val description = when (mode) {
+        NsfwDisplayMode.HIDE -> "不显示 R18 等有内容限制的话题、游戏与图片"
+        NsfwDisplayMode.BLUR -> "显示条目与标题，封面打码，点击单张即可查看"
+        NsfwDisplayMode.SHOW -> "直接显示成人向内容"
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(
+                if (selected) MaterialTheme.colorScheme.surfaceContainerHighest
+                else MaterialTheme.colorScheme.surface,
+            )
+            .border(
+                width = 1.dp,
+                color = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.outlineVariant
+                },
+                shape = shape,
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null, enabled = enabled)
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f)) {
+            Text(mode.label, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** 预设主题色卡网格：每张卡预览该主题的四个代表色，选中描边 + 对勾 */@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PresetThemeGrid(selectedId: String, onSelect: (String) -> Unit) {
     FlowRow(

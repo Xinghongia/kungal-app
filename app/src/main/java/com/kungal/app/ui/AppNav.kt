@@ -85,6 +85,7 @@ private val tabs = listOf(
 fun AppNav(app: KungalApp) {
     val nav = rememberNavController()
     val settings by app.settingsStore.flow.collectAsState(initial = Settings())
+    val nsfwDisplay by app.contentStance.collectAsState()
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val showBottomBar = tabs.any { it.route == currentRoute }
@@ -119,6 +120,7 @@ fun AppNav(app: KungalApp) {
                 TopicListScreen(
                     app = app,
                     defaultSort = settings.defaultSort,
+                    nsfwDisplay = nsfwDisplay,
                     onOpenTopic = { id -> nav.navigate(Routes.topic(id)) },
                     onOpenPublish = { nav.navigate(Routes.PUBLISH) },
                 )
@@ -162,6 +164,7 @@ fun AppNav(app: KungalApp) {
                 TopicDetailScreen(
                     app = app,
                     topicId = topicId,
+                    nsfwDisplay = nsfwDisplay,
                     onBack = { nav.popBackStack() },
                     onRequireLogin = { nav.navigate(Routes.LOGIN) },
                 )
@@ -174,7 +177,11 @@ fun AppNav(app: KungalApp) {
                 )
             }
             composable(Routes.SETTINGS) {
-                SettingsScreen(app = app, onBack = { nav.popBackStack() })
+                SettingsScreen(
+                    app = app,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                )
             }
             composable(Routes.PUBLISH) {
                 PublishHubScreen(
