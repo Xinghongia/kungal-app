@@ -2,15 +2,18 @@ package com.kungal.app.ui.galgame
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -31,13 +34,13 @@ import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.PageResult
 import com.kungal.app.ui.components.PagedListContent
 
-private val RatingSortOptions = listOf(
-    FilterOption("created_desc", "最新"),
-    FilterOption("created_asc", "最早"),
-    FilterOption("view_desc", "浏览最多"),
-    FilterOption("view_asc", "浏览最少"),
-    FilterOption("overall_desc", "评分最高"),
-    FilterOption("overall_asc", "评分最低"),
+private enum class RatingSheet { SORT, SPOILER, PLAY_STATE, GAME_TYPE }
+
+/** 评分排序字段；方向由旁边的升/降序按钮控制，与资源资料库的筛选条一致。 */
+private val RatingSortFields = listOf(
+    FilterOption("created", "最新"),
+    FilterOption("view", "浏览最多"),
+    FilterOption("overall", "评分最高"),
 )
 
 @Composable
@@ -47,12 +50,16 @@ fun RatingListScreen(
     onBack: () -> Unit,
     onOpenRating: (String) -> Unit,
 ) {
-    var sort by rememberSaveable { mutableStateOf("created_desc") }
+    var sortField by rememberSaveable { mutableStateOf("created") }
+    var sortOrder by rememberSaveable { mutableStateOf("desc") }
     var spoiler by rememberSaveable { mutableStateOf<String?>(null) }
     var playStatus by rememberSaveable { mutableStateOf<String?>(null) }
     var gameType by rememberSaveable { mutableStateOf<String?>(null) }
+    var sheet by remember { mutableStateOf<RatingSheet?>(null) }
     val includeNsfw = nsfwDisplay.allowsNsfw
-    val hasFilter = spoiler != null || playStatus != null || gameType != null || sort != "created_desc"
+    val sort = "${sortField}_$sortOrder"
+    val hasFilter = spoiler != null || playStatus != null || gameType != null ||
+        sortField != "created" || sortOrder != "desc"
 
     Scaffold(
         topBar = {
@@ -93,46 +100,64 @@ fun RatingListScreen(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    EntityFilterMenu(
-                        label = labelOf(RatingSortOptions, sort),
-                        options = RatingSortOptions,
-                        selected = sort,
-                        onSelect = { value -> value?.let { sort = it } },
-                        allLabel = "最新",
+                    FilterPill(
+                        label = labelOf(RatingSortFields, sortField),
+                        active = true,
+                        icon = {
+                            Icon(
+                                Icons.AutoMirrored.Outlined.Sort,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp),
+                            )
+                        },
+                        onClick = { sheet = RatingSheet.SORT },
                     )
-                    EntityFilterMenu(
-                        label = spoiler?.let { ratingSpoilerLabel(it) } ?: "剧透程度",
-                        options = RatingSpoilerLabels.map { FilterOption(it.first, it.second) },
-                        selected = spoiler,
-                        onSelect = { spoiler = it },
-                        allLabel = "全部剧透程度",
+                    FilterPill(
+                        label = if (sortOrder == "desc") "降序" else "升序",
+                        active = false,
+                        icon = {
+                            Icon(
+                                if (sortOrder == "desc") Icons.Outlined.ArrowDownward
+                                else Icons.Outlined.ArrowUpward,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp),
+                            )
+                        },
+                        onClick = { sortOrder = if (sortOrder == "desc") "asc" else "desc" },
                     )
-                    EntityFilterMenu(
-                        label = playStatus?.let { playStateLabel(it) } ?: "游玩状态",
-                        options = RatingPlayStateLabels
-                            .filter { it.first != "done" }
-                            .map { FilterOption(it.first, it.second) },
-                        selected = playStatus,
-                        onSelect = { playStatus = it },
-                        allLabel = "全部游玩状态",
+                    FilterPill(
+                        label = spoiler?.let(::ratingSpoilerLabel) ?: "剧透程度",
+                        active = spoiler != null,
+                        onClick = { sheet = RatingSheet.SPOILER },
                     )
-                    EntityFilterMenu(
-                        label = gameType?.let { gameTypeLabel(it) } ?: "游戏类型",
-                        options = RatingGameTypeLabels.map { FilterOption(it.first, it.second) },
-                        selected = gameType,
-                        onSelect = { gameType = it },
-                        allLabel = "全部游戏类型",
+                    FilterPill(
+                        label = playStatus?.let(::playStateLabel) ?: "游玩状态",
+                        active = playStatus != null,
+                        onClick = { sheet = RatingSheet.PLAY_STATE },
+                    )
+                    FilterPill(
+                        label = gameType?.let(::gameTypeLabel) ?: "游戏类型",
+                        active = gameType != null,
+                        onClick = { sheet = RatingSheet.GAME_TYPE },
                     )
                     if (hasFilter) {
-                        FilterChip(
-                            selected = false,
+                        FilterPill(
+                            label = "清空",
+                            active = false,
+                            icon = {
+                                Icon(
+                                    Icons.Outlined.Close,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(15.dp),
+                                )
+                            },
                             onClick = {
-                                sort = "created_desc"
+                                sortField = "created"
+                                sortOrder = "desc"
                                 spoiler = null
                                 playStatus = null
                                 gameType = null
                             },
-                            label = { Text("清空") },
                         )
                     }
                 }
@@ -144,5 +169,48 @@ fun RatingListScreen(
                 onClick = { onOpenRating(rating.id) },
             )
         }
+    }
+
+    when (sheet) {
+        RatingSheet.SORT -> FilterOptionSheet(
+            title = "排序",
+            options = RatingSortFields,
+            selected = setOf(sortField),
+            multi = false,
+            includeAll = false,
+            onToggle = { sortField = it },
+            onClear = null,
+            onDismiss = { sheet = null },
+        )
+        RatingSheet.SPOILER -> FilterOptionSheet(
+            title = "剧透程度",
+            options = RatingSpoilerLabels.map { FilterOption(it.first, it.second) },
+            selected = setOfNotNull(spoiler),
+            multi = false,
+            onToggle = { spoiler = it },
+            onClear = { spoiler = null },
+            onDismiss = { sheet = null },
+        )
+        RatingSheet.PLAY_STATE -> FilterOptionSheet(
+            title = "游玩状态",
+            options = RatingPlayStateLabels
+                .filter { it.first != "done" }
+                .map { FilterOption(it.first, it.second) },
+            selected = setOfNotNull(playStatus),
+            multi = false,
+            onToggle = { playStatus = it },
+            onClear = { playStatus = null },
+            onDismiss = { sheet = null },
+        )
+        RatingSheet.GAME_TYPE -> FilterOptionSheet(
+            title = "游戏类型",
+            options = RatingGameTypeLabels.map { FilterOption(it.first, it.second) },
+            selected = setOfNotNull(gameType),
+            multi = false,
+            onToggle = { gameType = it },
+            onClear = { gameType = null },
+            onDismiss = { sheet = null },
+        )
+        null -> Unit
     }
 }

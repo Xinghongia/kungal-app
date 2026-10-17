@@ -1,7 +1,6 @@
 package com.kungal.app.ui.galgame
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,9 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.ArrowDownward
-import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.ArrowUpward
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Tune
@@ -62,7 +59,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -227,7 +223,7 @@ fun GalgameListScreen(
     }
 
     when (sheet) {
-        FilterSheet.SORT -> OptionSheet(
+        FilterSheet.SORT -> FilterOptionSheet(
             title = "排序",
             options = sortOptions,
             selected = setOf(state.filters.sortField),
@@ -237,7 +233,7 @@ fun GalgameListScreen(
             onClear = null,
             onDismiss = { sheet = null },
         )
-        FilterSheet.PLATFORM -> OptionSheet(
+        FilterSheet.PLATFORM -> FilterOptionSheet(
             title = "平台",
             options = GalgamePlatformOptions,
             selected = state.filters.platforms,
@@ -246,7 +242,7 @@ fun GalgameListScreen(
             onClear = { vm.clearPlatforms() },
             onDismiss = { sheet = null },
         )
-        FilterSheet.RUNTIME -> OptionSheet(
+        FilterSheet.RUNTIME -> FilterOptionSheet(
             title = "模拟器 / 运行环境",
             options = GalgameEmulatorRuntimeOptions,
             selected = state.filters.runtimes,
@@ -255,7 +251,7 @@ fun GalgameListScreen(
             onClear = { vm.clearRuntimes() },
             onDismiss = { sheet = null },
         )
-        FilterSheet.GAME_TYPE -> OptionSheet(
+        FilterSheet.GAME_TYPE -> FilterOptionSheet(
             title = "游戏类型",
             options = GalgameGameTypeOptions,
             selected = setOfNotNull(state.filters.gameType),
@@ -264,7 +260,7 @@ fun GalgameListScreen(
             onClear = { vm.setGameType(null) },
             onDismiss = { sheet = null },
         )
-        FilterSheet.RESOURCE_TYPE -> OptionSheet(
+        FilterSheet.RESOURCE_TYPE -> FilterOptionSheet(
             title = "资源类型",
             options = GalgameResourceTypeOptions,
             selected = setOfNotNull(state.filters.resourceType),
@@ -273,7 +269,7 @@ fun GalgameListScreen(
             onClear = { vm.setResourceType(null) },
             onDismiss = { sheet = null },
         )
-        FilterSheet.LANGUAGE -> OptionSheet(
+        FilterSheet.LANGUAGE -> FilterOptionSheet(
             title = "语言",
             options = GalgameLanguageOptions,
             selected = state.filters.languages,
@@ -397,105 +393,6 @@ private fun FilterRow(
             FilterPill(label = "清空", active = false, icon = {
                 Icon(Icons.Outlined.Close, contentDescription = null, modifier = Modifier.size(15.dp))
             }, onClick = onClear)
-        }
-    }
-}
-
-@Composable
-private fun FilterPill(
-    label: String,
-    active: Boolean,
-    icon: @Composable () -> Unit = {},
-    onClick: () -> Unit,
-) {
-    FilterChip(
-        selected = active,
-        onClick = onClick,
-        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-        leadingIcon = icon,
-        trailingIcon = {
-            Icon(Icons.Outlined.ArrowDropDown, contentDescription = null, modifier = Modifier.size(16.dp))
-        },
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun OptionSheet(
-    title: String,
-    options: List<FilterOption>,
-    selected: Set<String>,
-    multi: Boolean,
-    includeAll: Boolean = true,
-    onToggle: (String) -> Unit,
-    onClear: (() -> Unit)?,
-    onDismiss: () -> Unit,
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.weight(1f))
-                if (onClear != null) {
-                    TextButton(onClick = onClear) { Text("清空") }
-                }
-                TextButton(onClick = onDismiss) { Text("完成") }
-            }
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 460.dp)) {
-                if (!multi && includeAll) {
-                    item {
-                        OptionRow(
-                            label = "全部",
-                            selected = selected.isEmpty(),
-                            onClick = {
-                                onClear?.invoke()
-                                onDismiss()
-                            },
-                        )
-                    }
-                }
-                items(options, key = { it.value }) { option ->
-                    OptionRow(
-                        label = option.label,
-                        selected = option.value in selected,
-                        onClick = {
-                            onToggle(option.value)
-                            if (!multi) onDismiss()
-                        },
-                    )
-                }
-                item { Spacer(Modifier.size(16.dp)) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun OptionRow(label: String, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-        if (selected) {
-            Icon(
-                Icons.Outlined.Check,
-                contentDescription = "已选中",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(16.dp),
-            )
         }
     }
 }
