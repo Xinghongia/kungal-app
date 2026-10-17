@@ -1,7 +1,7 @@
 ---
 handoff_schema: tavernweave/next/v1
 project_id: kungal-android-client
-status: bp03-u4-fix1
+status: bp03-u6
 updated: 2026-10-17
 ---
 
@@ -29,6 +29,18 @@ updated: 2026-10-17
 
 ## 最近证据
 
+- 2026-10-17 **BP-03 U6 工具集文件上传（版本 0.5.5）**：
+  - core：`KungalClient.putExternalStream`（预签名 S3 流式 PUT、进度、可取消、
+    返回 ETag、不带会话 cookie/App UA、关闭写超时）；3 项新单测
+    （续传解析/中止、外部 PUT 头、MockWebServer 沙盒两片上传 + ETag 完成）
+  - app：上传规则（.7z/.zip/.rar、≤2GB、50MB 分片阈值、每日额度
+    100MB + 萌萌点×1MB、单文件上限、`toolset.upload_bypass`）；DataStore 断点记录
+    （SAF Uri + 持久读权限）；单次/分片上传、缺片续传、取消中止、已完成文件复用；
+    发布 file 资源提交 `artifact_id`，artifact 失效/已发布时提示并重置
+  - 证据：core 164 + app 67 = **231 项单测全绿**；`assembleDebug` 通过；已装机
+    （0.5.5/code 13）；启动冒烟无崩溃；详见
+    `docs/devlog/2026-10-17-BP03-U6工具集文件上传.md`
+  - 未验证：真实账号上传（需驾驶员同意）；真实 S3 分片联调
 - 2026-10-17 **弹窗内提示与滑动关闭（版本 0.5.4）**（驾驶员反馈复制提示被弹窗挡住）：
   - 根因：提示挂在根 Scaffold，ModalBottomSheet 是独立窗口、层级更高；
   - 修复：提示条支持左右滑动关闭；新增 `SheetMessageHost`，弹窗打开时提示显示在
@@ -233,9 +245,10 @@ updated: 2026-10-17
      `docs/devlog/2026-10-17-BP02-U4评分游玩记录与评论墙.md`、
      `docs/devlog/2026-10-17-BP02-U5编辑提案与修订历史.md`、
      `docs/devlog/2026-10-17-BP02-U6投稿与我的提交.md`
-3. **BP-03 资源与工具集域进行中**：U1–U4 已交付（U5 创建/编辑已并入 U4）；
-   下一批 U6 工具集文件上传（单次/分片、ETag、续传、配额），随后 U7 收尾。
-   蓝图：`蓝图集/BP-03-资源与工具集域.md`；调研记录：
+3. **BP-03 资源与工具集域进行中**：U1–U6 已交付；U6 文件上传完成代码与
+   沙盒验证，**真实账号小文件上传待驾驶员同意后验证**。下一批 U7 收尾
+   （路径分发复查、通知直达、入口、全量证据）。蓝图：
+   `蓝图集/BP-03-资源与工具集域.md`；调研记录：
    `research/probe/2026-10-17/resource/RESEARCH.md`。
 4. BP-04 已全部交付（U1–U5，证据见上）；每批证据：core 单测 + app 单测 +
    assembleDebug + **主动装机**；不主动做 adb 点击/截图走查，由驾驶员点名后再测。
@@ -244,4 +257,4 @@ updated: 2026-10-17
 ## 一句续接
 
 读取总设计案、蓝图集索引和本文件；BP-02 与 BP-04 已全部交付（等驾驶员自测），
-BP-03 已开始：先做 U1 公共资源列表，再按蓝图顺序推进 U2–U7。
+BP-03 已完成 U1–U6（U6 真实上传待驾驶员验证），下一步 U7 收尾。

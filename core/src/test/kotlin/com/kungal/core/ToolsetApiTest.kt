@@ -4,6 +4,7 @@ import com.kungal.core.api.ToolsetApi
 import com.kungal.core.api.ToolsetListQuery
 import com.kungal.core.model.ToolsetUploadCompletePart
 import com.kungal.core.model.ToolsetUploadCreate
+import com.kungal.core.session.Session
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -15,10 +16,12 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.ByteArrayInputStream
 
 class ToolsetApiTest {
 
     private lateinit var server: MockWebServer
+    private lateinit var client: KungalClient
     private lateinit var api: ToolsetApi
 
     private val baseUrl: String get() = server.url("/api/v1").toString().trimEnd('/')
@@ -27,7 +30,9 @@ class ToolsetApiTest {
     fun setUp() {
         server = MockWebServer()
         server.start()
-        api = ToolsetApi(KungalClient(baseUrl = baseUrl))
+        client = KungalClient(baseUrl = baseUrl)
+        client.session.restore(Session(cookie = "kungal_session=test-cookie"))
+        api = ToolsetApi(client)
     }
 
     @After
@@ -268,5 +273,116 @@ class ToolsetApiTest {
         val finish = server.takeRequest()
         assertEquals("PATCH", finish.method)
         assertTrue(finish.body!!.utf8().contains("\"etag\":\"etag-1\""))
+    }
+
+    @Test
+    fun `上传续传解析已传分片与缺失分片并可中止`() = runBlocking {
+        server.enqueue(
+            ok(
+                """{"object":"toolset_upload","id":"u-1","toolset_id":"134",
+                    "filename":"a.zip","file_size":104857600,"state":"pending",
+                    "is_multipart":true,"upload_url":null,"part_size":5242880,
+                    "part_urls":[{"part_number":2,"url":"https://s3/p2"},
+                                 {"part_number":3,"url":"https://s3/p3"}],
+                    "uploaded_parts":[{"part_number":1,"etag":"etag-1","byte_count":5242880}],
+                    "created_at":"2026-10-17T10:00:00Z","completed_at":null}""",
+            ),
+        )
+        server.enqueue(MockResponse.Builder().code(204).build())
+        val session = api.upload("134", "u-1")
+        assertEquals("pending", session.state)
+        assertEquals(1, session.uploadedParts.size)
+        assertEquals(5242880L, session.uploadedParts.first().byteCount)
+        assertEquals(2, session.partUrls.size)
+        api.abortUpload("134", "u-1")
+        assertEquals("/api/v1/toolsets/134/uploads/u-1", server.takeRequest().url.encodedPath)
+        val abort = server.takeRequest()
+        assertEquals("DELETE", abort.method)
+        assertEquals("/api/v1/toolsets/134/uploads/u-1", abort.url.encodedPath)
+    }
+
+    @Test
+    fun `预签名地址流式上传不带会话且回传ETag`() = runBlocking {
+        server.enqueue(
+            MockResponse.Builder()
+                .code(200)
+                .addHeader("ETag", "\"etag-9\"")
+                .build(),
+        )
+        val progress = mutableListOf<Long>()
+        val etag = client.putExternalStream(
+            url = server.url("/s3/part-1").toString(),
+            contentLength = 6,
+            contentType = "application/zip",
+            openStream = { ByteArrayInputStream("abcdef".toByteArray()) },
+            onProgress = { progress.add(it) },
+        )
+        assertEquals("\"etag-9\"", etag)
+        assertEquals(listOf(6L), progress)
+        val request = server.takeRequest()
+        assertEquals("PUT", request.method)
+        assertEquals("abcdef", request.body!!.utf8())
+        assertEquals("application/zip", request.headers["Content-Type"])
+        assertNull(request.headers["Cookie"])
+        // OkHttp 自带 okhttp/x.y 的 UA，这里只确认没有冒充 App 标识
+        assertTrue(request.headers["User-Agent"] != KungalClient.USER_AGENT)
+    }
+
+    @Test
+    fun `沙盒分片上传：两片PUT后带ETag完成`() = runBlocking {
+        val part1 = server.url("/s3/p1").toString()
+        val part2 = server.url("/s3/p2").toString()
+        server.enqueue(
+            MockResponse.Builder()
+                .code(201)
+                .addHeader("Content-Type", "application/json")
+                .body(
+                    """{"object":"toolset_upload","id":"u-2","toolset_id":"134",
+                        "filename":"big.7z","file_size":10,"state":"pending",
+                        "is_multipart":true,"part_size":5,
+                        "part_urls":[{"part_number":1,"url":"$part1"},
+                                     {"part_number":2,"url":"$part2"}],
+                        "uploaded_parts":[],"created_at":"2026-10-17T10:00:00Z"}""",
+                )
+                .build(),
+        )
+        server.enqueue(MockResponse.Builder().code(200).addHeader("ETag", "e1").build())
+        server.enqueue(MockResponse.Builder().code(200).addHeader("ETag", "e2").build())
+        server.enqueue(
+            ok(
+                """{"object":"toolset_upload","id":"u-2","toolset_id":"134",
+                    "filename":"big.7z","file_size":10,"state":"completed",
+                    "is_multipart":true,"part_urls":[],"uploaded_parts":[],
+                    "created_at":"2026-10-17T10:00:00Z","completed_at":"2026-10-17T10:01:00Z"}""",
+            ),
+        )
+        val session = api.createUpload(
+            "134",
+            ToolsetUploadCreate("big.7z", 10, "application/x-7z-compressed"),
+        )
+        assertEquals(2, session.partUrls.size)
+        val bytes = ByteArray(10) { it.toByte() }
+        val parts = session.partUrls.sortedBy { it.partNumber }.map { part ->
+            val offset = (part.partNumber - 1) * 5
+            val etag = client.putExternalStream(
+                url = part.url,
+                contentLength = 5,
+                contentType = "application/x-7z-compressed",
+                openStream = { ByteArrayInputStream(bytes, offset, 5) },
+            )
+            ToolsetUploadCompletePart(part.partNumber, etag!!)
+        }
+        val done = api.completeUpload("134", "u-2", parts)
+        assertEquals("completed", done.state)
+        assertEquals("POST", server.takeRequest().method)
+        assertEquals("PUT", server.takeRequest().method)
+        assertEquals("PUT", server.takeRequest().method)
+        val finish = server.takeRequest()
+        assertEquals("PATCH", finish.method)
+        val body = finish.body!!.utf8()
+        assertTrue(body.contains("\"part_number\":1"))
+        assertTrue(body.contains("\"part_number\":2"))
+        assertTrue(body.contains("\"etag\":\"e1\""))
+        assertTrue(body.contains("\"etag\":\"e2\""))
     }
 }

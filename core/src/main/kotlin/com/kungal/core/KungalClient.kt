@@ -9,15 +9,22 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import okhttp3.Call
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import okio.BufferedSink
+import java.io.IOException
+import java.io.InputStream
 import java.util.concurrent.TimeUnit
 
 /**
@@ -32,7 +39,7 @@ class KungalClient(
 ) {
     companion object {
         const val DEFAULT_BASE_URL = "https://www.kungal.com/api/v1"
-        const val USER_AGENT = "kungal-app/0.5.4 (Android)"
+        const val USER_AGENT = "kungal-app/0.5.5 (Android)"
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         private val EMPTY_BODY = ByteArray(0).toRequestBody(null, 0, 0)
 
@@ -43,6 +50,14 @@ class KungalClient(
     }
 
     private val base = baseUrl.trimEnd('/')
+
+    /** 上传专用客户端：大文件写入可能要很久，关掉写超时，其余沿用默认配置。 */
+    private val uploadHttp: OkHttpClient by lazy {
+        http.newBuilder()
+            .writeTimeout(0, TimeUnit.MILLISECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .build()
+    }
 
     fun url(path: String, query: Map<String, Any?> = emptyMap()): HttpUrl {
         val builder = "$base$path".toHttpUrl().newBuilder()
@@ -234,6 +249,63 @@ class KungalClient(
                     throw toException(r.code, r.header("Retry-After"), r.body.string())
                 }
             }
+        }
+    }
+
+    /**
+     * 预签名 S3 地址的流式 PUT（工具集文件上传用）。
+     * 不带站点 cookie / UA；[openStream] 每次调用返回本次要发送的字节流，
+     * [onProgress] 回报已发送字节数，[onCall] 暴露 OkHttp Call 以便取消。
+     * 返回响应 ETag（分片上传完成时必须回传）。
+     */
+    suspend fun putExternalStream(
+        url: String,
+        contentLength: Long,
+        contentType: String,
+        openStream: () -> InputStream,
+        onProgress: ((Long) -> Unit)? = null,
+        onCall: ((Call) -> Unit)? = null,
+    ): String? = withContext(Dispatchers.IO) {
+        val mediaType = contentType.toMediaTypeOrNull()
+        val body = object : RequestBody() {
+            override fun contentType(): MediaType? = mediaType
+
+            override fun contentLength(): Long = contentLength
+
+            override fun writeTo(sink: BufferedSink) {
+                openStream().use { input ->
+                    val buffer = ByteArray(64 * 1024)
+                    var sent = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read == -1) break
+                        sink.write(buffer, 0, read)
+                        sent += read
+                        onProgress?.invoke(sent)
+                    }
+                }
+            }
+        }
+        val call = uploadHttp.newCall(Request.Builder().url(url).put(body).build())
+        onCall?.invoke(call)
+        try {
+            call.execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw KungalApiException(
+                        problem = null,
+                        httpStatus = response.code,
+                        message = "文件传输失败（HTTP ${response.code}）",
+                    )
+                }
+                response.header("ETag")
+            }
+        } catch (e: IOException) {
+            throw KungalApiException(
+                problem = null,
+                httpStatus = 0,
+                message = if (call.isCanceled()) "上传已取消" else "文件传输失败：${e.message ?: "网络错误"}",
+                cause = e,
+            )
         }
     }
 

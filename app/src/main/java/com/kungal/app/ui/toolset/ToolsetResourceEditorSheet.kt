@@ -1,5 +1,8 @@
 package com.kungal.app.ui.toolset
 
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,8 +32,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kungal.app.KungalApp
 import com.kungal.app.ui.components.AppMessages
 import com.kungal.app.ui.components.ErrorBox
@@ -38,14 +44,18 @@ import com.kungal.app.ui.components.SheetMessageHost
 import com.kungal.app.ui.galgame.parseResourceLinkInput
 import com.kungal.app.ui.topic.friendlyError
 import com.kungal.core.model.ToolsetResource
+import com.kungal.core.net.KungalApiException
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import java.util.UUID
 
 /**
- * 工具资源发布 / 编辑（BP-03 U4/U5，链接型；文件型上传在 U6）。
- * file 资源只能改备注与解压码；link 资源可改链接、体积、提取码、解压码、备注。
+ * 工具资源发布 / 编辑（BP-03 U4/U5/U6）。
+ * file 资源走 S3 上传（单次/分片、续传），只能改备注与解压码；
+ * link 资源可改链接、体积、提取码、解压码、备注。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +67,7 @@ fun ToolsetResourceEditorSheet(
     onSaved: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val editing = resource != null
     val isFile = resource?.type == "file"
     var mode by remember { mutableStateOf(if (isFile == true) "file" else "link") }
@@ -69,6 +80,27 @@ fun ToolsetResourceEditorSheet(
     var archivePassword by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
+
+    // 只在「新增 + 文件模式」时创建上传 ViewModel，避免链接发布也去读额度
+    val uploadVm: ToolsetUploadViewModel? = if (!editing && mode == "file") {
+        viewModel(key = "toolset-upload-$toolsetId") {
+            ToolsetUploadViewModel(app, toolsetId)
+        }
+    } else {
+        null
+    }
+    val uploadState = uploadVm?.state?.collectAsState()?.value ?: ToolsetUploadState()
+    val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+            uploadVm?.onFilePicked(uri)
+        }
+    }
 
     LaunchedEffect(resource?.id, retry) {
         if (resource == null) return@LaunchedEffect
@@ -127,11 +159,25 @@ fun ToolsetResourceEditorSheet(
                 }
             }
             if (mode == "file") {
-                Text(
-                    "文件上传（单文件 / 分片、断点续传）将在下一批接入；当前可先使用「自定义链接」。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (editing) {
+                    Text(
+                        "文件已托管在对象存储，不能替换；只能修改备注与解压码。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    ToolsetFileUploadSection(
+                        state = uploadState,
+                        onPick = { pickFile.launch(arrayOf("*/*")) },
+                        onStart = { uploadVm?.startUpload() },
+                        onCancel = { uploadVm?.cancelUpload() },
+                        onResume = { uploadVm?.resumeRecord(it) },
+                        onUseFinished = { uploadVm?.useFinishedRecord(it) },
+                        onRemove = { uploadVm?.removeRecord(it) },
+                        onClearPicked = { uploadVm?.clearPicked() },
+                        onRefreshQuota = { uploadVm?.refresh() },
+                    )
+                }
             }
 
             if (mode == "link") {
@@ -170,14 +216,16 @@ fun ToolsetResourceEditorSheet(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = extractionCode,
-                    onValueChange = { extractionCode = it },
-                    label = { Text("提取码（可选）") },
-                    enabled = isFile != true,
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                )
+                if (mode == "link" || editing) {
+                    OutlinedTextField(
+                        value = extractionCode,
+                        onValueChange = { extractionCode = it },
+                        label = { Text("提取码（可选）") },
+                        enabled = isFile != true,
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
                 OutlinedTextField(
                     value = archivePassword,
                     onValueChange = { archivePassword = it },
@@ -204,8 +252,8 @@ fun ToolsetResourceEditorSheet(
                 Button(
                     onClick = {
                         if (saving) return@Button
-                        if (!editing && mode == "file") {
-                            AppMessages.show("文件上传将在下一批接入，请先使用自定义链接")
+                        if (!editing && mode == "file" && uploadState.artifactId == null) {
+                            AppMessages.show("请先选择并上传压缩包")
                             return@Button
                         }
                         if (!editing && mode == "link") {
@@ -247,6 +295,19 @@ fun ToolsetResourceEditorSheet(
                                         }
                                     }
                                     app.toolsetApi.patchResource(toolsetId, resource.id, body)
+                                } else if (mode == "file") {
+                                    app.toolsetApi.addResource(
+                                        toolsetId = toolsetId,
+                                        body = buildJsonObject {
+                                            put("toolset_resource_type", JsonPrimitive("file"))
+                                            put("artifact_id", JsonPrimitive(uploadState.artifactId.orEmpty()))
+                                            if (archivePassword.isNotBlank()) {
+                                                put("archive_password", JsonPrimitive(archivePassword.trim()))
+                                            }
+                                            if (note.isNotBlank()) put("note", JsonPrimitive(note))
+                                        },
+                                        idempotencyKey = UUID.randomUUID().toString(),
+                                    )
                                 } else {
                                     app.toolsetApi.addResource(
                                         toolsetId = toolsetId,
@@ -268,20 +329,57 @@ fun ToolsetResourceEditorSheet(
                             }
                             saving = false
                             result.onSuccess {
+                                if (!editing && mode == "file") uploadVm?.markPublished()
                                 AppMessages.show(if (editing) "更新成功" else "资源发布成功")
                                 onSaved()
-                            }.onFailure { AppMessages.show(friendlyError(it)) }
+                            }.onFailure { e ->
+                                val artifactMessage =
+                                    if (!editing && mode == "file") artifactFailureMessage(e) else null
+                                if (artifactMessage != null) {
+                                    uploadVm?.invalidateArtifact()
+                                    AppMessages.show(artifactMessage)
+                                } else {
+                                    AppMessages.show(friendlyError(e))
+                                }
+                            }
                         }
                     },
-                    enabled = !saving,
+                    enabled = !saving &&
+                        (editing || mode == "link" || uploadState.artifactId != null) &&
+                        !uploadState.uploadInProgress,
                 ) {
                     if (saving) {
                         CircularProgressIndicator(modifier = Modifier.width(16.dp), strokeWidth = 2.dp)
                     } else {
-                        Text(if (editing) "保存" else "提交链接")
+                        Text(
+                            when {
+                                editing -> "保存"
+                                mode == "file" -> "发布文件资源"
+                                else -> "提交链接"
+                            },
+                        )
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * 发布 file 资源时服务端对 artifact 的两种已知拒绝：
+ * 已发布过（ALREADY_EXISTS）或 artifact 已失效（UNKNOWN_REFERENCE）。
+ * 此时应丢弃上传结果，提示重新上传。
+ */
+private fun artifactFailureMessage(e: Throwable): String? {
+    val problem = (e as? KungalApiException)?.problem ?: return null
+    val mentionsArtifact = problem.errors.any { element ->
+        val obj = element as? JsonObject ?: return@any false
+        (obj["pointer"] as? JsonPrimitive)?.contentOrNull?.contains("artifact_id") == true
+    }
+    if (!mentionsArtifact) return null
+    return if (problem.code == "ALREADY_EXISTS") {
+        "这个文件已经发布过了，刷新页面即可看到"
+    } else {
+        "这个已上传的文件已失效，请重新上传"
     }
 }
