@@ -1,7 +1,7 @@
 ---
 handoff_schema: tavernweave/next/v1
 project_id: kungal-android-client
-status: bp03-delivered
+status: login-native
 updated: 2026-10-17
 ---
 
@@ -19,7 +19,8 @@ updated: 2026-10-17
 - 站点 = 鲲 Galgame 论坛（kungal.com）；Go Fiber v3 API（同域 `https://www.kungal.com/api/v1`，
   官方 OpenAPI 368 个 operation）+ Nuxt4/Vue3 SSR 前端；仓库 KunMoe/kun-galgame-forum（PUBLIC，AGPL-3.0）
 - 登录 = OAuth（账号统一在 account.nextmoe.com）；会话 = `kungal_session` cookie（90 天滑动续期）；
-  Bearer 白名单 client_id 属官方 App，第三方不得冒用
+  Bearer 白名单 client_id 属官方 App，第三方不得冒用；**2026-10-17 起登录页为原生账号密码
+  + 注册（复刻网页 OAuth 流程，网页登录保留兜底，C10）**
 - 官方 App 未发布（全平台「即将推出」、仓库私有）→ 第三方客户端定位成立（驾驶员已确认照做）
 - 匿名可读实测（`GET /api/v1/topics` 200）；API 无验证码/CSRF/UA 校验；Cloudflare 在最外层
 - **命名 = kungal-app**（包名 `com.kungal.app`，显示名 "kungal"）——驾驶员 2026-10-17 定案
@@ -29,6 +30,18 @@ updated: 2026-10-17
 
 ## 最近证据
 
+- 2026-10-17 **原生账号密码登录与注册（版本 0.6.1）**（驾驶员要求简化登录页）：
+  - core：`AccountAuthApi`（`/auth/login`、`/auth/register/send-code`、`/auth/register`、
+    `/oauth/authorize/consent`、论坛 `/api/auth/oauth/callback` 换 `kungal_session`）+
+    `Pkce`；使用网站前端公开 OAuth client_id（非官方 App Bearer client），
+    密码只在内存
+  - app：登录页改为原生表单（账号密码 / 注册含邮箱验证码与 60 秒倒计时），
+    校验规则与账号中心网页一致；保留「改用网页登录 / 注册」兜底
+  - 契约来源：账号中心公开前端 + 2026-10-17 只读探测（四条路径存在，登录无验证码）；
+    详见 `docs/devlog/2026-10-17-原生账号密码登录.md`
+  - 证据：core 168 + app 76 = **244 项单测全绿**；`assembleDebug` 通过；已装机
+    （0.6.1/code 19）；启动冒烟无崩溃
+  - 未验证：真实账号登录 / 注册（需驾驶员本人操作）；账号中心接口非论坛 OpenAPI，改版需回归
 - 2026-10-17 **BP-03 U7 收尾（版本 0.6.0，BP-03 全部交付）**：
   - 路径分发：`/user/{id}/toolset`、`/user/{id}/resource/{valid,expire,galgame-resource-like}`
     进原生用户页对应标签（站内链接与通知共用解析）；用户资源标签支持直接落到「点赞」列表
@@ -296,9 +309,11 @@ updated: 2026-10-17
    涉及真实写操作需驾驶员明确同意。
 5. [ ] 驾驶员真机走查 BP-03（资源列表/详情/发布、工具集、上传）；BP-02/BP-04 的
    写操作验证仍待驾驶员。
-6. 下一领域 = **BP-05 搜索、排行、月历、题库、情报、设置域**（需驾驶员开门后提取蓝图）。
+6. [ ] **驾驶员用真实账号验证原生登录 / 注册**（0.6.1）；失败可切「网页登录」兜底，
+   并把报错文案带回。
+7. 下一领域 = **BP-05 搜索、排行、月历、题库、情报、设置域**（需驾驶员开门后提取蓝图）。
 
 ## 一句续接
 
-读取总设计案、蓝图集索引和本文件；BP-01/02/03/04 已全部交付（等驾驶员自测），
-下一道门是 BP-05 蓝图提取，以及驾驶员对真实写操作与文件上传的验证。
+读取总设计案、蓝图集索引和本文件；BP-01/02/03/04 已全部交付，登录已改为原生账号密码
+（0.6.1，待驾驶员真机验证）；下一道门是 BP-05 蓝图提取与真实写操作验证。
