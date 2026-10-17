@@ -50,6 +50,8 @@ import com.kungal.app.ui.chat.ChatSettingsScreen
 import com.kungal.app.ui.creator.CreatorScreen
 import com.kungal.app.ui.editor.DraftsScreen
 import com.kungal.app.ui.editor.TopicEditorScreen
+import com.kungal.app.ui.galgame.GalgameListMode
+import com.kungal.app.ui.galgame.GalgameListScreen
 import com.kungal.app.ui.login.LoginScreen
 import com.kungal.app.ui.messages.MessagesScreen
 import com.kungal.app.ui.messages.NotificationListScreen
@@ -103,6 +105,8 @@ private object Routes {
     const val CHAT = "messages/chat/room?conversationId={conversationId}&userId={userId}"
     const val CHAT_SETTINGS = "messages/chat/settings"
     const val RANKING = "ranking?tab={tab}"
+    const val GALGAME_WORKS = "galgame/works"
+    const val GALGAME_LIBRARY = "galgame/library"
     const val SOON = "soon?title={title}&note={note}&path={path}"
 
     fun topic(id: String) = "topic/$id"
@@ -152,8 +156,12 @@ fun AppNav(app: KungalApp) {
             "/ranking/galgame" -> "work"
             else -> null
         }
-        if (rankingTab != null) nav.navigate(Routes.ranking(rankingTab))
-        else nav.navigate(Routes.soon(entry))
+        when {
+            rankingTab != null -> nav.navigate(Routes.ranking(rankingTab))
+            entry.webPath == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
+            entry.webPath == "/gallib" -> nav.navigate(Routes.GALGAME_LIBRARY)
+            else -> nav.navigate(Routes.soon(entry))
+        }
     }
 
     /** 通知里的站内路径：话题/用户进 App，其余（商店、Galgame 等）交给浏览器。 */
@@ -494,6 +502,29 @@ fun AppNav(app: KungalApp) {
                 ChatSettingsScreen(
                     app = app,
                     onBack = { nav.popBackStack() },
+                )
+            }
+            composable(Routes.GALGAME_WORKS) {
+                GalgameListScreen(
+                    app = app,
+                    mode = GalgameListMode.RESOURCE,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    // 词条详情在 BP-02 U2 接入；接入前点卡片打开网页，避免死路
+                    onOpenWork = { id ->
+                        AndroidActions.openInBrowser(context, "https://www.kungal.com/galgame/$id")
+                    },
+                )
+            }
+            composable(Routes.GALGAME_LIBRARY) {
+                GalgameListScreen(
+                    app = app,
+                    mode = GalgameListMode.LIBRARY,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenWork = { id ->
+                        AndroidActions.openInBrowser(context, "https://www.kungal.com/galgame/$id")
+                    },
                 )
             }
             composable(
