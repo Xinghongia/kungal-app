@@ -1,7 +1,6 @@
 package com.kungal.app.ui.topic
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -21,13 +21,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Bookmark
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
@@ -37,6 +37,7 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.Whatshot
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -45,14 +46,16 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -65,6 +68,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -77,7 +81,9 @@ import com.kungal.app.ui.components.Chip
 import com.kungal.app.ui.components.ErrorBox
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.content.ContentDocumentView
-import com.kungal.app.ui.util.relativeTime
+import com.kungal.app.ui.content.contentPlainText
+import com.kungal.app.ui.util.AndroidActions
+import com.kungal.app.ui.util.fullDateTime
 import com.kungal.core.model.Reply
 import com.kungal.core.model.Topic
 import com.kungal.core.model.TopicViewer
@@ -95,13 +101,12 @@ fun TopicDetailScreen(
     val vm: TopicDetailViewModel = viewModel(key = "topic-$topicId") { TopicDetailViewModel(app, topicId) }
     val state by vm.state.collectAsState()
     val session by app.session.collectAsState()
+    val currentUserId by app.currentUserId.collectAsState()
+    val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
-    var replyText by remember { mutableStateOf("") }
-    // 底部回复框默认收起，点击「写回复」或引用回复时才展开
-    var composerOpen by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var menuOpen by remember { mutableStateOf(false) }
-    var historyTarget by remember { mutableStateOf<String?>(null) } // "topic" 或 reply id
     var showSubscribe by remember { mutableStateOf(false) }
     var showUpvote by remember { mutableStateOf(false) }
     var hideConfirm by remember { mutableStateOf(false) }
@@ -109,9 +114,25 @@ fun TopicDetailScreen(
     var deleteCommentTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
     var nsfwRevealed by remember(topicId) { mutableStateOf(false) }
 
+    // 回复面板：只有点击「回复」/「写回复」时才弹出（与网站一致）
+    var replySheetOpen by remember { mutableStateOf(false) }
+    var quoteReply by remember { mutableStateOf<Reply?>(null) }
+    var sheetText by remember { mutableStateOf("") }
+
+    // 举报弹窗
+    var reportTarget by remember { mutableStateOf<Reply?>(null) }
+    var reportReasonKey by remember { mutableStateOf<String?>(null) }
+    var reportNote by remember { mutableStateOf("") }
+
     val topic = state.topic
     val nsfwGated = topic?.isNsfw == true && nsfwDisplay == NsfwDisplayMode.HIDE && !nsfwRevealed
     val loggedIn = session != null
+
+    fun openReplySheet(target: Reply?) {
+        quoteReply = target
+        sheetText = ""
+        replySheetOpen = true
+    }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -129,17 +150,6 @@ fun TopicDetailScreen(
         }.collect { nearEnd -> if (nearEnd) vm.loadReplies() }
     }
 
-    // ---------- 弹窗 ----------
-    if (historyTarget != null) {
-        val target = historyTarget!!
-        ReactionHistoryDialog(
-            load = {
-                if (target == "topic") app.topicApi.topicReactionHistory(topicId).items
-                else app.topicApi.replyReactionHistory(target).items
-            },
-            onDismiss = { historyTarget = null },
-        )
-    }
     if (showSubscribe) {
         SubscriptionDialog(
             current = state.subscription?.notificationLevel ?: "normal",
@@ -191,6 +201,96 @@ fun TopicDetailScreen(
         )
     }
 
+    // 举报弹窗（原因从站点 /report-reasons 加载）
+    reportTarget?.let { reply ->
+        LaunchedEffect(reply.id) { vm.loadReportReasons() }
+        AlertDialog(
+            onDismissRequest = { reportTarget = null },
+            title = { Text("举报回复") },
+            text = {
+                Column(
+                    modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    if (state.reportReasons.isEmpty()) {
+                        Text(
+                            "正在加载举报原因…",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    state.reportReasons.forEach { reason ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { reportReasonKey = reason.key }
+                                .padding(vertical = 4.dp),
+                        ) {
+                            RadioButton(
+                                selected = reportReasonKey == reason.key,
+                                onClick = { reportReasonKey = reason.key },
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(reason.displayName, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = reportNote,
+                        onValueChange = { reportNote = it.take(1000) },
+                        placeholder = { Text("补充说明（可选）") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 3,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = reportReasonKey != null && !state.reporting,
+                    onClick = {
+                        val reason = reportReasonKey ?: return@TextButton
+                        vm.reportReply(reply, reason, reportNote, contentPlainText(reply.content))
+                        reportTarget = null
+                        reportReasonKey = null
+                        reportNote = ""
+                    },
+                ) { Text(if (state.reporting) "提交中…" else "举报") }
+            },
+            dismissButton = { TextButton(onClick = { reportTarget = null }) { Text("取消") } },
+        )
+    }
+
+    // 底部回复面板（点「回复」或「写回复」才出现）
+    if (replySheetOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { replySheetOpen = false },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ) {
+            ReplySheet(
+                quote = quoteReply,
+                text = sheetText,
+                sending = state.replySending,
+                onTextChange = { sheetText = it },
+                onClearQuote = { quoteReply = null },
+                onDismiss = { replySheetOpen = false },
+                onSend = {
+                    val body = sheetText.trim()
+                    if (body.isNotEmpty()) {
+                        val prefixed = quoteReply?.let {
+                            val name = it.author.name ?: it.author.id
+                            "> 回复 #${it.floor} @$name\n\n$body"
+                        } ?: body
+                        vm.sendReply(prefixed)
+                        replySheetOpen = false
+                    }
+                },
+            )
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -206,32 +306,28 @@ fun TopicDetailScreen(
                             Icon(Icons.Outlined.Edit, contentDescription = "编辑话题")
                         }
                     }
-                    Box {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(Icons.Outlined.MoreVert, contentDescription = "更多")
-                        }
-                        DropdownMenu(
-                            expanded = menuOpen,
-                            onDismissRequest = { menuOpen = false },
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        ) {
-                            if (topic != null) {
-                                DropdownMenuItem(
-                                    text = { Text("反应历史") },
-                                    onClick = { menuOpen = false; historyTarget = "topic" },
-                                )
+                    if (topic?.viewer?.canHide == true || topic?.viewer?.canUnhide == true) {
+                        Box {
+                            IconButton(onClick = { menuOpen = true }) {
+                                Icon(Icons.Outlined.MoreVert, contentDescription = "更多")
                             }
-                            if (topic?.viewer?.canHide == true) {
-                                DropdownMenuItem(
-                                    text = { Text("隐藏话题") },
-                                    onClick = { menuOpen = false; hideConfirm = true },
-                                )
-                            }
-                            if (topic?.viewer?.canUnhide == true) {
-                                DropdownMenuItem(
-                                    text = { Text("恢复话题") },
-                                    onClick = { menuOpen = false; vm.setHidden(false) },
-                                )
+                            DropdownMenu(
+                                expanded = menuOpen,
+                                onDismissRequest = { menuOpen = false },
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            ) {
+                                if (topic?.viewer?.canHide == true) {
+                                    DropdownMenuItem(
+                                        text = { Text("隐藏话题") },
+                                        onClick = { menuOpen = false; hideConfirm = true },
+                                    )
+                                }
+                                if (topic?.viewer?.canUnhide == true) {
+                                    DropdownMenuItem(
+                                        text = { Text("恢复话题") },
+                                        onClick = { menuOpen = false; vm.setHidden(false) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -239,27 +335,6 @@ fun TopicDetailScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = {
-            if (!nsfwGated) {
-                ReplyComposer(
-                    expanded = composerOpen,
-                    onExpandedChange = { composerOpen = it },
-                    value = replyText,
-                    onValueChange = { replyText = it },
-                    sending = state.replySending,
-                    onSubmit = {
-                        if (!loggedIn) {
-                            onRequireLogin()
-                            false
-                        } else {
-                            vm.sendReply(replyText)
-                            replyText = ""
-                            true
-                        }
-                    },
-                )
-            }
-        },
     ) { padding ->
         when {
             state.loading && topic == null -> LoadingBox(Modifier.fillMaxSize().padding(padding))
@@ -284,15 +359,29 @@ fun TopicDetailScreen(
                     )
                 }
                 item {
-                    ReactionBar(
-                        reactions = topic.reactions,
-                        busy = state.reactionBusy,
-                        onToggle = {
-                            if (!loggedIn) onRequireLogin() else vm.toggleReaction(it)
-                        },
-                        onShowHistory = { historyTarget = "topic" },
-                        modifier = Modifier.padding(horizontal = 8.dp),
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ReactionChips(
+                            reactions = topic.reactions,
+                            busy = state.reactionBusy,
+                            enabled = true,
+                            onToggle = {
+                                if (!loggedIn) onRequireLogin() else vm.toggleReaction(it)
+                            },
+                        )
+                        ReactionPickerButton(
+                            reactions = topic.reactions,
+                            busy = state.reactionBusy,
+                            subjectLabel = "话题",
+                            enabled = true,
+                            onToggle = {
+                                if (!loggedIn) onRequireLogin() else vm.toggleReaction(it)
+                            },
+                            onLoadHistory = { app.topicApi.topicReactionHistory(topicId).items },
+                        )
+                    }
                 }
                 item {
                     TopicActionBar(
@@ -300,6 +389,7 @@ fun TopicDetailScreen(
                         subscriptionLevel = state.subscription?.notificationLevel ?: "normal",
                         busy = state.actionBusy,
                         loggedIn = loggedIn,
+                        onReply = { if (!loggedIn) onRequireLogin() else openReplySheet(null) },
                         onFavorite = { if (!loggedIn) onRequireLogin() else vm.toggleFavorite() },
                         onSubscribe = { if (!loggedIn) onRequireLogin() else showSubscribe = true },
                         onUpvote = { if (!loggedIn) onRequireLogin() else showUpvote = true },
@@ -375,15 +465,26 @@ fun TopicDetailScreen(
                         reply = reply,
                         busy = state.replyBusyId == reply.id,
                         loggedIn = loggedIn,
+                        isSelf = currentUserId != null && currentUserId == reply.author.id,
                         canPinReply = topic.viewer?.canPinReply == true,
                         canSetBestAnswer = topic.viewer?.canSetBestAnswer == true,
                         commentSending = state.commentSendingReplyId == reply.id,
+                        followState = state.followStates[reply.author.id],
+                        onLoadFollowState = { vm.loadFollowState(reply.author.id) },
+                        onToggleFollow = { vm.toggleFollow(reply.author.id) },
                         onToggleReaction = { vm.toggleReplyReaction(reply.id, it) },
-                        onShowHistory = { historyTarget = reply.id },
-                        onQuote = {
-                            val name = reply.author.name ?: reply.author.id
-                            replyText = "> 回复 #${reply.floor} @$name\n\n" + replyText
-                            composerOpen = true
+                        onLoadHistory = { app.topicApi.replyReactionHistory(reply.id).items },
+                        onQuote = { openReplySheet(reply) },
+                        onShare = {
+                            AndroidActions.shareText(
+                                context,
+                                "${topic.title}: https://www.kungal.com/topic/$topicId?reply=${reply.floor}",
+                            )
+                        },
+                        onReport = {
+                            reportTarget = reply
+                            reportReasonKey = null
+                            reportNote = ""
                         },
                         onEdit = { vm.startEditReply(reply.id) },
                         onDelete = { deleteReplyTarget = reply.id },
@@ -420,6 +521,7 @@ fun TopicDetailScreen(
                             textAlign = TextAlign.Center,
                         )
                     }
+                    Spacer(Modifier.height(24.dp))
                 }
             }
         }
@@ -452,6 +554,78 @@ fun TopicDetailScreen(
     }
 }
 
+/** 底部回复面板内容：引用预览 + Markdown 输入 + 发送。 */
+@Composable
+private fun ReplySheet(
+    quote: Reply?,
+    text: String,
+    sending: Boolean,
+    onTextChange: (String) -> Unit,
+    onClearQuote: () -> Unit,
+    onDismiss: () -> Unit,
+    onSend: () -> Unit,
+) {
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(Unit) {
+        // 等底部面板完成首次布局后再请求焦点，避免 FocusRequester 未初始化
+        kotlinx.coroutines.delay(200)
+        runCatching {
+            focusRequester.requestFocus()
+            keyboard?.show()
+        }
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .imePadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text("发表回复", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        quote?.let { target ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                    .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "回复 #${target.floor} @${target.author.name ?: target.author.id}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = onClearQuote, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Outlined.Close, contentDescription = "取消引用", modifier = Modifier.size(16.dp))
+                }
+            }
+        }
+        OutlinedTextField(
+            value = text,
+            onValueChange = onTextChange,
+            placeholder = { Text("回复（支持 Markdown）") },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp, max = 260.dp).focusRequester(focusRequester),
+            maxLines = 10,
+            shape = RoundedCornerShape(12.dp),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onDismiss) { Text("取消") }
+            Spacer(Modifier.weight(1f))
+            Button(onClick = onSend, enabled = text.isNotBlank() && !sending) {
+                if (sending) {
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("发送")
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun TopicHeader(topic: Topic) {
     Column(
@@ -471,18 +645,26 @@ private fun TopicHeader(topic: Topic) {
             if (topic.hasBestAnswer) Chip("已解决")
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AvatarImage(url = topic.author.avatar?.url, modifier = Modifier.size(28.dp))
+            AvatarImage(url = topic.author.avatar?.url, modifier = Modifier.size(32.dp))
             Spacer(Modifier.width(8.dp))
             Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = topic.author.name ?: topic.author.id,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    if (topic.authorMoemoepoint > 0) {
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "@ ${topic.authorMoemoepoint}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
                 Text(
-                    text = topic.author.name ?: topic.author.id,
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Text(
-                    text = buildString {
-                        append(relativeTime(topic.createdAt))
-                        if (topic.editedAt != null) append("（已编辑）")
-                    },
+                    text = "发布于 " + fullDateTime(topic.createdAt) + if (topic.editedAt != null) "（已编辑）" else "",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -510,6 +692,7 @@ private fun TopicActionBar(
     subscriptionLevel: String,
     busy: Boolean,
     loggedIn: Boolean,
+    onReply: () -> Unit,
     onFavorite: () -> Unit,
     onSubscribe: () -> Unit,
     onUpvote: () -> Unit,
@@ -524,7 +707,20 @@ private fun TopicActionBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ActionChip(
-            icon = { Icon(if (viewer.hasFavorited) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder, null, Modifier.size(16.dp)) },
+            icon = { Icon(Icons.AutoMirrored.Outlined.Reply, null, Modifier.size(16.dp)) },
+            label = "回复",
+            active = false,
+            enabled = !busy && loggedIn,
+            onClick = onReply,
+        )
+        ActionChip(
+            icon = {
+                Icon(
+                    if (viewer.hasFavorited) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder,
+                    null,
+                    Modifier.size(16.dp),
+                )
+            },
             label = "收藏 ${topic.favoriteCount}",
             active = viewer.hasFavorited,
             enabled = !busy,
@@ -728,105 +924,5 @@ private fun NsfwGate(onReveal: () -> Unit, modifier: Modifier = Modifier) {
         )
         Spacer(Modifier.height(16.dp))
         TextButton(onClick = onReveal) { Text("仍然查看") }
-    }
-}
-
-@Composable
-private fun ReplyComposer(
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
-    value: String,
-    onValueChange: (String) -> Unit,
-    sending: Boolean,
-    onSubmit: () -> Boolean,
-) {
-    val focusRequester = remember { FocusRequester() }
-    val keyboard = LocalSoftwareKeyboardController.current
-
-    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow) {
-        if (!expanded) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                        shape = CircleShape,
-                    )
-                    .clickable { onExpandedChange(true) }
-                    .padding(horizontal = 16.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    Icons.Outlined.Edit,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "写回复…",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        } else {
-            Row(
-                verticalAlignment = Alignment.Bottom,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .imePadding()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-            ) {
-                OutlinedTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    placeholder = { Text("回复（支持 Markdown）") },
-                    modifier = Modifier.weight(1f).focusRequester(focusRequester),
-                    maxLines = 5,
-                    shape = RoundedCornerShape(20.dp),
-                )
-                Spacer(Modifier.width(4.dp))
-                IconButton(
-                    onClick = {
-                        if (onSubmit()) {
-                            keyboard?.hide()
-                            onExpandedChange(false)
-                        }
-                    },
-                    enabled = value.isNotBlank() && !sending,
-                ) {
-                    if (sending) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "发送")
-                    }
-                }
-                IconButton(
-                    onClick = {
-                        keyboard?.hide()
-                        onExpandedChange(false)
-                    },
-                ) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = "收起回复框",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-    }
-
-    LaunchedEffect(expanded) {
-        if (expanded) {
-            focusRequester.requestFocus()
-            keyboard?.show()
-        }
     }
 }

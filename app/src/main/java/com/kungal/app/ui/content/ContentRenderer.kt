@@ -26,8 +26,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -78,16 +83,58 @@ import com.kungal.core.model.VideoNode
 
 /**
  * 正文文档树 → Compose。覆盖站点 blocks.go 定义的全部节点类型；
- * 未知节点（UnknownNode）跳过不渲染。
+ * 未知节点（UnknownNode）跳过不渲染。图片点击打开全屏查看器。
  */
 @Composable
 fun ContentDocumentView(document: ContentDocument?, modifier: Modifier = Modifier) {
     val revealed = remember { mutableStateSetOf<String>() }
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        document?.children?.forEachIndexed { index, node ->
-            BlockView(node = node, key = "n$index", revealed = revealed)
+    var viewerUrl by remember { mutableStateOf<String?>(null) }
+    CompositionLocalProvider(LocalImageClicker provides { url -> viewerUrl = url }) {
+        Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            document?.children?.forEachIndexed { index, node ->
+                BlockView(node = node, key = "n$index", revealed = revealed)
+            }
         }
     }
+    viewerUrl?.let { url ->
+        FullScreenImageViewer(url = url, onDismiss = { viewerUrl = null })
+    }
+}
+
+/** 正文图片点击回调；ContentDocumentView 内部提供。 */
+private val LocalImageClicker = compositionLocalOf<(String) -> Unit> { {} }
+
+/** 正文纯文本（举报快照等用途）。 */
+fun contentPlainText(document: ContentDocument?): String {
+    val builder = StringBuilder()
+    fun walk(nodes: List<ContentNode>) {
+        for (node in nodes) {
+            when (node) {
+                is TextNode -> builder.append(node.value)
+                is BreakNode -> builder.append('\n')
+                is InlineCodeNode -> builder.append(node.value)
+                is InlineMathNode -> builder.append(node.value)
+                is CodeNode -> builder.append(node.value)
+                is EmphasisNode -> walk(node.children)
+                is StrongNode -> walk(node.children)
+                is StrikethroughNode -> walk(node.children)
+                is LinkNode -> walk(node.children)
+                is InlineSpoilerNode -> walk(node.children)
+                is SpoilerNode -> walk(node.children)
+                is ParagraphNode -> walk(node.children)
+                is HeadingNode -> walk(node.children)
+                is BlockquoteNode -> walk(node.children)
+                is ListNode -> walk(node.children)
+                is ListItemNode -> walk(node.children)
+                is TableNode -> walk(node.children)
+                is TableRowNode -> walk(node.children)
+                is TableCellNode -> walk(node.children)
+                else -> Unit
+            }
+        }
+    }
+    walk(document?.children.orEmpty())
+    return builder.toString().trim().take(2000)
 }
 
 @Composable
@@ -281,12 +328,16 @@ private fun ImageBlock(node: ImageNode) {
         )
         return
     }
+    val onImageClick = LocalImageClicker.current
     val ratio = node.image?.let { info ->
         val w = info.width ?: 0
         val h = info.height ?: 0
         if (w > 0 && h > 0) w.toFloat() / h.toFloat() else null
     }
-    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = Modifier.fillMaxWidth().clickable { onImageClick(node.url) },
+        contentAlignment = Alignment.Center,
+    ) {
         SubcomposeAsyncImage(
             model = node.url,
             contentDescription = node.alt.ifBlank { null },

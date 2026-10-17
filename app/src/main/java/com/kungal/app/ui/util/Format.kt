@@ -22,5 +22,15 @@ fun relativeTime(iso: String): String {
     }.getOrDefault(iso)
 }
 
+/** 精确到秒的本地时间（回复/评论发布时间）：yyyy-MM-dd HH:mm:ss。 */
+fun fullDateTime(iso: String): String {
+    if (iso.isBlank()) return ""
+    return runCatching {
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            .withZone(ZoneId.systemDefault())
+            .format(Instant.parse(iso))
+    }.getOrDefault(iso)
+}
+
 private fun formatDate(time: Instant): String =
     DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.systemDefault()).format(time)

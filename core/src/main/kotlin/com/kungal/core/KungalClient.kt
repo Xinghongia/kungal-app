@@ -136,6 +136,39 @@ class KungalClient(
         deserializer: DeserializationStrategy<T>,
     ): T = execute(request(url(path)).post(EMPTY_BODY).build(), deserializer)
 
+    /** 无响应体的 POST（如删除类操作、举报 204）。 */
+    suspend fun postJsonNoContent(
+        path: String,
+        body: String,
+        idempotencyKey: String? = null,
+    ) {
+        val builder = request(url(path)).post(body.toRequestBody(JSON_MEDIA_TYPE))
+        if (idempotencyKey != null) builder.header("Idempotency-Key", idempotencyKey)
+        withContext(Dispatchers.IO) {
+            val response = http.newCall(builder.build()).execute()
+            response.use { r ->
+                if (!r.isSuccessful) {
+                    throw toException(r.code, r.header("Retry-After"), r.body.string())
+                }
+            }
+        }
+    }
+
+    /** 下载图片等二进制内容（内容寻址 CDN 不需要会话）。 */
+    suspend fun downloadBytes(url: String): ByteArray = withContext(Dispatchers.IO) {
+        val response = http.newCall(Request.Builder().url(url).build()).execute()
+        response.use { r ->
+            if (!r.isSuccessful) {
+                throw KungalApiException(
+                    problem = null,
+                    httpStatus = r.code,
+                    message = "下载失败（HTTP ${r.code}）",
+                )
+            }
+            r.body.bytes()
+        }
+    }
+
     /** 无响应体的 DELETE（如删除回复/评论/草稿，204）。 */
     suspend fun deleteNoBody(path: String) {
         withContext(Dispatchers.IO) {

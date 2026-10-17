@@ -1,10 +1,17 @@
 package com.kungal.app
 
 import android.app.Application
+import android.os.Build
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import coil3.gif.AnimatedImageDecoder
+import coil3.gif.GifDecoder
 import com.kungal.core.KungalClient
 import com.kungal.core.api.ImageApi
 import com.kungal.core.api.MeApi
 import com.kungal.core.api.SectionApi
+import com.kungal.core.api.SocialApi
 import com.kungal.core.api.TopicApi
 import com.kungal.core.model.Account
 import com.kungal.core.session.Session
@@ -36,6 +43,9 @@ class KungalApp : Application() {
     lateinit var imageApi: ImageApi
         private set
 
+    lateinit var socialApi: SocialApi
+        private set
+
     lateinit var sessionStore: SessionStore
         private set
 
@@ -52,6 +62,10 @@ class KungalApp : Application() {
     private val _accountStance = MutableStateFlow<NsfwDisplayMode?>(null)
     val accountStance: StateFlow<NsfwDisplayMode?> = _accountStance.asStateFlow()
 
+    /** 当前登录用户 id（用于区分「自己的内容」与关注/举报入口）。 */
+    private val _currentUserId = MutableStateFlow<String?>(null)
+    val currentUserId: StateFlow<String?> = _currentUserId.asStateFlow()
+
     /**
      * 应用当前生效的内容显示方式：登录时跟账号走，未登录时用本机偏好。
      * 话题列表据此决定是否请求 include_nsfw 以及封面是否打码。
@@ -63,11 +77,24 @@ class KungalApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // 站点表情是动态 WebP（/emoji/*.webp），需要注册动图解码器才会动起来
+        SingletonImageLoader.setSafe { context: PlatformContext ->
+            ImageLoader.Builder(context)
+                .components {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        add(AnimatedImageDecoder.Factory())
+                    } else {
+                        add(GifDecoder.Factory())
+                    }
+                }
+                .build()
+        }
         client = KungalClient()
         topicApi = TopicApi(client)
         sectionApi = SectionApi(client)
         meApi = MeApi(client)
         imageApi = ImageApi(client)
+        socialApi = SocialApi(client)
         sessionStore = SessionStore(this)
         settingsStore = SettingsStore(this)
         contentStance = combine(session, _accountStance, settingsStore.flow) { session, account, settings ->
@@ -105,6 +132,7 @@ class KungalApp : Application() {
     /** 各页面拿到 /me/account 后同步内容姿态，避免重复请求。 */
     fun applyAccount(account: Account) {
         _accountStance.value = NsfwDisplayMode.fromAccount(account.contentStance)
+        _currentUserId.value = account.id.ifBlank { null }
     }
 
     /**
@@ -124,6 +152,7 @@ class KungalApp : Application() {
         client.session.restore(session)
         _session.value = session
         _accountStance.value = null
+        _currentUserId.value = null
         appScope.launch { refreshContentStance() }
     }
 }

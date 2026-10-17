@@ -5,12 +5,15 @@ import androidx.lifecycle.viewModelScope
 import com.kungal.app.KungalApp
 import com.kungal.core.model.Lottery
 import com.kungal.core.model.Poll
+import com.kungal.core.model.ReportCreate
+import com.kungal.core.model.ReportReason
 import com.kungal.core.model.Reply
 import com.kungal.core.model.ReplyComment
 import com.kungal.core.model.Topic
 import com.kungal.core.model.TopicState
 import com.kungal.core.model.TopicSubscription
 import com.kungal.core.model.TopicViewer
+import com.kungal.core.model.UserFollowState
 import com.kungal.core.net.KungalApiException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,6 +58,10 @@ class TopicDetailViewModel(
         val editingReply: EditTarget? = null,
         val editingComment: EditTarget? = null,
         val replyIdBeingEdited: String? = null,
+        /** 作者 id → 我是否关注（打开菜单时按需加载）。 */
+        val followStates: Map<String, UserFollowState> = emptyMap(),
+        val reporting: Boolean = false,
+        val reportReasons: List<ReportReason> = emptyList(),
     )
 
     private val _state = MutableStateFlow(State())
@@ -591,6 +598,76 @@ class TopicDetailViewModel(
 
     fun consumeMessage() {
         _state.update { it.copy(message = null) }
+    }
+
+    // ---------- 关注 / 举报 ----------
+
+    fun loadFollowState(userId: String) {
+        if (!isLoggedIn || userId.isBlank()) return
+        if (_state.value.followStates.containsKey(userId)) return
+        viewModelScope.launch {
+            runCatching { app.socialApi.followState(userId) }
+                .onSuccess { state ->
+                    _state.update { it.copy(followStates = it.followStates + (userId to state)) }
+                }
+        }
+    }
+
+    fun toggleFollow(userId: String) {
+        if (!isLoggedIn || userId.isBlank()) return
+        val following = _state.value.followStates[userId]?.isFollowing == true
+        viewModelScope.launch {
+            runCatching {
+                if (following) app.socialApi.unfollow(userId) else app.socialApi.follow(userId)
+            }.onSuccess { state ->
+                _state.update {
+                    it.copy(
+                        followStates = it.followStates + (userId to state),
+                        message = if (state.isFollowing) "已关注 TA" else "已取消关注",
+                    )
+                }
+            }.onFailure { e ->
+                _state.update { it.copy(message = friendlyError(e)) }
+            }
+        }
+    }
+
+    fun loadReportReasons() {
+        if (_state.value.reportReasons.isNotEmpty()) return
+        viewModelScope.launch {
+            runCatching { app.socialApi.reportReasons() }
+                .onSuccess { page ->
+                    _state.update { it.copy(reportReasons = page.items) }
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(message = friendlyError(e)) }
+                }
+        }
+    }
+
+    /** 举报一条回复；snapshot 是正文纯文本，subject_url 指向楼层。 */
+    fun reportReply(reply: Reply, reasonKey: String, note: String?, snapshot: String?) {
+        if (!isLoggedIn || _state.value.reporting) return
+        _state.update { it.copy(reporting = true) }
+        viewModelScope.launch {
+            runCatching {
+                app.socialApi.report(
+                    ReportCreate(
+                        subjectKind = "forum_reply",
+                        subjectId = reply.id,
+                        reasonKey = reasonKey,
+                        note = note?.trim()?.takeIf { it.isNotEmpty() },
+                        snapshot = snapshot,
+                        subjectUrl = "https://www.kungal.com/topic/$topicId?reply=${reply.floor}",
+                    ),
+                    idempotencyKey = UUID.randomUUID().toString(),
+                )
+            }.onSuccess {
+                _state.update { it.copy(reporting = false, message = "举报已提交") }
+            }.onFailure { e ->
+                _state.update { it.copy(reporting = false, message = friendlyError(e)) }
+            }
+        }
     }
 
     private fun updateReply(replyId: String, transform: (Reply) -> Reply) {

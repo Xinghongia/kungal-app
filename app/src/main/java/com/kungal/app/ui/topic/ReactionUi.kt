@@ -1,6 +1,7 @@
 package com.kungal.app.ui.topic
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,10 +19,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AddReaction
-import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.SentimentSatisfied
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,10 +41,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import coil3.compose.SubcomposeAsyncImage
 import com.kungal.app.ui.components.AvatarImage
 import com.kungal.app.ui.components.ErrorBox
-import com.kungal.app.ui.util.relativeTime
+import com.kungal.app.ui.util.fullDateTime
 import com.kungal.core.model.ReactionRecord
 import com.kungal.core.model.ReactionSummary
 
@@ -84,38 +87,50 @@ val ReactionMetas: List<ReactionMeta> = listOf(
     ReactionMeta("whale", "🐳", "鲸鱼"),
 )
 
+/** 表情面板里除点赞/点踩外的 31 个表情（点赞/点踩单独成行）。 */
+private val EmojiReactions = ReactionMetas.filter { it.token != "like" && it.token != "dislike" }
+
 fun reactionEmoji(token: String): String =
     ReactionMetas.firstOrNull { it.token == token }?.emoji ?: "🙂"
 
 fun reactionLabel(token: String): String =
     ReactionMetas.firstOrNull { it.token == token }?.label ?: token
 
-/** 话题/回复共用的反应条：已有反应计数 + 表情选择 + 历史。 */
+/** 站点表情是动态 WebP，直接走站点 CDN；Coil 已注册动图解码器。 */
+fun reactionAssetUrl(token: String): String = "https://www.kungal.com/emoji/$token.webp"
+
+/** 站点同款动态表情图标；加载失败时回退到系统 emoji 文本。 */
 @Composable
-fun ReactionBar(
+fun ReactionIcon(token: String, size: Int = 20, modifier: Modifier = Modifier) {
+    SubcomposeAsyncImage(
+        model = reactionAssetUrl(token),
+        contentDescription = reactionLabel(token),
+        modifier = modifier.size(size.dp),
+        loading = { ReactionEmojiFallback(token, size) },
+        error = { ReactionEmojiFallback(token, size) },
+    )
+}
+
+@Composable
+private fun ReactionEmojiFallback(token: String, size: Int) {
+    Box(Modifier.size(size.dp), contentAlignment = Alignment.Center) {
+        Text(reactionEmoji(token), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/**
+ * 已有点的反应 chip：点击直接发送；再点一次取消（与网站一致）。
+ * 已点过的用强调色背景 + 描边 + 对勾区分，未点过的保持中性。
+ */
+@Composable
+fun ReactionChips(
     reactions: List<ReactionSummary>,
     busy: Boolean,
     onToggle: (String) -> Unit,
-    onShowHistory: () -> Unit,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    var pickerOpen by remember { mutableStateOf(false) }
-    val activeTokens = reactions.filter { it.viewer?.hasReacted == true }.map { it.reaction }.toSet()
-
-    if (pickerOpen) {
-        ReactionPickerDialog(
-            activeTokens = activeTokens,
-            enabled = !busy,
-            onToggle = onToggle,
-            onDismiss = { pickerOpen = false },
-        )
-    }
-
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         reactions.filter { it.count > 0 }.take(6).forEach { summary ->
             val active = summary.viewer?.hasReacted == true
             Row(
@@ -125,76 +140,229 @@ fun ReactionBar(
                         if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                         else MaterialTheme.colorScheme.surfaceVariant,
                     )
-                    .clickable(enabled = !busy) { onToggle(summary.reaction) }
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .then(
+                        if (active) {
+                            Modifier.border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                                shape = RoundedCornerShape(20.dp),
+                            )
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .clickable(enabled = enabled && !busy) { onToggle(summary.reaction) }
+                    .padding(horizontal = 9.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(reactionEmoji(summary.reaction), fontSize = 14.sp)
+                ReactionIcon(summary.reaction, size = 20)
                 Spacer(Modifier.width(4.dp))
                 Text(
                     summary.count.toString(),
                     style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
                     color = if (active) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (active) {
+                    Spacer(Modifier.width(2.dp))
+                    Icon(
+                        Icons.Outlined.Check,
+                        contentDescription = "已回应",
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
-        }
-        IconButton(onClick = { pickerOpen = true }, enabled = !busy) {
-            Icon(
-                Icons.Outlined.AddReaction,
-                contentDescription = "添加表情反应",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(Modifier.weight(1f))
-        IconButton(onClick = onShowHistory) {
-            Icon(
-                Icons.Outlined.History,
-                contentDescription = "反应历史",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
 
+/**
+ * 网站同款反应弹层：点赞/点踩带说明 + 动态表情网格 + 底部反应总数与历史入口。
+ * 点击任一项立即发送；已选中的再点一次会取消。已选项有强调色和对勾。
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ReactionPickerDialog(
-    activeTokens: Set<String>,
-    enabled: Boolean,
+fun ReactionPickerButton(
+    reactions: List<ReactionSummary>,
+    busy: Boolean,
+    subjectLabel: String,
     onToggle: (String) -> Unit,
-    onDismiss: () -> Unit,
+    onLoadHistory: suspend () -> List<ReactionRecord>,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("选择表情反应") },
-        text = {
+    var open by remember { mutableStateOf(false) }
+    var historyOpen by remember { mutableStateOf(false) }
+    val activeTokens = reactions.filter { it.viewer?.hasReacted == true }.map { it.reaction }.toSet()
+    val total = reactions.sumOf { it.count }
+
+    if (historyOpen) {
+        ReactionHistoryDialog(load = onLoadHistory, onDismiss = { historyOpen = false })
+    }
+
+    Box(modifier) {
+        IconButton(onClick = { open = true }, enabled = enabled) {
+            Icon(
+                Icons.Outlined.SentimentSatisfied,
+                contentDescription = "表态",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DropdownMenu(
+            expanded = open,
+            onDismissRequest = { open = false },
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            modifier = Modifier.width(304.dp),
+        ) {
+            MenuReactionRow(
+                token = "like",
+                label = "点赞",
+                note = "点赞会使被点赞的用户萌萌点 +1",
+                active = "like" in activeTokens,
+                onClick = {
+                    open = false
+                    onToggle("like")
+                },
+            )
+            MenuReactionRow(
+                token = "dislike",
+                label = "点踩",
+                note = "被点踩多的用户将会被智乃屠杀",
+                active = "dislike" in activeTokens,
+                onClick = {
+                    open = false
+                    onToggle("dislike")
+                },
+            )
+            HorizontalDivider(Modifier.padding(vertical = 4.dp))
             FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                maxItemsInEachRow = 6,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
             ) {
-                ReactionMetas.forEach { meta ->
+                EmojiReactions.forEach { meta ->
                     val active = meta.token in activeTokens
                     Box(
                         modifier = Modifier
                             .size(44.dp)
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(RoundedCornerShape(8.dp))
                             .background(
-                                if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                                else MaterialTheme.colorScheme.surfaceContainer,
                             )
-                            .clickable(enabled = enabled) { onToggle(meta.token) },
+                            .then(
+                                if (active) {
+                                    Modifier.border(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                                        RoundedCornerShape(8.dp),
+                                    )
+                                } else {
+                                    Modifier
+                                },
+                            )
+                            .clickable {
+                                open = false
+                                onToggle(meta.token)
+                            },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(meta.emoji, fontSize = 22.sp)
+                        ReactionIcon(meta.token, size = 26)
+                        if (active) {
+                            Icon(
+                                Icons.Outlined.Check,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(2.dp)
+                                    .size(11.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("完成") }
-        },
-    )
+            HorizontalDivider(Modifier.padding(vertical = 4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "$total 人回应了$subjectLabel",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    onClick = {
+                        open = false
+                        historyOpen = true
+                    },
+                ) { Text("查看历史") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MenuReactionRow(
+    token: String,
+    label: String,
+    note: String,
+    active: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                else MaterialTheme.colorScheme.surfaceContainer,
+            )
+            .then(
+                if (active) {
+                    Modifier.border(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                        RoundedCornerShape(8.dp),
+                    )
+                } else {
+                    Modifier
+                },
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ReactionIcon(token, size = 26)
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                note,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (active) {
+            Icon(
+                Icons.Outlined.Check,
+                contentDescription = "已回应",
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
 }
 
 /** 反应历史：谁在什么时候点了什么。 */
@@ -241,12 +409,12 @@ fun ReactionHistoryDialog(
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                                 Text(
-                                    relativeTime(record.createdAt),
+                                    fullDateTime(record.createdAt),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Text(reactionEmoji(record.reaction), fontSize = 18.sp)
+                            ReactionIcon(record.reaction, size = 20)
                             Spacer(Modifier.width(4.dp))
                             Text(
                                 reactionLabel(record.reaction),
@@ -260,38 +428,4 @@ fun ReactionHistoryDialog(
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
     )
-}
-
-/** 回复卡片底部的快捷反应（点赞/点踩）。 */
-@Composable
-fun QuickReactionRow(
-    reactions: List<ReactionSummary>,
-    busy: Boolean,
-    onToggle: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        listOf("like", "dislike").forEach { token ->
-            val summary = reactions.firstOrNull { it.reaction == token }
-            val count = summary?.count ?: 0
-            val active = summary?.viewer?.hasReacted == true
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .clickable(enabled = !busy) { onToggle(token) }
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(reactionEmoji(token), fontSize = 13.sp)
-                Spacer(Modifier.width(3.dp))
-                Text(
-                    count.toString(),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (active) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
 }
