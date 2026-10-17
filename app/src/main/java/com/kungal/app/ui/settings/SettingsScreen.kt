@@ -1,7 +1,6 @@
 package com.kungal.app.ui.settings
 
 import android.os.Build
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CleaningServices
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Info
@@ -65,6 +65,7 @@ import com.kungal.app.BuildConfig
 import com.kungal.app.KungalApp
 import com.kungal.app.NsfwDisplayMode
 import com.kungal.app.Settings
+import com.kungal.app.ui.components.AppMessages
 import com.kungal.app.ui.components.GroupIcon
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.SettingsGroup
@@ -95,6 +96,7 @@ fun SettingsScreen(
     app: KungalApp,
     nsfwDisplay: NsfwDisplayMode,
     onBack: () -> Unit,
+    onOpenCloudPreferences: () -> Unit,
 ) {
     val settings by app.settingsStore.flow.collectAsState(initial = Settings())
     val session by app.session.collectAsState()
@@ -301,6 +303,17 @@ fun SettingsScreen(
                 )
             }
 
+            if (session != null) {
+                SettingsGroup(title = "账号") {
+                    item(
+                        headline = "云端偏好",
+                        supporting = "与网页共用的 Galgame 卡片显示等设置",
+                        icon = Icons.Outlined.Cloud,
+                        onClick = onOpenCloudPreferences,
+                    )
+                }
+            }
+
             SettingsGroup(title = "数据") {
                 item(
                     headline = "清理图片缓存",
@@ -310,7 +323,7 @@ fun SettingsScreen(
                         val loader = SingletonImageLoader.get(context)
                         loader.memoryCache?.clear()
                         loader.diskCache?.clear()
-                        Toast.makeText(context, "图片缓存已清理", Toast.LENGTH_SHORT).show()
+                        AppMessages.show("图片缓存已清理")
                     },
                 )
             }

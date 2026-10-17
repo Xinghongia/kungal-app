@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.text.selection.rememberSelectionState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material3.Checkbox
@@ -27,6 +29,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -89,10 +92,19 @@ import com.kungal.core.model.VideoNode
 fun ContentDocumentView(document: ContentDocument?, modifier: Modifier = Modifier) {
     val revealed = remember { mutableStateSetOf<String>() }
     var viewerUrl by remember { mutableStateOf<String?>(null) }
+    val selectionState = rememberSelectionState()
+    // 页面空白处被点击时（由所在页面递增信号）取消已选中的文字。
+    val clearSignal = LocalTextSelectionClearSignal.current
+    LaunchedEffect(clearSignal) {
+        if (clearSignal > 0) selectionState.clear()
+    }
     CompositionLocalProvider(LocalImageClicker provides { url -> viewerUrl = url }) {
-        Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            document?.children?.forEachIndexed { index, node ->
-                BlockView(node = node, key = "n$index", revealed = revealed)
+        // 正文与评论统一支持长按选择文字（复制/全选等系统菜单）；链接点击不受影响。
+        SelectionContainer(state = selectionState, modifier = modifier) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                document?.children?.forEachIndexed { index, node ->
+                    BlockView(node = node, key = "n$index", revealed = revealed)
+                }
             }
         }
     }
@@ -100,6 +112,12 @@ fun ContentDocumentView(document: ContentDocument?, modifier: Modifier = Modifie
         FullScreenImageViewer(url = url, onDismiss = { viewerUrl = null })
     }
 }
+
+/**
+ * 「点击空白处取消选字」信号。页面在空白区域的手势回调里递增它，
+ * 所有 [ContentDocumentView] 收到变化后清空各自的选择。
+ */
+val LocalTextSelectionClearSignal = compositionLocalOf { 0 }
 
 /** 正文图片点击回调；ContentDocumentView 内部提供。 */
 private val LocalImageClicker = compositionLocalOf<(String) -> Unit> { {} }
@@ -313,6 +331,33 @@ private fun plainText(nodes: List<ContentNode>): String = buildString {
         }
     }
     walk(nodes)
+}
+
+/** 正文树转纯文本（列表摘要用：题库题干、预览等）。 */
+fun documentPlainText(document: ContentDocument?): String {
+    if (document == null) return ""
+    val out = StringBuilder()
+    fun walk(list: List<ContentNode>) {
+        for (n in list) {
+            when (n) {
+                is TextNode -> out.append(n.value)
+                is InlineCodeNode -> out.append(n.value)
+                is InlineMathNode -> out.append(n.value)
+                is EmphasisNode -> walk(n.children)
+                is StrongNode -> walk(n.children)
+                is StrikethroughNode -> walk(n.children)
+                is LinkNode -> walk(n.children)
+                is InlineSpoilerNode -> walk(n.children)
+                is ParagraphNode -> { walk(n.children); out.append('\n') }
+                is HeadingNode -> { walk(n.children); out.append('\n') }
+                is ListItemNode -> { walk(n.children); out.append('\n') }
+                is BlockquoteNode -> { walk(n.children); out.append('\n') }
+                else -> Unit
+            }
+        }
+    }
+    walk(document.children)
+    return out.toString().trim()
 }
 
 // ---------- 图片 ----------

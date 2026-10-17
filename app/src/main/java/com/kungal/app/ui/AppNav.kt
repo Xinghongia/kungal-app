@@ -11,6 +11,8 @@ import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.SportsEsports
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +36,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.kungal.app.KungalApp
 import com.kungal.app.Settings
+import com.kungal.app.ui.components.AppMessageHost
 import com.kungal.app.ui.hub.ComingSoonScreen
 import com.kungal.app.ui.hub.DiscoverSections
 import com.kungal.app.ui.hub.GalgameSections
@@ -41,16 +44,30 @@ import com.kungal.app.ui.hub.HubEntry
 import com.kungal.app.ui.hub.HubScreen
 import com.kungal.app.ui.hub.PublishHubScreen
 import com.kungal.app.ui.activity.FollowingScreen
+import com.kungal.app.ui.chat.ChatConversationScreen
+import com.kungal.app.ui.chat.ChatListScreen
+import com.kungal.app.ui.chat.ChatSettingsScreen
+import com.kungal.app.ui.creator.CreatorScreen
 import com.kungal.app.ui.editor.DraftsScreen
 import com.kungal.app.ui.editor.TopicEditorScreen
 import com.kungal.app.ui.login.LoginScreen
 import com.kungal.app.ui.messages.MessagesScreen
+import com.kungal.app.ui.messages.NotificationListScreen
+import com.kungal.app.ui.messages.NotificationPreferencesScreen
+import com.kungal.app.ui.messages.WallsScreen
+import com.kungal.app.ui.points.PointsScreen
 import com.kungal.app.ui.profile.ProfileScreen
+import com.kungal.app.ui.ranking.RankingScreen
 import com.kungal.app.ui.search.TopicSearchScreen
+import com.kungal.app.ui.settings.CloudPreferencesScreen
 import com.kungal.app.ui.settings.SettingsScreen
+import com.kungal.app.ui.shop.ShopScreen
 import com.kungal.app.ui.subscriptions.SubscriptionsScreen
 import com.kungal.app.ui.topic.TopicDetailScreen
 import com.kungal.app.ui.topic.TopicListScreen
+import com.kungal.app.ui.user.FollowListScreen
+import com.kungal.app.ui.user.ProfileSettingsScreen
+import com.kungal.app.ui.user.UserProfileScreen
 import com.kungal.app.ui.util.AndroidActions
 
 private object Routes {
@@ -65,17 +82,38 @@ private object Routes {
     const val TOPIC_DETAIL = "topic/{topicId}"
     const val LOGIN = "login"
     const val SETTINGS = "settings"
+    const val CLOUD_PREFERENCES = "settings/preferences"
     const val PUBLISH = "publish"
     const val EDITOR = "editor?topicId={topicId}&draftId={draftId}"
     const val DRAFTS = "drafts"
     const val FOLLOWING = "following"
     const val SEARCH = "search"
     const val SUBSCRIPTIONS = "subscriptions"
+    const val USER = "user/{userId}"
+    const val FOLLOW_LIST = "user/{userId}/follow?followers={followers}"
+    const val PROFILE_SETTINGS = "profile/settings"
+    const val POINTS = "points"
+    const val SHOP = "shop"
+    const val CREATOR = "creator"
+    const val NOTIFICATIONS = "messages/notifications"
+    const val MUTED_NOTIFICATIONS = "messages/notifications/muted"
+    const val NOTIFICATION_PREFERENCES = "messages/notifications/preferences"
+    const val WALLS = "messages/walls"
+    const val CHAT_LIST = "messages/chat"
+    const val CHAT = "messages/chat/room?conversationId={conversationId}&userId={userId}"
+    const val CHAT_SETTINGS = "messages/chat/settings"
+    const val RANKING = "ranking?tab={tab}"
     const val SOON = "soon?title={title}&note={note}&path={path}"
 
     fun topic(id: String) = "topic/$id"
+    fun user(id: String) = "user/$id"
+    fun followList(userId: String, followers: Boolean) = "user/$userId/follow?followers=$followers"
     fun editor(topicId: String? = null, draftId: String? = null) =
         "editor?topicId=${Uri.encode(topicId.orEmpty())}&draftId=${Uri.encode(draftId.orEmpty())}"
+    fun chat(conversationId: String? = null, userId: String? = null) =
+        "messages/chat/room?conversationId=${Uri.encode(conversationId.orEmpty())}" +
+            "&userId=${Uri.encode(userId.orEmpty())}"
+    fun ranking(tab: String) = "ranking?tab=$tab"
     fun soon(entry: HubEntry): String =
         "soon?title=${Uri.encode(entry.label)}&note=${Uri.encode(entry.note)}&path=${Uri.encode(entry.webPath)}"
 }
@@ -100,16 +138,41 @@ fun AppNav(app: KungalApp) {
     val nav = rememberNavController()
     val settings by app.settingsStore.flow.collectAsState(initial = Settings())
     val nsfwDisplay by app.contentStance.collectAsState()
+    val currentUserId by app.currentUserId.collectAsState()
+    val messageBadge by app.messageBadge.collectAsState()
     val context = LocalContext.current
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val showBottomBar = tabs.any { it.route == currentRoute }
 
     fun openEntry(entry: HubEntry) {
-        nav.navigate(Routes.soon(entry))
+        val rankingTab = when (entry.webPath) {
+            "/ranking/user" -> "user"
+            "/ranking/topic" -> "topic"
+            "/ranking/galgame" -> "work"
+            else -> null
+        }
+        if (rankingTab != null) nav.navigate(Routes.ranking(rankingTab))
+        else nav.navigate(Routes.soon(entry))
+    }
+
+    /** 通知里的站内路径：话题/用户进 App，其余（商店、Galgame 等）交给浏览器。 */
+    fun openNotificationPath(path: String) {
+        if (path.isBlank()) return
+        val clean = path.substringBefore('?').substringBefore('#').trimEnd('/')
+        val topicId = clean.removePrefix("/topic/")
+        val userId = clean.removePrefix("/user/")
+        when {
+            clean.startsWith("/topic/") && topicId.isNotEmpty() && topicId.all { it.isDigit() } ->
+                nav.navigate(Routes.topic(topicId))
+            clean.startsWith("/user/") && userId.isNotEmpty() && userId.all { it.isDigit() } ->
+                nav.navigate(Routes.user(userId))
+            else -> AndroidActions.openInBrowser(context, "https://www.kungal.com$path")
+        }
     }
 
     Scaffold(
+        snackbarHost = { AppMessageHost() },
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
@@ -117,7 +180,21 @@ fun AppNav(app: KungalApp) {
                         NavigationBarItem(
                             selected = currentRoute == tab.route,
                             onClick = { nav.switchTab(tab.route) },
-                            icon = { Icon(tab.icon, contentDescription = tab.label) },
+                            icon = {
+                                if (tab.route == Routes.MESSAGES && messageBadge > 0) {
+                                    BadgedBox(
+                                        badge = {
+                                            Badge {
+                                                Text(if (messageBadge > 99) "99+" else "$messageBadge")
+                                            }
+                                        },
+                                    ) {
+                                        Icon(tab.icon, contentDescription = tab.label)
+                                    }
+                                } else {
+                                    Icon(tab.icon, contentDescription = tab.label)
+                                }
+                            },
                             label = { Text(tab.label, style = MaterialTheme.typography.labelSmall) },
                         )
                     }
@@ -141,6 +218,7 @@ fun AppNav(app: KungalApp) {
                         if (app.isLoggedIn) nav.navigate(Routes.PUBLISH) else nav.navigate(Routes.LOGIN)
                     },
                     onOpenSearch = { nav.navigate(Routes.SEARCH) },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
                 )
             }
             composable(Routes.GALGAME) {
@@ -164,6 +242,12 @@ fun AppNav(app: KungalApp) {
                     app = app,
                     onOpenLogin = { nav.navigate(Routes.LOGIN) },
                     onOpenFollowing = { nav.navigate(Routes.FOLLOWING) },
+                    onOpenNotifications = { nav.navigate(Routes.NOTIFICATIONS) },
+                    onOpenMuted = { nav.navigate(Routes.MUTED_NOTIFICATIONS) },
+                    onOpenPreferences = { nav.navigate(Routes.NOTIFICATION_PREFERENCES) },
+                    onOpenSubscriptions = { nav.navigate(Routes.SUBSCRIPTIONS) },
+                    onOpenWalls = { nav.navigate(Routes.WALLS) },
+                    onOpenChat = { nav.navigate(Routes.CHAT_LIST) },
                 )
             }
             composable(Routes.PROFILE) {
@@ -173,6 +257,20 @@ fun AppNav(app: KungalApp) {
                     onOpenSettings = { nav.navigate(Routes.SETTINGS) },
                     onOpenMessages = { nav.switchTab(Routes.MESSAGES) },
                     onOpenSubscriptions = { nav.navigate(Routes.SUBSCRIPTIONS) },
+                    onOpenSelfProfile = {
+                        currentUserId?.let { nav.navigate(Routes.user(it)) }
+                    },
+                    onEditProfile = { nav.navigate(Routes.PROFILE_SETTINGS) },
+                    onOpenPoints = { nav.navigate(Routes.POINTS) },
+                    onOpenShop = { nav.navigate(Routes.SHOP) },
+                    onOpenCreator = { nav.navigate(Routes.CREATOR) },
+                    onSwitchAccount = { nav.navigate(Routes.LOGIN) },
+                    onOpenFollowers = {
+                        currentUserId?.let { nav.navigate(Routes.followList(it, true)) }
+                    },
+                    onOpenFollowing = {
+                        currentUserId?.let { nav.navigate(Routes.followList(it, false)) }
+                    },
                 )
             }
 
@@ -188,6 +286,7 @@ fun AppNav(app: KungalApp) {
                     onBack = { nav.popBackStack() },
                     onRequireLogin = { nav.navigate(Routes.LOGIN) },
                     onEditTopic = { id -> nav.navigate(Routes.editor(topicId = id)) },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
                 )
             }
             composable(Routes.LOGIN) {
@@ -201,6 +300,13 @@ fun AppNav(app: KungalApp) {
                 SettingsScreen(
                     app = app,
                     nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenCloudPreferences = { nav.navigate(Routes.CLOUD_PREFERENCES) },
+                )
+            }
+            composable(Routes.CLOUD_PREFERENCES) {
+                CloudPreferencesScreen(
+                    app = app,
                     onBack = { nav.popBackStack() },
                 )
             }
@@ -248,6 +354,7 @@ fun AppNav(app: KungalApp) {
                     onBack = { nav.popBackStack() },
                     onOpenTopic = { id -> nav.navigate(Routes.topic(id)) },
                     onOpenWeb = { url -> AndroidActions.openInBrowser(context, url) },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
                 )
             }
             composable(Routes.SEARCH) {
@@ -263,6 +370,146 @@ fun AppNav(app: KungalApp) {
                     app = app,
                     onBack = { nav.popBackStack() },
                     onOpenTopic = { id -> nav.navigate(Routes.topic(id)) },
+                )
+            }
+            composable(
+                route = Routes.USER,
+                arguments = listOf(navArgument("userId") { type = NavType.StringType }),
+            ) { entry ->
+                val userId = entry.arguments?.getString("userId").orEmpty()
+                UserProfileScreen(
+                    app = app,
+                    userId = userId,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenLogin = { nav.navigate(Routes.LOGIN) },
+                    onOpenTopic = { id -> nav.navigate(Routes.topic(id)) },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
+                    onOpenFollowList = { id, followers ->
+                        nav.navigate(Routes.followList(id, followers))
+                    },
+                    onOpenChat = { id -> nav.navigate(Routes.chat(userId = id)) },
+                    onOpenWeb = { url -> AndroidActions.openInBrowser(context, url) },
+                    onEditProfile = { nav.navigate(Routes.PROFILE_SETTINGS) },
+                )
+            }
+            composable(
+                route = Routes.FOLLOW_LIST,
+                arguments = listOf(
+                    navArgument("userId") { type = NavType.StringType },
+                    navArgument("followers") { type = NavType.BoolType; defaultValue = false },
+                ),
+            ) { entry ->
+                FollowListScreen(
+                    app = app,
+                    userId = entry.arguments?.getString("userId").orEmpty(),
+                    followers = entry.arguments?.getBoolean("followers") ?: false,
+                    onBack = { nav.popBackStack() },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
+                )
+            }
+            composable(Routes.PROFILE_SETTINGS) {
+                ProfileSettingsScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenAccountCenter = {
+                        AndroidActions.openInBrowser(context, "https://account.nextmoe.com/profile")
+                    },
+                )
+            }
+            composable(Routes.POINTS) {
+                PointsScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenWeb = { url -> AndroidActions.openInBrowser(context, url) },
+                )
+            }
+            composable(Routes.SHOP) {
+                ShopScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                )
+            }
+            composable(Routes.CREATOR) {
+                CreatorScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                )
+            }
+            composable(Routes.NOTIFICATIONS) {
+                NotificationListScreen(
+                    app = app,
+                    muted = false,
+                    onBack = { nav.popBackStack() },
+                    onOpenPreferences = { nav.navigate(Routes.NOTIFICATION_PREFERENCES) },
+                    onOpenPath = ::openNotificationPath,
+                )
+            }
+            composable(Routes.MUTED_NOTIFICATIONS) {
+                NotificationListScreen(
+                    app = app,
+                    muted = true,
+                    onBack = { nav.popBackStack() },
+                    onOpenPreferences = {},
+                    onOpenPath = ::openNotificationPath,
+                )
+            }
+            composable(Routes.NOTIFICATION_PREFERENCES) {
+                NotificationPreferencesScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                )
+            }
+            composable(Routes.WALLS) {
+                WallsScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenWeb = { url -> AndroidActions.openInBrowser(context, url) },
+                )
+            }
+            composable(Routes.CHAT_LIST) {
+                ChatListScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenConversation = { id -> nav.navigate(Routes.chat(conversationId = id)) },
+                    onOpenSettings = { nav.navigate(Routes.CHAT_SETTINGS) },
+                )
+            }
+            composable(
+                route = Routes.CHAT,
+                arguments = listOf(
+                    navArgument("conversationId") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("userId") { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) { entry ->
+                ChatConversationScreen(
+                    app = app,
+                    conversationId = entry.arguments?.getString("conversationId")?.takeIf { it.isNotBlank() },
+                    userId = entry.arguments?.getString("userId")?.takeIf { it.isNotBlank() },
+                    onBack = { nav.popBackStack() },
+                    onOpenSettings = { nav.navigate(Routes.CHAT_SETTINGS) },
+                )
+            }
+            composable(Routes.CHAT_SETTINGS) {
+                ChatSettingsScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                )
+            }
+            composable(
+                route = Routes.RANKING,
+                arguments = listOf(
+                    navArgument("tab") { type = NavType.StringType; defaultValue = "user" },
+                ),
+            ) { entry ->
+                RankingScreen(
+                    app = app,
+                    initialTab = entry.arguments?.getString("tab") ?: "user",
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenTopic = { id -> nav.navigate(Routes.topic(id)) },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
+                    onOpenWeb = { url -> AndroidActions.openInBrowser(context, url) },
                 )
             }
             composable(

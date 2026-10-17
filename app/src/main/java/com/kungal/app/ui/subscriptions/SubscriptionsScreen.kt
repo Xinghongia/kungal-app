@@ -34,6 +34,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kungal.app.KungalApp
 import com.kungal.app.ui.components.Chip
 import com.kungal.app.ui.components.ErrorBox
+import com.kungal.app.ui.components.KungalPullToRefresh
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.topic.friendlyError
@@ -117,72 +118,78 @@ fun SubscriptionsScreen(
             )
         },
     ) { padding ->
-        when {
-            state.loading && state.items.isEmpty() -> LoadingBox(Modifier.fillMaxSize().padding(padding))
-            state.error != null && state.items.isEmpty() -> ErrorBox(
-                state.error!!,
-                onRetry = vm::refresh,
-                modifier = Modifier.fillMaxSize().padding(padding),
-            )
-            state.items.isEmpty() -> Text(
-                "还没有订阅任何话题。在话题详情里点「通知」即可订阅。",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth().padding(padding).padding(32.dp),
-            )
-            else -> LazyColumn(Modifier.fillMaxSize().padding(padding)) {
-                items(state.items, key = { it.id }) { item ->
-                    val topic = item.topic
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 5.dp)
-                            .clickable { onOpenTopic(item.id) },
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    ) {
-                        Column(Modifier.padding(12.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = topic?.title ?: "话题 ${item.id}",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                if (item.unreadReplyCount > 0) {
-                                    Spacer(Modifier.width(8.dp))
-                                    Chip("${item.unreadReplyCount} 条新回复")
-                                }
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                topic?.author?.let { author ->
+        KungalPullToRefresh(
+            isRefreshing = state.loading && state.items.isNotEmpty(),
+            onRefresh = vm::refresh,
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) {
+            when {
+                state.loading && state.items.isEmpty() -> LoadingBox(Modifier.fillMaxSize())
+                state.error != null && state.items.isEmpty() -> ErrorBox(
+                    state.error!!,
+                    onRetry = vm::refresh,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                state.items.isEmpty() -> Text(
+                    "还没有订阅任何话题。在话题详情里点「通知」即可订阅。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(32.dp),
+                )
+                else -> LazyColumn(Modifier.fillMaxSize()) {
+                    items(state.items, key = { it.id }) { item ->
+                        val topic = item.topic
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 5.dp)
+                                .clickable { onOpenTopic(item.id) },
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
-                                        author.name ?: author.id,
+                                        text = topic?.title ?: "话题 ${item.id}",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    if (item.unreadReplyCount > 0) {
+                                        Spacer(Modifier.width(8.dp))
+                                        Chip("${item.unreadReplyCount} 条新回复")
+                                    }
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    topic?.author?.let { author ->
+                                        Text(
+                                            author.name ?: author.id,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                    }
+                                    Text(
+                                        relativeTime(item.lastReplyAt),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
-                                    Spacer(Modifier.width(8.dp))
                                 }
-                                Text(
-                                    relativeTime(item.lastReplyAt),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
                             }
                         }
                     }
-                }
-                item {
-                    if (state.loading) {
-                        LoadingBox()
-                    } else if (state.nextCursor != null) {
-                        TextButton(onClick = vm::loadMore, modifier = Modifier.fillMaxWidth()) {
-                            Text("加载更多")
+                    item {
+                        if (state.loading) {
+                            LoadingBox()
+                        } else if (state.nextCursor != null) {
+                            TextButton(onClick = vm::loadMore, modifier = Modifier.fillMaxWidth()) {
+                                Text("加载更多")
+                            }
                         }
                     }
                 }

@@ -1,5 +1,6 @@
 package com.kungal.app.ui.topic
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -39,7 +40,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -50,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,6 +61,7 @@ import com.kungal.app.ui.components.AvatarImage
 import com.kungal.app.ui.components.Chip
 import com.kungal.app.ui.components.ErrorBox
 import com.kungal.app.ui.components.KungalImage
+import com.kungal.app.ui.components.KungalPullToRefresh
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.components.NsfwCoverImage
@@ -76,6 +78,7 @@ fun TopicListScreen(
     onOpenTopic: (String) -> Unit,
     onOpenPublish: () -> Unit,
     onOpenSearch: () -> Unit,
+    onOpenUser: (String) -> Unit,
 ) {
     val includeNsfw = nsfwDisplay.allowsNsfw
     val vm: TopicListViewModel = viewModel(key = "topic-list-$defaultSort") {
@@ -196,7 +199,7 @@ fun TopicListScreen(
             )
         },
     ) { padding ->
-        PullToRefreshBox(
+        KungalPullToRefresh(
             isRefreshing = state.refreshing,
             onRefresh = { vm.refresh() },
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -279,6 +282,7 @@ fun TopicListScreen(
                                 topic = topic,
                                 blurCover = nsfwDisplay.blursMedia,
                                 onClick = { onOpenTopic(topic.id) },
+                                onOpenUser = onOpenUser,
                             )
                         }
                         item {
@@ -317,7 +321,12 @@ private fun neutralTextButtonColors() = ButtonDefaults.textButtonColors(
 )
 
 @Composable
-private fun TopicCard(topic: Topic, blurCover: Boolean, onClick: () -> Unit) {
+private fun TopicCard(
+    topic: Topic,
+    blurCover: Boolean,
+    onClick: () -> Unit,
+    onOpenUser: (String) -> Unit,
+) {
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
@@ -354,15 +363,22 @@ private fun TopicCard(topic: Topic, blurCover: Boolean, onClick: () -> Unit) {
                 if (topic.hasBestAnswer) Chip("已解决")
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AvatarImage(url = topic.author.avatar?.url, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = topic.author.name ?: topic.author.id,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onOpenUser(topic.author.id) },
+                ) {
+                    AvatarImage(url = topic.author.avatar?.url, modifier = Modifier.size(20.dp), seed = topic.author.name)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = topic.author.name ?: topic.author.id,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = relativeTime(topic.bumpedAt.ifBlank { topic.createdAt }),

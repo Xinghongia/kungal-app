@@ -15,6 +15,8 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
 import java.util.concurrent.TimeUnit
 
 /**
@@ -44,7 +46,12 @@ class KungalClient(
     fun url(path: String, query: Map<String, Any?> = emptyMap()): HttpUrl {
         val builder = "$base$path".toHttpUrl().newBuilder()
         for ((key, value) in query) {
-            if (value != null) builder.addQueryParameter(key, value.toString())
+            when (value) {
+                null -> Unit
+                // 数组参数按重复键传递（如 work-records 的 state=wish&state=doing）
+                is Iterable<*> -> value.filterNotNull().forEach { builder.addQueryParameter(key, it.toString()) }
+                else -> builder.addQueryParameter(key, value.toString())
+            }
         }
         return builder.build()
     }
@@ -72,15 +79,29 @@ class KungalClient(
         deserializer: DeserializationStrategy<T>,
     ): T = execute(request(url(path)).put(EMPTY_BODY).build(), deserializer)
 
-    /** 带 JSON 请求体的 PUT（如 PUT /me/nsfw-display）。 */
+    /** 带 JSON 请求体的 PUT（如 PUT /me/nsfw-display）；headers 用于 If-Match 等。 */
     suspend fun <T> putJson(
         path: String,
         body: String,
+        headers: Map<String, String> = emptyMap(),
         deserializer: DeserializationStrategy<T>,
-    ): T = execute(
-        request(url(path)).put(body.toRequestBody(JSON_MEDIA_TYPE)).build(),
-        deserializer,
-    )
+    ): T {
+        val builder = request(url(path)).put(body.toRequestBody(JSON_MEDIA_TYPE))
+        headers.forEach { (key, value) -> builder.header(key, value) }
+        return execute(builder.build(), deserializer)
+    }
+
+    /** 无请求体、无响应体的 PUT（如置顶私信消息）。 */
+    suspend fun putNoBody(path: String) {
+        withContext(Dispatchers.IO) {
+            val response = http.newCall(request(url(path)).put(EMPTY_BODY).build()).execute()
+            response.use { r ->
+                if (!r.isSuccessful) {
+                    throw toException(r.code, r.header("Retry-After"), r.body.string())
+                }
+            }
+        }
+    }
 
     /** 带 JSON 请求体的 PATCH（如编辑话题/回复/评论）。 */
     suspend fun <T> patchJson(
@@ -101,13 +122,42 @@ class KungalClient(
         fields: Map<String, String> = emptyMap(),
         idempotencyKey: String? = null,
         deserializer: DeserializationStrategy<T>,
+    ): T = uploadMultipart(
+        method = "POST", path = path, fileBytes = fileBytes, fileName = fileName,
+        contentType = contentType, fields = fields, idempotencyKey = idempotencyKey,
+        deserializer = deserializer,
+    )
+
+    /** multipart PUT（如 PUT /me/avatar）。 */
+    suspend fun <T> putMultipart(
+        path: String,
+        fileBytes: ByteArray,
+        fileName: String,
+        contentType: String,
+        fields: Map<String, String> = emptyMap(),
+        deserializer: DeserializationStrategy<T>,
+    ): T = uploadMultipart(
+        method = "PUT", path = path, fileBytes = fileBytes, fileName = fileName,
+        contentType = contentType, fields = fields, idempotencyKey = null,
+        deserializer = deserializer,
+    )
+
+    private suspend fun <T> uploadMultipart(
+        method: String,
+        path: String,
+        fileBytes: ByteArray,
+        fileName: String,
+        contentType: String,
+        fields: Map<String, String>,
+        idempotencyKey: String?,
+        deserializer: DeserializationStrategy<T>,
     ): T {
         val bodyBuilder = MultipartBody.Builder().setType(MultipartBody.FORM)
         fileBytes.toRequestBody(contentType.toMediaType()).let { part ->
             bodyBuilder.addFormDataPart("file", fileName, part)
         }
         fields.forEach { (key, value) -> bodyBuilder.addFormDataPart(key, value) }
-        val builder = request(url(path)).post(bodyBuilder.build())
+        val builder = request(url(path)).method(method, bodyBuilder.build())
         if (idempotencyKey != null) builder.header("Idempotency-Key", idempotencyKey)
         return execute(builder.build(), deserializer)
     }
@@ -130,11 +180,16 @@ class KungalClient(
         }
     }
 
-    /** 无请求体、但需要解析响应的 POST（如抽奖兑换码揭示）。 */
+    /** 无请求体、但需要解析响应的 POST（如抽奖兑换码揭示、签到）。 */
     suspend fun <T> postNoBodyJson(
         path: String,
+        idempotencyKey: String? = null,
         deserializer: DeserializationStrategy<T>,
-    ): T = execute(request(url(path)).post(EMPTY_BODY).build(), deserializer)
+    ): T {
+        val builder = request(url(path)).post(EMPTY_BODY)
+        if (idempotencyKey != null) builder.header("Idempotency-Key", idempotencyKey)
+        return execute(builder.build(), deserializer)
+    }
 
     /** 无响应体的 POST（如删除类操作、举报 204）。 */
     suspend fun postJsonNoContent(
@@ -153,6 +208,10 @@ class KungalClient(
             }
         }
     }
+
+    /** 打开 WebSocket（私信实时通道用；鉴权走 Centrifugo token，不带 cookie）。 */
+    fun newWebSocket(url: String, listener: WebSocketListener): WebSocket =
+        http.newWebSocket(Request.Builder().url(url).build(), listener)
 
     /** 下载图片等二进制内容（内容寻址 CDN 不需要会话）。 */
     suspend fun downloadBytes(url: String): ByteArray = withContext(Dispatchers.IO) {

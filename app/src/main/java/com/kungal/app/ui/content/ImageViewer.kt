@@ -1,10 +1,12 @@
 package com.kungal.app.ui.content
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ContentValues
+import android.content.Context
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +52,7 @@ import androidx.compose.ui.window.DialogProperties
 import coil3.compose.SubcomposeAsyncImage
 import com.kungal.app.ui.util.AndroidActions
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -65,6 +69,14 @@ fun FullScreenImageViewer(url: String, onDismiss: () -> Unit) {
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
     var saving by remember { mutableStateOf(false) }
+    // 系统 Toast 在 Dialog 窗口之上不可见，查看器内用自己的主题化提示。
+    var message by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(message) {
+        if (message != null) {
+            delay(2600)
+            message = null
+        }
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -133,11 +145,7 @@ fun FullScreenImageViewer(url: String, onDismiss: () -> Unit) {
                             scope.launch {
                                 val result = runCatching { saveImage(context, url) }
                                 saving = false
-                                Toast.makeText(
-                                    context,
-                                    result.getOrElse { "保存失败：${it.message}" },
-                                    Toast.LENGTH_LONG,
-                                ).show()
+                                message = result.getOrElse { "保存失败：${it.message ?: "未知错误"}" }
                             }
                         },
                     ) {
@@ -148,15 +156,42 @@ fun FullScreenImageViewer(url: String, onDismiss: () -> Unit) {
                         }
                     }
                     IconButton(
-                        onClick = { AndroidActions.copyText(context, "图片链接", url) },
+                        onClick = {
+                            val clipboard =
+                                context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("图片链接", url))
+                            message = "链接已复制"
+                        },
                     ) {
                         Icon(Icons.Outlined.ContentCopy, contentDescription = "复制链接", tint = Color.White)
                     }
                     IconButton(
-                        onClick = { AndroidActions.shareText(context, url) },
+                        onClick = {
+                            if (!AndroidActions.shareText(context, url)) {
+                                message = "没有可用的分享应用"
+                            }
+                        },
                     ) {
                         Icon(Icons.Outlined.Share, contentDescription = "分享", tint = Color.White)
                     }
+                }
+            }
+
+            message?.let { text ->
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(start = 24.dp, end = 24.dp, bottom = 92.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.95f),
+                ) {
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    )
                 }
             }
         }

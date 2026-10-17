@@ -180,7 +180,7 @@ fun PollCard(
             results?.sampleVoters?.takeIf { it.isNotEmpty() }?.let { voters ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     voters.take(5).forEach { user ->
-                        AvatarImage(user.avatar?.url, Modifier.size(20.dp))
+                        AvatarImage(user.avatar?.url, Modifier.size(20.dp), seed = user.name)
                         Spacer(Modifier.width(4.dp))
                     }
                     Spacer(Modifier.width(4.dp))
@@ -221,7 +221,7 @@ private fun VoteLogDialog(load: suspend () -> List<PollVote>, onDismiss: () -> U
                             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            AvatarImage(vote.voter.avatar?.url, Modifier.size(24.dp))
+                            AvatarImage(vote.voter.avatar?.url, Modifier.size(24.dp), seed = vote.voter.name)
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 vote.voter.name ?: vote.voter.id,
@@ -340,7 +340,7 @@ fun LotteryCard(
                 Text("中奖名单", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 lottery.winners.forEach { winner ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        AvatarImage(winner.winner.avatar?.url, Modifier.size(22.dp))
+                        AvatarImage(winner.winner.avatar?.url, Modifier.size(22.dp), seed = winner.winner.name)
                         Spacer(Modifier.width(6.dp))
                         Text(
                             winner.winner.name ?: winner.winner.id,
@@ -440,7 +440,7 @@ private fun EntryListDialog(load: suspend () -> List<LotteryEntry>, onDismiss: (
                             modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            AvatarImage(entry.entrant.avatar?.url, Modifier.size(24.dp))
+                            AvatarImage(entry.entrant.avatar?.url, Modifier.size(24.dp), seed = entry.entrant.name)
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 entry.entrant.name ?: entry.entrant.id,

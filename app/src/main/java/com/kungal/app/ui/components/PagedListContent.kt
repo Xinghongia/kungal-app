@@ -1,0 +1,164 @@
+package com.kungal.app.ui.components
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.kungal.app.ui.topic.friendlyError
+import kotlinx.coroutines.launch
+
+/** 一页结果：items + 下一页游标（页码接口可留空）+ 是否到底。 */
+data class PageResult<T>(
+    val items: List<T>,
+    val nextCursor: String? = null,
+    val ended: Boolean = false,
+)
+
+/**
+ * 通用分页列表：首屏加载、触底自动加载、失败重试、空态。
+ * key 变化（筛选条件/用户变化）时整体重来，并回到列表顶部。
+ * header 会作为列表第一项一起滚动（用于用户主页这类「头部跟随内容滑动」的页面）。
+ * 顶部不留 contentPadding，保证与不使用本组件的标签页头部起始位置一致。
+ */
+@Composable
+fun <T> PagedListContent(
+    key: Any,
+    load: suspend (page: Int, cursor: String?) -> PageResult<T>,
+    emptyText: String,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(bottom = 8.dp),
+    header: (@Composable () -> Unit)? = null,
+    keyOf: (T) -> Any? = { null },
+    itemContent: @Composable (T) -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+    var items by remember(key) { mutableStateOf<List<T>>(emptyList()) }
+    var loading by remember(key) { mutableStateOf(true) }
+    var error by remember(key) { mutableStateOf<String?>(null) }
+    var page by remember(key) { mutableStateOf(1) }
+    var cursor by remember(key) { mutableStateOf<String?>(null) }
+    var ended by remember(key) { mutableStateOf(false) }
+    var reloadToken by remember(key) { mutableStateOf(0) }
+    var refreshing by remember(key) { mutableStateOf(false) }
+
+    // 切换筛选条件/二级菜单时回到顶部，避免沿用上一个列表的滚动位置
+    LaunchedEffect(key) { listState.scrollToItem(0) }
+
+    LaunchedEffect(key, reloadToken) {
+        loading = true
+        error = null
+        runCatching { load(1, null) }
+            .onSuccess { result ->
+                items = result.items
+                cursor = result.nextCursor
+                page = 1
+                ended = result.ended || (result.items.isEmpty() && result.nextCursor == null)
+                loading = false
+                refreshing = false
+            }
+            .onFailure { e ->
+                error = friendlyError(e)
+                loading = false
+                refreshing = false
+            }
+    }
+
+    fun loadMore() {
+        if (loading || ended) return
+        loading = true
+        scope.launch {
+            runCatching { load(page + 1, cursor) }
+                .onSuccess { result ->
+                    items = items + result.items
+                    cursor = result.nextCursor
+                    page += 1
+                    ended = result.ended || (result.items.isEmpty() && result.nextCursor == null)
+                    loading = false
+                }
+                .onFailure { e ->
+                    error = friendlyError(e)
+                    loading = false
+                }
+        }
+    }
+
+    LaunchedEffect(listState, ended, cursor) {
+        snapshotFlow {
+            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            val total = listState.layoutInfo.totalItemsCount
+            total > 0 && last >= total - 3
+        }.collect { nearEnd -> if (nearEnd) loadMore() }
+    }
+
+    KungalPullToRefresh(
+        isRefreshing = refreshing,
+        onRefresh = {
+            if (!refreshing) {
+                refreshing = true
+                reloadToken += 1
+            }
+        },
+    ) {
+        LazyColumn(
+            state = listState,
+            modifier = modifier.fillMaxSize(),
+            contentPadding = contentPadding,
+            verticalArrangement = Arrangement.spacedBy(0.dp),
+        ) {
+            if (header != null) {
+                item(key = "paged-header") { header() }
+            }
+            if (items.isEmpty()) {
+                item(key = "paged-state") {
+                    when {
+                        loading -> LoadingBox()
+                        error != null -> ErrorBox(error!!, onRetry = { reloadToken += 1 })
+                        ended -> EmptyBox(emptyText)
+                    }
+                }
+            } else {
+                itemsIndexed(items, key = { index, item -> keyOf(item) ?: index }) { _, item ->
+                    itemContent(item)
+                }
+                item(key = "paged-footer") {
+                    Column(
+                        Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        when {
+                            // 下拉刷新时由顶部插图表示进度，页脚不再重复显示加载占位
+                            loading && !refreshing -> LoadingBox()
+                            error != null -> ErrorBox(error!!, onRetry = { loadMore() })
+                            ended -> Text(
+                                "没有更多了",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            else -> TextButton(onClick = { loadMore() }) { Text("加载更多") }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

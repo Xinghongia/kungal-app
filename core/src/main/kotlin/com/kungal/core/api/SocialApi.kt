@@ -6,9 +6,16 @@ import com.kungal.core.model.ReportCreate
 import com.kungal.core.model.ReportReason
 import com.kungal.core.model.UserFollowState
 import com.kungal.core.net.PageList
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /** 关注与举报（/me/following、/report-reasons、/reports）。 */
 class SocialApi(private val client: KungalClient) {
+
+    @Serializable
+    private data class FollowNotifyBody(
+        @SerialName("notify") val notify: String,
+    )
 
     suspend fun followState(userId: String): UserFollowState = client.get(
         path = "/me/following/$userId",
@@ -22,6 +29,13 @@ class SocialApi(private val client: KungalClient) {
 
     suspend fun unfollow(userId: String): UserFollowState = client.delete(
         path = "/me/following/$userId",
+        deserializer = UserFollowState.serializer(),
+    )
+
+    /** 关注通知档位：all = 全部动态，feed = 只进关注流（与网页「关注」按钮菜单一致）。 */
+    suspend fun setFollowNotify(userId: String, notify: String): UserFollowState = client.patchJson(
+        path = "/me/following/$userId",
+        body = KungalJson.encodeToString(FollowNotifyBody.serializer(), FollowNotifyBody(notify)),
         deserializer = UserFollowState.serializer(),
     )
 

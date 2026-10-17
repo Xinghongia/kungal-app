@@ -401,7 +401,7 @@ fun ReactionHistoryDialog(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            AvatarImage(record.reactor.avatar?.url, Modifier.size(26.dp))
+                            AvatarImage(record.reactor.avatar?.url, Modifier.size(26.dp), seed = record.reactor.name)
                             Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(

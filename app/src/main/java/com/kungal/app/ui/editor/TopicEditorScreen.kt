@@ -39,7 +39,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -60,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kungal.app.KungalApp
 import com.kungal.app.ui.components.KungalImage
+import com.kungal.app.ui.components.KungalSnackbarHost
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.topic.TopicCategorySections
@@ -165,7 +165,7 @@ fun TopicEditorScreen(
                 },
             )
         },
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { KungalSnackbarHost(snackbar) },
     ) { padding ->
         if (state.loading) {
             LoadingBox(Modifier.fillMaxSize().padding(padding))
@@ -415,7 +415,7 @@ fun DraftsScreen(
                 },
             )
         },
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { KungalSnackbarHost(snackbar) },
     ) { padding ->
         when {
             state.loading -> LoadingBox(Modifier.fillMaxSize().padding(padding))

@@ -7,12 +7,18 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.gif.AnimatedImageDecoder
 import coil3.gif.GifDecoder
+import com.kungal.app.ui.components.AvatarPool
 import com.kungal.core.KungalClient
+import com.kungal.core.api.ChatApi
 import com.kungal.core.api.ImageApi
 import com.kungal.core.api.MeApi
+import com.kungal.core.api.NotificationApi
+import com.kungal.core.api.RankingApi
 import com.kungal.core.api.SectionApi
+import com.kungal.core.api.ShopApi
 import com.kungal.core.api.SocialApi
 import com.kungal.core.api.TopicApi
+import com.kungal.core.api.UserApi
 import com.kungal.core.model.Account
 import com.kungal.core.session.Session
 import kotlinx.coroutines.CoroutineScope
@@ -46,6 +52,24 @@ class KungalApp : Application() {
     lateinit var socialApi: SocialApi
         private set
 
+    lateinit var userApi: UserApi
+        private set
+
+    lateinit var shopApi: ShopApi
+        private set
+
+    lateinit var notificationApi: NotificationApi
+        private set
+
+    lateinit var chatApi: ChatApi
+        private set
+
+    lateinit var chatRealtime: ChatRealtimeHub
+        private set
+
+    lateinit var rankingApi: RankingApi
+        private set
+
     lateinit var sessionStore: SessionStore
         private set
 
@@ -56,7 +80,7 @@ class KungalApp : Application() {
     private val _session = MutableStateFlow<Session?>(null)
     val session = _session.asStateFlow()
 
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    internal val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /** 登录账号的内容显示方式；null = 尚未取到（按隐藏处理）。 */
     private val _accountStance = MutableStateFlow<NsfwDisplayMode?>(null)
@@ -65,6 +89,30 @@ class KungalApp : Application() {
     /** 当前登录用户 id（用于区分「自己的内容」与关注/举报入口）。 */
     private val _currentUserId = MutableStateFlow<String?>(null)
     val currentUserId: StateFlow<String?> = _currentUserId.asStateFlow()
+
+    /** 消息 tab 未读角标：未静音通知 + 未静音时的未读私信。 */
+    private val _messageBadge = MutableStateFlow(0)
+    val messageBadge: StateFlow<Int> = _messageBadge.asStateFlow()
+
+    /** 重新拉取未读汇总；通知已读/删除、进入消息页后调用。 */
+    fun refreshMessageBadge() {
+        if (!isLoggedIn) {
+            _messageBadge.value = 0
+            return
+        }
+        appScope.launch {
+            runCatching { notificationApi.summary() }
+                .onSuccess { _messageBadge.value = it.badgeCount }
+        }
+    }
+
+    /** 账号资料（昵称/头像/签名）变更计数：资料保存后让「我的」等页面重新拉取。 */
+    private val _accountRevision = MutableStateFlow(0)
+    val accountRevision: StateFlow<Int> = _accountRevision.asStateFlow()
+
+    fun notifyAccountChanged() {
+        _accountRevision.value += 1
+    }
 
     /**
      * 应用当前生效的内容显示方式：登录时跟账号走，未登录时用本机偏好。
@@ -95,8 +143,16 @@ class KungalApp : Application() {
         meApi = MeApi(client)
         imageApi = ImageApi(client)
         socialApi = SocialApi(client)
+        userApi = UserApi(client)
+        shopApi = ShopApi(client)
+        notificationApi = NotificationApi(client)
+        chatApi = ChatApi(client)
+        rankingApi = RankingApi(client)
+        chatRealtime = ChatRealtimeHub(this)
         sessionStore = SessionStore(this)
         settingsStore = SettingsStore(this)
+        // 默认头像池：先内置快照可用，后台尝试刷新到站点最新版本
+        appScope.launch { runCatching { AvatarPool.refresh() } }
         contentStance = combine(session, _accountStance, settingsStore.flow) { session, account, settings ->
             if (session != null) account ?: NsfwDisplayMode.HIDE else settings.nsfwDisplay
         }.stateIn(appScope, SharingStarted.Eagerly, NsfwDisplayMode.HIDE)
@@ -153,6 +209,11 @@ class KungalApp : Application() {
         _session.value = session
         _accountStance.value = null
         _currentUserId.value = null
-        appScope.launch { refreshContentStance() }
+        _messageBadge.value = 0
+        if (session != null) chatRealtime.start() else chatRealtime.stop()
+        appScope.launch {
+            refreshContentStance()
+            refreshMessageBadge()
+        }
     }
 }

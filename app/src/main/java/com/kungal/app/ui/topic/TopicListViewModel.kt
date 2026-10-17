@@ -110,7 +110,7 @@ class TopicListViewModel(
         load(reset = true)
     }
 
-    fun refresh() = load(reset = true)
+    fun refresh() = load(reset = true, pull = true)
 
     fun loadMore() {
         val current = _state.value
@@ -142,7 +142,11 @@ class TopicListViewModel(
         load(reset = true)
     }
 
-    private fun load(reset: Boolean) {
+    /**
+     * [pull] = 下拉刷新：保留当前列表，只显示下拉插图，避免列表同时闪出第二个加载占位。
+     * 切换分类/版块/排序时不保留列表，由页面显示加载占位。
+     */
+    private fun load(reset: Boolean, pull: Boolean = false) {
         val current = _state.value
         if (reset && current.loading) {
             loadJob?.cancel()
@@ -153,12 +157,13 @@ class TopicListViewModel(
         val sort = "${current.sortField}_${current.sortOrder}"
         loadJob = viewModelScope.launch {
             _state.update {
+                val keepList = reset && pull && it.items.isNotEmpty()
                 it.copy(
-                    loading = true,
-                    refreshing = reset && it.items.isNotEmpty(),
+                    loading = !keepList,
+                    refreshing = keepList,
                     error = null,
-                    items = if (reset) emptyList() else it.items,
-                    nextCursor = if (reset) null else it.nextCursor,
+                    items = if (reset && !keepList) emptyList() else it.items,
+                    nextCursor = if (reset && !keepList) null else it.nextCursor,
                 )
             }
             runCatching {

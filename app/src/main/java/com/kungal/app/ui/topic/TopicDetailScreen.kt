@@ -2,6 +2,7 @@ package com.kungal.app.ui.topic
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,16 +51,17 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -68,6 +70,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -79,8 +82,10 @@ import com.kungal.app.NsfwDisplayMode
 import com.kungal.app.ui.components.AvatarImage
 import com.kungal.app.ui.components.Chip
 import com.kungal.app.ui.components.ErrorBox
+import com.kungal.app.ui.components.KungalSnackbarHost
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.content.ContentDocumentView
+import com.kungal.app.ui.content.LocalTextSelectionClearSignal
 import com.kungal.app.ui.content.contentPlainText
 import com.kungal.app.ui.util.AndroidActions
 import com.kungal.app.ui.util.fullDateTime
@@ -97,6 +102,7 @@ fun TopicDetailScreen(
     onBack: () -> Unit,
     onRequireLogin: () -> Unit,
     onEditTopic: (String) -> Unit,
+    onOpenUser: (String) -> Unit,
 ) {
     val vm: TopicDetailViewModel = viewModel(key = "topic-$topicId") { TopicDetailViewModel(app, topicId) }
     val state by vm.state.collectAsState()
@@ -113,6 +119,7 @@ fun TopicDetailScreen(
     var deleteReplyTarget by remember { mutableStateOf<String?>(null) }
     var deleteCommentTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
     var nsfwRevealed by remember(topicId) { mutableStateOf(false) }
+    var selectionClearSignal by remember { mutableIntStateOf(0) }
 
     // 回复面板：只有点击「回复」/「写回复」时才弹出（与网站一致）
     var replySheetOpen by remember { mutableStateOf(false) }
@@ -334,7 +341,7 @@ fun TopicDetailScreen(
                 },
             )
         },
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { KungalSnackbarHost(snackbar) },
     ) { padding ->
         when {
             state.loading && topic == null -> LoadingBox(Modifier.fillMaxSize().padding(padding))
@@ -347,11 +354,16 @@ fun TopicDetailScreen(
                 onReveal = { nsfwRevealed = true },
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
-            else -> LazyColumn(
+            else -> CompositionLocalProvider(LocalTextSelectionClearSignal provides selectionClearSignal) {
+            LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    // 点击正文/评论之外的空白区域时取消已选中的文字
+                    .pointerInput(Unit) { detectTapGestures { selectionClearSignal++ } },
             ) {
-                item { TopicHeader(topic) }
+                item { TopicHeader(topic, onOpenUser = onOpenUser) }
                 item {
                     ContentDocumentView(
                         document = topic.content,
@@ -474,6 +486,7 @@ fun TopicDetailScreen(
                         onToggleFollow = { vm.toggleFollow(reply.author.id) },
                         onToggleReaction = { vm.toggleReplyReaction(reply.id, it) },
                         onLoadHistory = { app.topicApi.replyReactionHistory(reply.id).items },
+                        onOpenAuthor = { onOpenUser(reply.author.id) },
                         onQuote = { openReplySheet(reply) },
                         onShare = {
                             AndroidActions.shareText(
@@ -523,6 +536,7 @@ fun TopicDetailScreen(
                     }
                     Spacer(Modifier.height(24.dp))
                 }
+            }
             }
         }
     }
@@ -627,7 +641,7 @@ private fun ReplySheet(
 }
 
 @Composable
-private fun TopicHeader(topic: Topic) {
+private fun TopicHeader(topic: Topic, onOpenUser: (String) -> Unit) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -645,29 +659,36 @@ private fun TopicHeader(topic: Topic) {
             if (topic.hasBestAnswer) Chip("已解决")
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AvatarImage(url = topic.author.avatar?.url, modifier = Modifier.size(32.dp))
-            Spacer(Modifier.width(8.dp))
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = topic.author.name ?: topic.author.id,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    if (topic.authorMoemoepoint > 0) {
-                        Spacer(Modifier.width(6.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable { onOpenUser(topic.author.id) },
+            ) {
+                AvatarImage(url = topic.author.avatar?.url, modifier = Modifier.size(32.dp), seed = topic.author.name)
+                Spacer(Modifier.width(8.dp))
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            "@ ${topic.authorMoemoepoint}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = topic.author.name ?: topic.author.id,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
                         )
+                        if (topic.authorMoemoepoint > 0) {
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                "@ ${topic.authorMoemoepoint}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
+                    Text(
+                        text = "发布于 " + fullDateTime(topic.createdAt) + if (topic.editedAt != null) "（已编辑）" else "",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-                Text(
-                    text = "发布于 " + fullDateTime(topic.createdAt) + if (topic.editedAt != null) "（已编辑）" else "",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
             Spacer(Modifier.weight(1f))
             Icon(

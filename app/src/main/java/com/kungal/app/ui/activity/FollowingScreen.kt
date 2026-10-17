@@ -38,6 +38,7 @@ import com.kungal.app.KungalApp
 import com.kungal.app.ui.components.AvatarImage
 import com.kungal.app.ui.components.ErrorBox
 import com.kungal.app.ui.components.KungalImage
+import com.kungal.app.ui.components.KungalPullToRefresh
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.util.relativeTime
@@ -51,6 +52,7 @@ fun FollowingScreen(
     onBack: () -> Unit,
     onOpenTopic: (String) -> Unit,
     onOpenWeb: (String) -> Unit,
+    onOpenUser: (String) -> Unit,
 ) {
     val vm: FollowingViewModel = viewModel { FollowingViewModel(app) }
     val state by vm.state.collectAsState()
@@ -70,25 +72,31 @@ fun FollowingScreen(
             )
         },
     ) { padding ->
-        when {
-            state.loading && state.groups.isEmpty() -> LoadingBox(Modifier.fillMaxSize().padding(padding))
-            state.error != null && state.groups.isEmpty() -> ErrorBox(
-                state.error!!,
-                onRetry = { vm.refresh() },
-                modifier = Modifier.fillMaxSize().padding(padding),
-            )
-            state.groups.isEmpty() -> Text(
-                "还没有动态。关注一些用户后，他们的话题、回复与评论会出现在这里。",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth().padding(padding).padding(32.dp),
-            )
-            else -> LazyColumn(Modifier.fillMaxSize().padding(padding)) {
+        KungalPullToRefresh(
+            isRefreshing = state.loading && state.groups.isNotEmpty(),
+            onRefresh = { vm.refresh() },
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) {
+            when {
+                state.loading && state.groups.isEmpty() -> LoadingBox(Modifier.fillMaxSize())
+                state.error != null && state.groups.isEmpty() -> ErrorBox(
+                    state.error!!,
+                    onRetry = { vm.refresh() },
+                    modifier = Modifier.fillMaxSize(),
+                )
+                state.groups.isEmpty() -> Text(
+                    "还没有动态。关注一些用户后，他们的话题、回复与评论会出现在这里。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(32.dp),
+                )
+                else -> LazyColumn(Modifier.fillMaxSize()) {
                 items(state.groups, key = { it.id }) { group ->
                     FollowingGroupCard(
                         group = group,
                         onOpenTopic = onOpenTopic,
                         onOpenWeb = onOpenWeb,
+                        onOpenUser = onOpenUser,
                     )
                 }
                 item {
@@ -105,12 +113,14 @@ fun FollowingScreen(
         }
     }
 }
+}
 
 @Composable
 private fun FollowingGroupCard(
     group: FollowingActivityGroup,
     onOpenTopic: (String) -> Unit,
     onOpenWeb: (String) -> Unit,
+    onOpenUser: (String) -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
@@ -119,13 +129,20 @@ private fun FollowingGroupCard(
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AvatarImage(group.actor.avatar?.url, Modifier.size(26.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    group.actor.name ?: group.actor.id,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onOpenUser(group.actor.id) },
+                ) {
+                    AvatarImage(group.actor.avatar?.url, Modifier.size(26.dp), seed = group.actor.name)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        group.actor.name ?: group.actor.id,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
                 Spacer(Modifier.width(6.dp))
                 Text(
                     verbLabel(group.verb) + group.objectLabel,

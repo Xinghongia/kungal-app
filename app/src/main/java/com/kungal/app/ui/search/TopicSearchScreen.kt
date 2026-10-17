@@ -199,7 +199,7 @@ private fun TopicHit(topic: Topic, onClick: () -> Unit) {
                 topic.sections.take(2).forEach { Chip(TopicLabels.section(it)) }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AvatarImage(topic.author.avatar?.url, Modifier.size(18.dp))
+                AvatarImage(topic.author.avatar?.url, Modifier.size(18.dp), seed = topic.author.name)
                 Spacer(Modifier.width(4.dp))
                 Text(
                     topic.author.name ?: topic.author.id,
@@ -241,7 +241,7 @@ private fun ReplyHit(hit: ReplySearchHit, onClick: () -> Unit) {
                 overflow = TextOverflow.Ellipsis,
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AvatarImage(hit.author.avatar?.url, Modifier.size(18.dp))
+                AvatarImage(hit.author.avatar?.url, Modifier.size(18.dp), seed = hit.author.name)
                 Spacer(Modifier.width(4.dp))
                 Text(
                     hit.author.name ?: hit.author.id,
@@ -283,7 +283,7 @@ private fun CommentHit(hit: CommentSearchHit, onClick: () -> Unit) {
                 overflow = TextOverflow.Ellipsis,
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AvatarImage(hit.author.avatar?.url, Modifier.size(18.dp))
+                AvatarImage(hit.author.avatar?.url, Modifier.size(18.dp), seed = hit.author.name)
                 Spacer(Modifier.width(4.dp))
                 Text(
                     hit.author.name ?: hit.author.id,

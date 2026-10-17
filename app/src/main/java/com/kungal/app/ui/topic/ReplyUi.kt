@@ -65,6 +65,7 @@ fun ReplyCard(
     onToggleFollow: () -> Unit,
     onToggleReaction: (String) -> Unit,
     onLoadHistory: suspend () -> List<ReactionRecord>,
+    onOpenAuthor: () -> Unit,
     onQuote: () -> Unit,
     onShare: () -> Unit,
     onReport: () -> Unit,
@@ -93,36 +94,44 @@ fun ReplyCard(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AvatarImage(url = reply.author.avatar?.url, modifier = Modifier.size(28.dp))
-                Spacer(Modifier.width(8.dp))
-                Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = reply.author.name ?: reply.author.id,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        reply.authorMoemoepoint.takeIf { it > 0 }?.let {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onOpenAuthor),
+                ) {
+                    AvatarImage(url = reply.author.avatar?.url, modifier = Modifier.size(28.dp), seed = reply.author.name)
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                "@ $it",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = reply.author.name ?: reply.author.id,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
                             )
+                            Spacer(Modifier.width(6.dp))
+                            reply.authorMoemoepoint.takeIf { it > 0 }?.let {
+                                Text(
+                                    "@ $it",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            if (reply.isBestAnswer) {
+                                Spacer(Modifier.width(4.dp)); Chip("最佳答案")
+                            }
+                            if (reply.isPinned) {
+                                Spacer(Modifier.width(4.dp)); Chip("置顶")
+                            }
                         }
-                        if (reply.isBestAnswer) {
-                            Spacer(Modifier.width(4.dp)); Chip("最佳答案")
-                        }
-                        if (reply.isPinned) {
-                            Spacer(Modifier.width(4.dp)); Chip("置顶")
-                        }
+                        Text(
+                            text = fullDateTime(reply.createdAt) + if (reply.editedAt != null) " · 已编辑" else "",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
-                    Text(
-                        text = fullDateTime(reply.createdAt) + if (reply.editedAt != null) " · 已编辑" else "",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
+                Spacer(Modifier.weight(1f))
                 Text(
                     text = "#${reply.floor}",
                     style = MaterialTheme.typography.labelMedium,
@@ -282,6 +291,7 @@ fun ReplyCard(
                             onEdit = { onEditComment(comment.id) },
                             onDelete = { onDeleteComment(comment.id) },
                             onRequireLogin = onRequireLogin,
+                            onOpenAuthor = onOpenAuthor,
                         )
                     }
                 }
@@ -336,18 +346,26 @@ private fun CommentRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onRequireLogin: () -> Unit,
+    onOpenAuthor: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val liked = comment.viewer?.hasLiked == true
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AvatarImage(comment.author.avatar?.url, Modifier.size(20.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(
-                comment.author.name ?: comment.author.id,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable(onClick = onOpenAuthor),
+            ) {
+                AvatarImage(comment.author.avatar?.url, Modifier.size(20.dp), seed = comment.author.name)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    comment.author.name ?: comment.author.id,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
             comment.inReplyToUser?.let { target ->
                 Text(
                     " 回复 ${target.name ?: target.id}",

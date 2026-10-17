@@ -1,6 +1,7 @@
 package com.kungal.app.ui.components
 
 import android.os.Build
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,13 +12,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +27,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,11 +38,13 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
+import com.kungal.app.R
 
 /**
  * 通用图片：加载失败/为空时兜底显示占位底图（弱网加载失败很常见，界面不能什么都不画）。
@@ -52,6 +56,7 @@ fun KungalImage(
     modifier: Modifier = Modifier,
     fallbackIcon: Boolean = false,
     shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(0.dp),
+    contentScale: ContentScale = ContentScale.Crop,
 ) {
     val placeholder: @Composable () -> Unit = {
         Box(
@@ -74,16 +79,18 @@ fun KungalImage(
         model = url,
         contentDescription = contentDescription,
         modifier = modifier.clip(shape),
-        contentScale = ContentScale.Crop,
+        contentScale = contentScale,
         loading = { placeholder() },
         error = { placeholder() },
     )
 }
 
 @Composable
-fun AvatarImage(url: String?, modifier: Modifier = Modifier) {
+fun AvatarImage(url: String?, modifier: Modifier = Modifier, seed: String? = null) {
+    val pool by AvatarPool.urls.collectAsState()
     KungalImage(
-        url = url,
+        // 没有上传头像的账号跟网页一致：按用户名稳定挑一张默认头像，而不是灰色占位图。
+        url = url?.takeIf { it.isNotBlank() } ?: AvatarPool.pick(seed.orEmpty(), pool),
         contentDescription = null,
         modifier = modifier.clip(CircleShape),
         fallbackIcon = true,
@@ -138,10 +145,48 @@ fun NsfwCoverImage(url: String?, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * 加载占位：官方 KunUI 的「Loading」萝莉插图（白底与浅色界面融合），
+ * 不再使用转圈指示器。
+ */
 @Composable
 fun LoadingBox(modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(modifier = Modifier.size(28.dp))
+    Box(modifier = modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+        Image(
+            painter = painterResource(R.drawable.kun_loading),
+            contentDescription = "加载中",
+            modifier = Modifier.width(132.dp),
+            contentScale = ContentScale.Fit,
+        )
+    }
+}
+
+/**
+ * 空状态：网站同款的笨蛋萝莉插图 + 说明文字。
+ * 插图来自官方 KunUI（@kungal/ui-vue，AGPL-3.0），仅作界面装饰。
+ */
+@Composable
+fun EmptyBox(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Image(
+            painter = painterResource(R.drawable.kun_empty),
+            contentDescription = null,
+            modifier = Modifier.width(210.dp),
+            contentScale = ContentScale.Fit,
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

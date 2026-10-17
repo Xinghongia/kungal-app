@@ -6,6 +6,12 @@ import com.kungal.core.model.Me
 import com.kungal.core.session.Session
 import com.kungal.core.session.SessionHolder
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import org.junit.After
@@ -134,5 +140,47 @@ class MeApiTest {
         val me = KungalJson.decodeFromString<Me>("""{"object":"me","id":"1"}""")
         assertEquals(0, me.moemoepoint)
         assertFalse(me.hasCheckedInToday)
+    }
+
+    @Test
+    fun `云端偏好读写保留未知键并带 If-Match`() = runBlocking {
+        server.enqueue(
+            ok(
+                """{"object":"preferences","version":4,
+                   "written_at":"2026-10-17T06:00:00Z",
+                   "doc":{"show_platform":true,"feed_tabs":[{"id":"topic"}],
+                     "android_note":"keep"}}""",
+            ),
+        )
+        val prefs = api.preferences()
+        assertEquals(4, prefs.version)
+        assertEquals("2026-10-17T06:00:00Z", prefs.writtenAt)
+        assertEquals("true", prefs.doc["show_platform"]!!.jsonPrimitive.content)
+        assertTrue(prefs.doc.containsKey("feed_tabs"))
+        var request = server.takeRequest()
+        assertEquals("/api/v1/me/preferences", request.url.encodedPath)
+
+        val merged = buildJsonObject {
+            put("show_platform", false)
+            putJsonArray("feed_tabs") { add(buildJsonObject { put("id", "topic") }) }
+            put("android_note", "keep")
+        }
+        server.enqueue(
+            ok(
+                """{"object":"preferences","version":5,
+                   "written_at":"2026-10-17T06:01:00Z","doc":{}}""",
+            ),
+        )
+        val saved = api.savePreferences(merged, version = prefs.version)
+        assertEquals(5, saved.version)
+        request = server.takeRequest()
+        assertEquals("PUT", request.method)
+        assertEquals("/api/v1/me/preferences", request.url.encodedPath)
+        assertEquals("\"4\"", request.headers["If-Match"])
+        val body = Json.parseToJsonElement(request.body!!.utf8()).jsonObject
+        val doc = body["doc"]!!.jsonObject
+        assertEquals("false", doc["show_platform"]!!.jsonPrimitive.content)
+        assertTrue(doc.containsKey("feed_tabs"))
+        assertEquals("keep", doc["android_note"]!!.jsonPrimitive.content)
     }
 }

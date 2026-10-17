@@ -21,6 +21,7 @@ data class UserRef(
     val id: String = "",
     val name: String? = null,
     val avatar: ImageInfo? = null,
+    @SerialName("avatar_frame") val avatarFrame: AvatarFrame? = null,
 )
 
 /** 反应汇总（ReactionSummary）：一种反应 token 的计数与参与人。token 词汇会增长，未知值按中性处理。 */
