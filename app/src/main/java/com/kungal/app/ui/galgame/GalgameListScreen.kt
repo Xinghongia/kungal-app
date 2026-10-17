@@ -191,7 +191,7 @@ fun GalgameListScreen(
                         }
                         else -> {
                             items(state.items, key = { it.id }) { work ->
-                                WorkCard(
+                                GalgameWorkCard(
                                     work = work,
                                     blurCover = nsfwDisplay.blursMedia,
                                     onClick = { onOpenWork(work.id) },
@@ -417,95 +417,6 @@ private fun FilterPill(
             Icon(Icons.Outlined.ArrowDropDown, contentDescription = null, modifier = Modifier.size(16.dp))
         },
     )
-}
-
-@Composable
-private fun WorkCard(
-    work: WorkSummary,
-    blurCover: Boolean,
-    onClick: () -> Unit,
-) {
-    Card(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Box {
-            if (work.isNsfw && blurCover) {
-                NsfwCoverImage(
-                    url = work.cover?.url,
-                    modifier = Modifier.fillMaxWidth().aspectRatio(5f / 7f),
-                )
-            } else {
-                KungalImage(
-                    url = work.cover?.url,
-                    contentDescription = workTitle(work),
-                    modifier = Modifier.fillMaxWidth().aspectRatio(5f / 7f),
-                )
-            }
-            if (work.isNsfw) {
-                Text(
-                    text = "NSFW",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onError,
-                    modifier = Modifier
-                        .padding(6.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(MaterialTheme.colorScheme.error)
-                        .padding(horizontal = 5.dp, vertical = 1.dp),
-                )
-            }
-        }
-        Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(
-                text = workTitle(work),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            companyName(work)?.let { company ->
-                Text(
-                    text = company,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = releaseText(work),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                ratingText(work)?.let { score ->
-                    Icon(
-                        Icons.Outlined.Star,
-                        contentDescription = null,
-                        modifier = Modifier.size(13.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.width(2.dp))
-                    Text(
-                        text = score,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
-            val platforms = platformLabels(work)
-            if (platforms.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    platforms.take(2).forEach { Chip(it) }
-                }
-            }
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

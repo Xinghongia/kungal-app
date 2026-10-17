@@ -50,8 +50,23 @@ import com.kungal.app.ui.chat.ChatSettingsScreen
 import com.kungal.app.ui.creator.CreatorScreen
 import com.kungal.app.ui.editor.DraftsScreen
 import com.kungal.app.ui.editor.TopicEditorScreen
+import com.kungal.app.ui.galgame.CharacterDetailScreen
+import com.kungal.app.ui.galgame.CharacterListScreen
+import com.kungal.app.ui.galgame.CollectionDetailScreen
+import com.kungal.app.ui.galgame.CompanyDetailScreen
+import com.kungal.app.ui.galgame.CompanyListScreen
+import com.kungal.app.ui.galgame.EngineDetailScreen
+import com.kungal.app.ui.galgame.EngineListScreen
 import com.kungal.app.ui.galgame.GalgameListMode
 import com.kungal.app.ui.galgame.GalgameListScreen
+import com.kungal.app.ui.galgame.MyCollectionsScreen
+import com.kungal.app.ui.galgame.SeriesDetailScreen
+import com.kungal.app.ui.galgame.SeriesListScreen
+import com.kungal.app.ui.galgame.StaffDetailScreen
+import com.kungal.app.ui.galgame.TagDetailScreen
+import com.kungal.app.ui.galgame.TagListScreen
+import com.kungal.app.ui.galgame.TraitDetailScreen
+import com.kungal.app.ui.galgame.TraitListScreen
 import com.kungal.app.ui.galgame.WorkDetailScreen
 import com.kungal.app.ui.login.LoginScreen
 import com.kungal.app.ui.messages.MessagesScreen
@@ -109,6 +124,21 @@ private object Routes {
     const val GALGAME_WORKS = "galgame/works"
     const val GALGAME_LIBRARY = "galgame/library"
     const val GALGAME_WORK = "galgame/work/{workId}"
+    const val GALGAME_TAGS = "galgame/tags"
+    const val GALGAME_TAG = "galgame/tag/{tagId}"
+    const val GALGAME_COMPANIES = "galgame/companies"
+    const val GALGAME_COMPANY = "galgame/company/{companyId}"
+    const val GALGAME_ENGINES = "galgame/engines"
+    const val GALGAME_ENGINE = "galgame/engine/{engineId}"
+    const val GALGAME_SERIES_LIST = "galgame/series"
+    const val GALGAME_SERIES = "galgame/series/{seriesId}"
+    const val GALGAME_CHARACTERS = "galgame/characters?traitId={traitId}"
+    const val GALGAME_CHARACTER = "galgame/character/{characterId}"
+    const val GALGAME_STAFF = "galgame/staff/{staffId}"
+    const val GALGAME_TRAITS = "galgame/traits"
+    const val GALGAME_TRAIT = "galgame/trait/{traitId}"
+    const val COLLECTION = "collection/{collectionId}"
+    const val MY_COLLECTIONS = "collections"
     const val SOON = "soon?title={title}&note={note}&path={path}"
 
     fun topic(id: String) = "topic/$id"
@@ -121,6 +151,16 @@ private object Routes {
             "&userId=${Uri.encode(userId.orEmpty())}"
     fun ranking(tab: String) = "ranking?tab=$tab"
     fun galgameWork(id: String) = "galgame/work/$id"
+    fun galgameTag(id: String) = "galgame/tag/$id"
+    fun galgameCompany(id: String) = "galgame/company/$id"
+    fun galgameEngine(id: String) = "galgame/engine/$id"
+    fun galgameSeries(id: String) = "galgame/series/$id"
+    fun galgameCharacter(id: String) = "galgame/character/$id"
+    fun galgameStaff(id: String) = "galgame/staff/$id"
+    fun galgameTrait(id: String) = "galgame/trait/$id"
+    fun galgameCharacters(traitId: String? = null) =
+        "galgame/characters?traitId=${Uri.encode(traitId.orEmpty())}"
+    fun collection(id: String) = "collection/$id"
     fun soon(entry: HubEntry): String =
         "soon?title=${Uri.encode(entry.label)}&note=${Uri.encode(entry.note)}&path=${Uri.encode(entry.webPath)}"
 }
@@ -152,14 +192,46 @@ fun AppNav(app: KungalApp) {
     val currentRoute = backStackEntry?.destination?.route
     val showBottomBar = tabs.any { it.route == currentRoute }
 
-    /** 站内路径或完整 URL 交给浏览器（占位功能的临时出口）。 */
-    fun openWebOrPath(path: String) {
-        val url = if (path.startsWith("http://") || path.startsWith("https://")) {
-            path
-        } else {
-            "https://www.kungal.com$path"
+    /** 站内路径优先进 App；未实现的路径交浏览器。 */
+    fun openInternalPath(path: String) {
+        val clean = path.substringBefore('?').substringBefore('#').trimEnd('/')
+        val segment = clean.substringAfterLast('/')
+        val looksId = segment.isNotEmpty() && segment.all(Char::isDigit)
+        when {
+            clean == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
+            clean == "/gallib" -> nav.navigate(Routes.GALGAME_LIBRARY)
+            clean == "/galgame/official" -> nav.navigate(Routes.GALGAME_COMPANIES)
+            clean == "/galgame/tag" -> nav.navigate(Routes.GALGAME_TAGS)
+            clean == "/galgame/engine" -> nav.navigate(Routes.GALGAME_ENGINES)
+            clean == "/galgame/series" -> nav.navigate(Routes.GALGAME_SERIES_LIST)
+            clean == "/galgame/character" -> nav.navigate(Routes.galgameCharacters())
+            clean == "/galgame/trait" -> nav.navigate(Routes.GALGAME_TRAITS)
+            clean.startsWith("/galgame/official/") && looksId -> nav.navigate(Routes.galgameCompany(segment))
+            clean.startsWith("/galgame/tag/") && looksId -> nav.navigate(Routes.galgameTag(segment))
+            clean.startsWith("/galgame/engine/") && looksId -> nav.navigate(Routes.galgameEngine(segment))
+            clean.startsWith("/galgame/series/") && looksId -> nav.navigate(Routes.galgameSeries(segment))
+            clean.startsWith("/galgame/character/") && looksId -> nav.navigate(Routes.galgameCharacter(segment))
+            clean.startsWith("/galgame/staff/") && looksId -> nav.navigate(Routes.galgameStaff(segment))
+            clean.startsWith("/galgame/trait/") && looksId -> nav.navigate(Routes.galgameTrait(segment))
+            clean.startsWith("/galgame/") && looksId -> nav.navigate(Routes.galgameWork(segment))
+            clean.startsWith("/collection/") && looksId -> nav.navigate(Routes.collection(segment))
+            else -> AndroidActions.openInBrowser(context, "https://www.kungal.com$path")
         }
-        AndroidActions.openInBrowser(context, url)
+    }
+
+    /** 站内链接进 App；外部链接（含站内尚未实现的编辑/历史页）交浏览器。 */
+    fun openUrlOrPath(value: String) {
+        val path = when {
+            value.startsWith("https://www.kungal.com/") -> value.removePrefix("https://www.kungal.com")
+            value.startsWith("http://www.kungal.com/") -> value.removePrefix("http://www.kungal.com")
+            value.startsWith("/") -> value
+            else -> null
+        }
+        if (path == null) {
+            AndroidActions.openInBrowser(context, value)
+        } else {
+            openInternalPath(path)
+        }
     }
 
     fun openEntry(entry: HubEntry) {
@@ -173,6 +245,11 @@ fun AppNav(app: KungalApp) {
             rankingTab != null -> nav.navigate(Routes.ranking(rankingTab))
             entry.webPath == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
             entry.webPath == "/gallib" -> nav.navigate(Routes.GALGAME_LIBRARY)
+            entry.webPath == "/galgame/official" -> nav.navigate(Routes.GALGAME_COMPANIES)
+            entry.webPath == "/galgame/tag" -> nav.navigate(Routes.GALGAME_TAGS)
+            entry.webPath == "/galgame/character" -> nav.navigate(Routes.galgameCharacters())
+            entry.webPath == "/galgame/engine" -> nav.navigate(Routes.GALGAME_ENGINES)
+            entry.webPath == "/galgame/series" -> nav.navigate(Routes.GALGAME_SERIES_LIST)
             else -> nav.navigate(Routes.soon(entry))
         }
     }
@@ -284,6 +361,7 @@ fun AppNav(app: KungalApp) {
                     onOpenSelfProfile = {
                         currentUserId?.let { nav.navigate(Routes.user(it)) }
                     },
+                    onOpenCollections = { nav.navigate(Routes.MY_COLLECTIONS) },
                     onEditProfile = { nav.navigate(Routes.PROFILE_SETTINGS) },
                     onOpenPoints = { nav.navigate(Routes.POINTS) },
                     onOpenShop = { nav.navigate(Routes.SHOP) },
@@ -413,7 +491,7 @@ fun AppNav(app: KungalApp) {
                         nav.navigate(Routes.followList(id, followers))
                     },
                     onOpenChat = { id -> nav.navigate(Routes.chat(userId = id)) },
-                    onOpenWeb = { url -> AndroidActions.openInBrowser(context, url) },
+                    onOpenWeb = ::openUrlOrPath,
                     onEditProfile = { nav.navigate(Routes.PROFILE_SETTINGS) },
                 )
             }
@@ -550,7 +628,175 @@ fun AppNav(app: KungalApp) {
                     onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
                     onOpenUser = { id -> nav.navigate(Routes.user(id)) },
                     onOpenLogin = { nav.navigate(Routes.LOGIN) },
-                    onOpenWeb = ::openWebOrPath,
+                    onOpenWeb = ::openUrlOrPath,
+                    onOpenBrowser = { url -> AndroidActions.openInBrowser(context, url) },
+                )
+            }
+            composable(Routes.GALGAME_TAGS) {
+                TagListScreen(
+                    app = app,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenTag = { id -> nav.navigate(Routes.galgameTag(id)) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_TAG,
+                arguments = listOf(navArgument("tagId") { type = NavType.StringType }),
+            ) { entry ->
+                TagDetailScreen(
+                    app = app,
+                    tagId = entry.arguments?.getString("tagId").orEmpty(),
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenTag = { id -> nav.navigate(Routes.galgameTag(id)) },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                    onOpenLogin = { nav.navigate(Routes.LOGIN) },
+                )
+            }
+            composable(Routes.GALGAME_COMPANIES) {
+                CompanyListScreen(
+                    app = app,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenCompany = { id -> nav.navigate(Routes.galgameCompany(id)) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_COMPANY,
+                arguments = listOf(navArgument("companyId") { type = NavType.StringType }),
+            ) { entry ->
+                CompanyDetailScreen(
+                    app = app,
+                    companyId = entry.arguments?.getString("companyId").orEmpty(),
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenCompany = { id -> nav.navigate(Routes.galgameCompany(id)) },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                    onOpenWeb = ::openUrlOrPath,
+                )
+            }
+            composable(Routes.GALGAME_ENGINES) {
+                EngineListScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenEngine = { id -> nav.navigate(Routes.galgameEngine(id)) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_ENGINE,
+                arguments = listOf(navArgument("engineId") { type = NavType.StringType }),
+            ) { entry ->
+                EngineDetailScreen(
+                    app = app,
+                    engineId = entry.arguments?.getString("engineId").orEmpty(),
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                )
+            }
+            composable(Routes.GALGAME_SERIES_LIST) {
+                SeriesListScreen(
+                    app = app,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenSeries = { id -> nav.navigate(Routes.galgameSeries(id)) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_SERIES,
+                arguments = listOf(navArgument("seriesId") { type = NavType.StringType }),
+            ) { entry ->
+                SeriesDetailScreen(
+                    app = app,
+                    seriesId = entry.arguments?.getString("seriesId").orEmpty(),
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_CHARACTERS,
+                arguments = listOf(
+                    navArgument("traitId") { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) { entry ->
+                CharacterListScreen(
+                    app = app,
+                    nsfwDisplay = nsfwDisplay,
+                    initialTraitId = entry.arguments?.getString("traitId").orEmpty(),
+                    onBack = { nav.popBackStack() },
+                    onOpenCharacter = { id -> nav.navigate(Routes.galgameCharacter(id)) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_CHARACTER,
+                arguments = listOf(navArgument("characterId") { type = NavType.StringType }),
+            ) { entry ->
+                CharacterDetailScreen(
+                    app = app,
+                    characterId = entry.arguments?.getString("characterId").orEmpty(),
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                    onOpenTrait = { id -> nav.navigate(Routes.galgameTrait(id)) },
+                    onOpenWeb = ::openUrlOrPath,
+                )
+            }
+            composable(
+                route = Routes.GALGAME_STAFF,
+                arguments = listOf(navArgument("staffId") { type = NavType.StringType }),
+            ) { entry ->
+                StaffDetailScreen(
+                    app = app,
+                    staffId = entry.arguments?.getString("staffId").orEmpty(),
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                    onOpenWeb = ::openUrlOrPath,
+                )
+            }
+            composable(Routes.GALGAME_TRAITS) {
+                TraitListScreen(
+                    app = app,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenTrait = { id -> nav.navigate(Routes.galgameTrait(id)) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_TRAIT,
+                arguments = listOf(navArgument("traitId") { type = NavType.StringType }),
+            ) { entry ->
+                TraitDetailScreen(
+                    app = app,
+                    traitId = entry.arguments?.getString("traitId").orEmpty(),
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenTrait = { id -> nav.navigate(Routes.galgameTrait(id)) },
+                    onOpenCharacterList = { id -> nav.navigate(Routes.galgameCharacters(id)) },
+                    onOpenCharacter = { id -> nav.navigate(Routes.galgameCharacter(id)) },
+                )
+            }
+            composable(
+                route = Routes.COLLECTION,
+                arguments = listOf(navArgument("collectionId") { type = NavType.StringType }),
+            ) { entry ->
+                CollectionDetailScreen(
+                    app = app,
+                    collectionId = entry.arguments?.getString("collectionId").orEmpty(),
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
+                )
+            }
+            composable(Routes.MY_COLLECTIONS) {
+                MyCollectionsScreen(
+                    app = app,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenCollection = { id -> nav.navigate(Routes.collection(id)) },
                 )
             }
             composable(

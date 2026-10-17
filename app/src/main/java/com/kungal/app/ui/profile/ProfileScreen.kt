@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.Bookmarks
 import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Code
@@ -84,6 +85,7 @@ fun ProfileScreen(
     onOpenMessages: () -> Unit,
     onOpenSubscriptions: () -> Unit,
     onOpenSelfProfile: () -> Unit,
+    onOpenCollections: () -> Unit,
     onEditProfile: () -> Unit,
     onOpenPoints: () -> Unit,
     onOpenShop: () -> Unit,
@@ -196,6 +198,7 @@ fun ProfileScreen(
                     onOpenSettings = onOpenSettings,
                     onOpenSubscriptions = onOpenSubscriptions,
                     onOpenSelfProfile = onOpenSelfProfile,
+                    onOpenCollections = onOpenCollections,
                     onEditProfile = onEditProfile,
                     onOpenPoints = onOpenPoints,
                     onOpenShop = onOpenShop,
@@ -287,6 +290,7 @@ private fun LoggedInContent(
     onOpenSettings: () -> Unit,
     onOpenSubscriptions: () -> Unit,
     onOpenSelfProfile: () -> Unit,
+    onOpenCollections: () -> Unit,
     onEditProfile: () -> Unit,
     onOpenPoints: () -> Unit,
     onOpenShop: () -> Unit,
@@ -402,6 +406,13 @@ private fun LoggedInContent(
             supporting = "动态、游戏库、收藏与作品",
             icon = Icons.Outlined.Person,
             onClick = onOpenSelfProfile,
+            trailing = { TrailingChevron() },
+        )
+        item(
+            headline = "我的收藏夹",
+            supporting = "收藏夹管理与收藏的作品",
+            icon = Icons.Outlined.Bookmarks,
+            onClick = onOpenCollections,
             trailing = { TrailingChevron() },
         )
     }

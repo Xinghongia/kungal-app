@@ -199,6 +199,21 @@ data class SeriesSummary(
     @SerialName("sample_works") val sampleWorks: List<SeriesSampleWork> = emptyList(),
 )
 
+/** 系列详情（GET /series/{id}）：在摘要之外多出多语言简介。 */
+@Serializable
+data class SeriesDetail(
+    @SerialName("object") val obj: String = "series",
+    val id: String = "",
+    @SerialName("display_name") val displayName: String = "",
+    val latin: String? = null,
+    val localized: Map<String, LocalizedText> = emptyMap(),
+    @SerialName("has_nsfw_works") val hasNsfwWorks: Boolean? = null,
+    @SerialName("catalog_work_count") val catalogWorkCount: Int = 0,
+    @SerialName("listed_work_count") val listedWorkCount: Int = 0,
+    @SerialName("sample_works") val sampleWorks: List<SeriesSampleWork> = emptyList(),
+    val intros: List<CatalogIntro> = emptyList(),
+)
+
 @Serializable
 data class SeriesSampleWork(
     @SerialName("object") val obj: String = "work",

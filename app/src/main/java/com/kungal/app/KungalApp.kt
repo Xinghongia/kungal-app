@@ -12,6 +12,7 @@ import com.kungal.core.KungalClient
 import com.kungal.core.api.ChatApi
 import com.kungal.core.api.CollectionApi
 import com.kungal.core.api.GalgameApi
+import com.kungal.core.api.GalgameEntityApi
 import com.kungal.core.api.ImageApi
 import com.kungal.core.api.MeApi
 import com.kungal.core.api.NotificationApi
@@ -76,6 +77,9 @@ class KungalApp : Application() {
         private set
 
     lateinit var collectionApi: CollectionApi
+        private set
+
+    lateinit var entityApi: GalgameEntityApi
         private set
 
     lateinit var sessionStore: SessionStore
@@ -158,6 +162,7 @@ class KungalApp : Application() {
         rankingApi = RankingApi(client)
         galgameApi = GalgameApi(client)
         collectionApi = CollectionApi(client)
+        entityApi = GalgameEntityApi(client)
         chatRealtime = ChatRealtimeHub(this)
         sessionStore = SessionStore(this)
         settingsStore = SettingsStore(this)

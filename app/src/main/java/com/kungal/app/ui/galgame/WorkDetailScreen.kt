@@ -89,6 +89,7 @@ fun WorkDetailScreen(
     onOpenUser: (String) -> Unit,
     onOpenLogin: () -> Unit,
     onOpenWeb: (String) -> Unit,
+    onOpenBrowser: (String) -> Unit,
 ) {
     val vm: WorkDetailViewModel = viewModel(key = "work-detail-$workId") {
         WorkDetailViewModel(app, workId, nsfwDisplay.allowsNsfw)
@@ -117,7 +118,7 @@ fun WorkDetailScreen(
                 },
                 actions = {
                     if (work != null) {
-                        IconButton(onClick = { onOpenWeb("/galgame/${work.id}") }) {
+                        IconButton(onClick = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}") }) {
                             Icon(Icons.Outlined.OpenInNew, contentDescription = "在浏览器打开")
                         }
                     }
@@ -157,9 +158,9 @@ fun WorkDetailScreen(
                             onFavorite = {
                                 if (app.isLoggedIn) showCollectionPicker = true else onOpenLogin()
                             },
-                            onRate = { onOpenWeb("/galgame/${work.id}") },
-                            onEdit = { onOpenWeb("/galgame/${work.id}/edit") },
-                            onHistory = { onOpenWeb("/galgame/${work.id}/history") },
+                            onRate = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}") },
+                            onEdit = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}/edit") },
+                            onHistory = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}/history") },
                             onOpenCovers = { showCovers = true },
                             onOpenCover = { url -> viewerUrl = url },
                             onOpenUrl = onOpenWeb,
@@ -196,7 +197,7 @@ fun WorkDetailScreen(
                                 icon = Icons.Outlined.Visibility,
                                 title = "本体资源下载",
                                 description = "资源列表、下载与失效报告将在 BP-03 资源域接入。当前可先在网页查看。",
-                                onOpenWeb = { onOpenWeb("/galgame/${work.id}?tab=resource") },
+                                onOpenWeb = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}?tab=resource") },
                             )
                         }
                         WorkTab.PATCH -> item(key = "patch-placeholder") {
@@ -204,7 +205,7 @@ fun WorkDetailScreen(
                                 icon = Icons.Outlined.Visibility,
                                 title = "补丁资源下载",
                                 description = "补丁资源（moyu）将在 BP-03 资源域接入。当前可先在网页查看。",
-                                onOpenWeb = { onOpenWeb("/galgame/${work.id}?tab=patch") },
+                                onOpenWeb = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}?tab=patch") },
                             )
                         }
                         WorkTab.COMMENT -> item(key = "comment-placeholder") {
@@ -212,7 +213,7 @@ fun WorkDetailScreen(
                                 icon = Icons.Outlined.Visibility,
                                 title = "评论区",
                                 description = "词条评论墙（发帖/回复/点赞/举报）将在 BP-02 U4 接入。",
-                                onOpenWeb = { onOpenWeb("/galgame/${work.id}?tab=comment") },
+                                onOpenWeb = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}?tab=comment") },
                             )
                         }
                         WorkTab.QUIZ -> item(key = "quiz-placeholder") {
@@ -220,7 +221,7 @@ fun WorkDetailScreen(
                                 icon = Icons.Outlined.Visibility,
                                 title = "题库",
                                 description = "该作品的题库将在 BP-05 接入。当前可先在网页查看。",
-                                onOpenWeb = { onOpenWeb("/galgame/${work.id}?tab=quiz") },
+                                onOpenWeb = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}?tab=quiz") },
                             )
                         }
                     }
