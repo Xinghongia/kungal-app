@@ -2,6 +2,7 @@ package com.kungal.app
 
 import android.app.Application
 import com.kungal.core.KungalClient
+import com.kungal.core.api.MeApi
 import com.kungal.core.api.TopicApi
 import com.kungal.core.session.Session
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +16,13 @@ class KungalApp : Application() {
     lateinit var topicApi: TopicApi
         private set
 
+    lateinit var meApi: MeApi
+        private set
+
     lateinit var sessionStore: SessionStore
+        private set
+
+    lateinit var settingsStore: SettingsStore
         private set
 
     /** 登录态（供界面观察）；写操作前置检查用。 */
@@ -28,7 +35,9 @@ class KungalApp : Application() {
         super.onCreate()
         client = KungalClient()
         topicApi = TopicApi(client)
+        meApi = MeApi(client)
         sessionStore = SessionStore(this)
+        settingsStore = SettingsStore(this)
     }
 
     suspend fun restoreSession() {

@@ -1,5 +1,6 @@
 package com.kungal.app.ui.topic
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,19 +14,22 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,17 +47,30 @@ import com.kungal.app.ui.components.AvatarImage
 import com.kungal.app.ui.components.Chip
 import com.kungal.app.ui.components.ErrorBox
 import com.kungal.app.ui.components.KungalImage
+import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.util.relativeTime
 import com.kungal.core.model.Topic
+
+/** 话题分类（与站点 TopicCategory 对齐；null = 全部） */
+private val categories = listOf(
+    null to "全部",
+    "galgame" to "Galgame",
+    "technique" to "技术交流",
+    "others" to "其它",
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TopicListScreen(
     app: KungalApp,
+    defaultSort: String,
     onOpenTopic: (String) -> Unit,
+    onOpenPublish: () -> Unit,
 ) {
-    val vm: TopicListViewModel = viewModel { TopicListViewModel(app) }
+    val vm: TopicListViewModel = viewModel(key = "topic-list-$defaultSort") {
+        TopicListViewModel(app, defaultSort)
+    }
     val state by vm.state.collectAsState()
     val listState = rememberLazyListState()
 
@@ -67,31 +84,64 @@ fun TopicListScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("kungal 话题") }) },
+        topBar = {
+            KungalTopAppBar(
+                title = "话题",
+                subtitle = "鲲 Galgame 论坛的全部话题",
+            )
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = onOpenPublish,
+                icon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
+                text = { Text("发布") },
+            )
+        },
     ) { padding ->
         PullToRefreshBox(
             isRefreshing = state.refreshing,
             onRefresh = { vm.refresh() },
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
-            when {
-                state.items.isEmpty() && state.loading -> LoadingBox(Modifier.fillMaxSize())
-                state.items.isEmpty() && state.error != null ->
-                    ErrorBox(state.error!!, onRetry = { vm.refresh() }, modifier = Modifier.fillMaxSize())
-                else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                    items(state.items, key = { it.id }) { topic ->
-                        TopicCard(topic = topic, onClick = { onOpenTopic(topic.id) })
+            Column(Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    categories.forEach { (value, label) ->
+                        FilterChip(
+                            selected = state.category == value,
+                            onClick = { vm.setCategory(value) },
+                            label = { Text(label) },
+                        )
                     }
-                    item {
-                        when {
-                            state.loading -> LoadingBox()
-                            state.error != null -> ErrorBox(state.error!!, onRetry = { vm.loadMore() })
-                            state.endReached -> Text(
-                                text = "没有更多了",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            )
+                }
+                when {
+                    state.items.isEmpty() && state.loading -> LoadingBox(Modifier.fillMaxSize())
+                    state.items.isEmpty() && state.error != null ->
+                        ErrorBox(state.error!!, onRetry = { vm.refresh() }, modifier = Modifier.fillMaxSize())
+                    else -> LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 96.dp),
+                    ) {
+                        items(state.items, key = { it.id }) { topic ->
+                            TopicCard(topic = topic, onClick = { onOpenTopic(topic.id) })
+                        }
+                        item {
+                            when {
+                                state.loading -> LoadingBox()
+                                state.error != null -> ErrorBox(state.error!!, onRetry = { vm.loadMore() })
+                                state.endReached -> Text(
+                                    text = "没有更多了",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                )
+                            }
                         }
                     }
                 }

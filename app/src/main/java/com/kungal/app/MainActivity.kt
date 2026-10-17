@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
 import com.kungal.app.ui.AppNav
 import com.kungal.app.ui.theme.KungalTheme
@@ -19,7 +21,13 @@ class MainActivity : ComponentActivity() {
             runCatching { app.restoreSession() }
         }
         setContent {
-            KungalTheme {
+            val settings by app.settingsStore.flow.collectAsState(initial = Settings())
+            KungalTheme(
+                themeMode = settings.themeMode,
+                dynamicColor = settings.dynamicColor,
+                presetThemeId = settings.presetThemeId,
+                amoledDark = settings.amoledDark,
+            ) {
                 AppNav(app)
             }
         }

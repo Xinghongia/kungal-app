@@ -12,7 +12,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.IOException
 
-class TopicListViewModel(private val app: KungalApp) : ViewModel() {
+class TopicListViewModel(
+    private val app: KungalApp,
+    private val defaultSort: String = "",
+) : ViewModel() {
 
     data class State(
         val loading: Boolean = false,
@@ -20,6 +23,8 @@ class TopicListViewModel(private val app: KungalApp) : ViewModel() {
         val items: List<Topic> = emptyList(),
         val nextCursor: String? = null,
         val endReached: Boolean = false,
+        /** null = 全部分类；否则为站点 TopicCategory（galgame / technique / others） */
+        val category: String? = null,
         val error: String? = null,
     )
 
@@ -38,6 +43,14 @@ class TopicListViewModel(private val app: KungalApp) : ViewModel() {
         load(reset = false)
     }
 
+    fun setCategory(category: String?) {
+        if (_state.value.category == category) return
+        _state.update {
+            it.copy(category = category, items = emptyList(), nextCursor = null, endReached = false, error = null)
+        }
+        load(reset = true)
+    }
+
     private fun load(reset: Boolean) {
         val current = _state.value
         if (reset && current.loading) return
@@ -50,7 +63,12 @@ class TopicListViewModel(private val app: KungalApp) : ViewModel() {
                 )
             }
             runCatching {
-                app.topicApi.list(cursor = if (reset) null else current.nextCursor, limit = 20)
+                app.topicApi.list(
+                    cursor = if (reset) null else current.nextCursor,
+                    limit = 20,
+                    sort = defaultSort.ifBlank { null },
+                    category = current.category,
+                )
             }.onSuccess { page ->
                 _state.update {
                     it.copy(
