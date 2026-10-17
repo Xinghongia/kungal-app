@@ -52,6 +52,7 @@ import com.kungal.app.ui.editor.DraftsScreen
 import com.kungal.app.ui.editor.TopicEditorScreen
 import com.kungal.app.ui.galgame.GalgameListMode
 import com.kungal.app.ui.galgame.GalgameListScreen
+import com.kungal.app.ui.galgame.WorkDetailScreen
 import com.kungal.app.ui.login.LoginScreen
 import com.kungal.app.ui.messages.MessagesScreen
 import com.kungal.app.ui.messages.NotificationListScreen
@@ -107,6 +108,7 @@ private object Routes {
     const val RANKING = "ranking?tab={tab}"
     const val GALGAME_WORKS = "galgame/works"
     const val GALGAME_LIBRARY = "galgame/library"
+    const val GALGAME_WORK = "galgame/work/{workId}"
     const val SOON = "soon?title={title}&note={note}&path={path}"
 
     fun topic(id: String) = "topic/$id"
@@ -118,6 +120,7 @@ private object Routes {
         "messages/chat/room?conversationId=${Uri.encode(conversationId.orEmpty())}" +
             "&userId=${Uri.encode(userId.orEmpty())}"
     fun ranking(tab: String) = "ranking?tab=$tab"
+    fun galgameWork(id: String) = "galgame/work/$id"
     fun soon(entry: HubEntry): String =
         "soon?title=${Uri.encode(entry.label)}&note=${Uri.encode(entry.note)}&path=${Uri.encode(entry.webPath)}"
 }
@@ -149,6 +152,16 @@ fun AppNav(app: KungalApp) {
     val currentRoute = backStackEntry?.destination?.route
     val showBottomBar = tabs.any { it.route == currentRoute }
 
+    /** 站内路径或完整 URL 交给浏览器（占位功能的临时出口）。 */
+    fun openWebOrPath(path: String) {
+        val url = if (path.startsWith("http://") || path.startsWith("https://")) {
+            path
+        } else {
+            "https://www.kungal.com$path"
+        }
+        AndroidActions.openInBrowser(context, url)
+    }
+
     fun openEntry(entry: HubEntry) {
         val rankingTab = when (entry.webPath) {
             "/ranking/user" -> "user"
@@ -170,11 +183,14 @@ fun AppNav(app: KungalApp) {
         val clean = path.substringBefore('?').substringBefore('#').trimEnd('/')
         val topicId = clean.removePrefix("/topic/")
         val userId = clean.removePrefix("/user/")
+        val workId = clean.removePrefix("/galgame/")
         when {
             clean.startsWith("/topic/") && topicId.isNotEmpty() && topicId.all { it.isDigit() } ->
                 nav.navigate(Routes.topic(topicId))
             clean.startsWith("/user/") && userId.isNotEmpty() && userId.all { it.isDigit() } ->
                 nav.navigate(Routes.user(userId))
+            clean.startsWith("/galgame/") && workId.isNotEmpty() && workId.all { it.isDigit() } ->
+                nav.navigate(Routes.galgameWork(workId))
             else -> AndroidActions.openInBrowser(context, "https://www.kungal.com$path")
         }
     }
@@ -510,10 +526,7 @@ fun AppNav(app: KungalApp) {
                     mode = GalgameListMode.RESOURCE,
                     nsfwDisplay = nsfwDisplay,
                     onBack = { nav.popBackStack() },
-                    // 词条详情在 BP-02 U2 接入；接入前点卡片打开网页，避免死路
-                    onOpenWork = { id ->
-                        AndroidActions.openInBrowser(context, "https://www.kungal.com/galgame/$id")
-                    },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
                 )
             }
             composable(Routes.GALGAME_LIBRARY) {
@@ -522,9 +535,22 @@ fun AppNav(app: KungalApp) {
                     mode = GalgameListMode.LIBRARY,
                     nsfwDisplay = nsfwDisplay,
                     onBack = { nav.popBackStack() },
-                    onOpenWork = { id ->
-                        AndroidActions.openInBrowser(context, "https://www.kungal.com/galgame/$id")
-                    },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_WORK,
+                arguments = listOf(navArgument("workId") { type = NavType.StringType }),
+            ) { entry ->
+                WorkDetailScreen(
+                    app = app,
+                    workId = entry.arguments?.getString("workId").orEmpty(),
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
+                    onOpenLogin = { nav.navigate(Routes.LOGIN) },
+                    onOpenWeb = ::openWebOrPath,
                 )
             }
             composable(

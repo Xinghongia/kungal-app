@@ -1,9 +1,14 @@
 package com.kungal.core.api
 
 import com.kungal.core.KungalClient
+import com.kungal.core.model.MyCoverVoteList
+import com.kungal.core.model.MyWorkList
 import com.kungal.core.model.TagBlock
 import com.kungal.core.model.TagBlockList
+import com.kungal.core.model.Work
 import com.kungal.core.model.WorkCollectedMonths
+import com.kungal.core.model.WorkCoverEngagement
+import com.kungal.core.model.WorkEngagement
 import com.kungal.core.model.WorkSummary
 import com.kungal.core.net.PagedList
 
@@ -112,6 +117,51 @@ class GalgameApi(private val client: KungalClient) {
         path = "/works/collected-months",
         query = mapOf("include_nsfw" to includeNsfw),
         deserializer = WorkCollectedMonths.serializer(),
+    )
+
+    /** 词条详情；合并条目会抛 409 ENTITY_MERGED（problem.current_id 指向新 id）。 */
+    suspend fun work(workId: String, includeNsfw: Boolean = false): Work = client.get(
+        path = "/works/$workId",
+        query = mapOf("include_nsfw" to includeNsfw),
+        deserializer = Work.serializer(),
+    )
+
+    /** 点赞/取消点赞作品。 */
+    suspend fun setWorkLike(workId: String, liked: Boolean): WorkEngagement {
+        val path = "/works/$workId/like"
+        return if (liked) {
+            client.put(path, WorkEngagement.serializer())
+        } else {
+            client.delete(path, WorkEngagement.serializer())
+        }
+    }
+
+    /** 封面投票/撤票：一人一票，投别的封面会移动选票。 */
+    suspend fun setCoverVote(
+        workId: String,
+        coverId: String,
+        voted: Boolean,
+    ): WorkCoverEngagement {
+        val path = "/works/$workId/covers/$coverId/vote"
+        return if (voted) {
+            client.put(path, WorkCoverEngagement.serializer())
+        } else {
+            client.delete(path, WorkCoverEngagement.serializer())
+        }
+    }
+
+    /** 批量读取本人对若干作品的封面投票。 */
+    suspend fun myCoverVotes(workIds: List<String>): MyCoverVoteList = client.get(
+        path = "/me/cover-votes",
+        query = mapOf("work_ids" to workIds),
+        deserializer = MyCoverVoteList.serializer(),
+    )
+
+    /** 批量读取本人对作品的点赞/收藏夹/游玩记录（1–100 个 id）。 */
+    suspend fun myWorkStates(workIds: List<String>): MyWorkList = client.get(
+        path = "/me/works",
+        query = mapOf("work_ids" to workIds),
+        deserializer = MyWorkList.serializer(),
     )
 
     /** 登录用户的标签屏蔽；列表请求据此追加 exclude_tag_ids / exclude_tag_trees。 */

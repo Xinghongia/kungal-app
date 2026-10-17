@@ -18,6 +18,9 @@ data class Problem(
     @kotlinx.serialization.SerialName("request_id")
     val requestId: String = "",
     val errors: List<JsonElement> = emptyList(),
+    /** ENTITY_MERGED 的合并目标 id（服务端 problem 扩展字段）。 */
+    @kotlinx.serialization.SerialName("current_id")
+    val currentId: String? = null,
 ) {
     /** 401 且 code 属于凭证类错误 → 需要引导用户重新登录。 */
     val requiresLogin: Boolean
