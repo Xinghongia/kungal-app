@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "authoritySchema": "tavernweave/project-orchestration/v1",
+  "projectId": "kungal-android-client",
+  "title": "kungal 第三方安卓客户端",
+  "profile": "blueprint-set",
+  "state": "brainstorm-candidate",
+  "authorityFile": "总设计案.md",
+  "nextFile": "NEXT.md",
+  "blueprintPolicy": {
+    "masterFile": "蓝图集/BLUEPRINT_INDEX.md",
+    "maxDepth": 2,
+    "maxChildren": 5,
+    "runtimePersistentBlueprintBudget": 0,
+    "blueprints": [
+      {
+        "id": "BP-ROOT",
+        "path": "蓝图集/BLUEPRINT_INDEX.md",
+        "parentId": null,
+        "depth": 1,
+        "status": "candidate"
+      }
+    ]
+  },
+  "runtimeRefinementPolicy": {
+    "trigger": "observed-problem-or-failed-exit-condition",
+    "maxDepth": 1,
+    "maxOpenBranches": 1,
+    "persistent": false,
+    "mayExpandProductScope": false,
+    "mustReturnToParent": true
+  },
+  "runtimeRefinements": [],
+  "discussionDirections": [
+    {
+      "id": "D1",
+      "topic": "项目定位、平台与登录路径",
+      "level": "foundational",
+      "roundLimit": 4,
+      "roundsUsed": 1,
+      "status": "frozen",
+      "decisionIds": ["C1", "C2", "C3", "C5", "C6", "C7"]
+    },
+    {
+      "id": "D2",
+      "topic": "蓝图档位与 First Playable 合同",
+      "level": "core",
+      "roundLimit": 3,
+      "roundsUsed": 1,
+      "status": "active",
+      "decisionIds": ["P1", "P2"]
+    },
+    {
+      "id": "D3",
+      "topic": "应用命名与 UI 设计语言",
+      "level": "peripheral",
+      "roundLimit": 1,
+      "roundsUsed": 0,
+      "status": "parked",
+      "decisionIds": []
+    }
+  ],
+  "frontendDecision": {
+    "recommended": "independent-ui",
+    "fit": "suitable",
+    "reason": "核心循环（浏览话题→看图文→互动回复）本身就是移动端界面行为；网站是 SSR 网页，手机浏览器体验笨重，原生 App 是正解",
+    "fallback": "无（不做只读或内嵌网页降级）",
+    "reopenWhen": "若驾驶员改为只做只读浏览工具，可重新评估轻量形态",
+    "driverOverride": false,
+    "prototypeGateRequired": false,
+    "realHostGateRequired": true
+  },
+  "acceptance": {
+    "automated": "not-run",
+    "staticPreview": "not-run",
+    "realHost": "pending",
+    "driver": {
+      "status": "pending",
+      "source": "driver"
+    }
+  }
+}

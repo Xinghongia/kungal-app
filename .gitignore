@@ -1,0 +1,13 @@
+# 构建产物与本地环境
+.gradle/
+.kotlin/
+build/
+local.properties
+dist/
+
+# 研究材料（含参考源码克隆与实测样本，不入库）
+research/
+
+# 签名与密钥（驾驶员自行备份，绝不入库）
+*.jks
+keystore.properties
