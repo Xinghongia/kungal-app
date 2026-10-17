@@ -700,9 +700,10 @@ fun ResourcesTab(
     blurNsfw: Boolean,
     header: @Composable () -> Unit,
     initialState: String = "valid",
+    initialRelation: String = "published",
     onOpenResource: (String) -> Unit,
 ) {
-    var relation by remember(userId) { mutableStateOf("published") }
+    var relation by remember(userId, initialRelation) { mutableStateOf(initialRelation) }
     var state by remember(userId, initialState) { mutableStateOf(initialState) }
     var reload by remember(userId) { mutableIntStateOf(0) }
     var editing by remember { mutableStateOf<GalgameResourceSummary?>(null) }

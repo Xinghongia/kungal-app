@@ -17,9 +17,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Bookmarks
+import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.KeyboardArrowRight
@@ -88,6 +90,8 @@ fun ProfileScreen(
     onOpenSubscriptions: () -> Unit,
     onOpenSelfProfile: () -> Unit,
     onOpenCollections: () -> Unit,
+    onOpenMyResources: () -> Unit,
+    onOpenMyToolsets: () -> Unit,
     onOpenProposals: () -> Unit,
     onOpenSubmissions: () -> Unit,
     onEditProfile: () -> Unit,
@@ -203,6 +207,8 @@ fun ProfileScreen(
                     onOpenSubscriptions = onOpenSubscriptions,
                     onOpenSelfProfile = onOpenSelfProfile,
                     onOpenCollections = onOpenCollections,
+                    onOpenMyResources = onOpenMyResources,
+                    onOpenMyToolsets = onOpenMyToolsets,
                     onOpenProposals = onOpenProposals,
                     onOpenSubmissions = onOpenSubmissions,
                     onEditProfile = onEditProfile,
@@ -297,6 +303,8 @@ private fun LoggedInContent(
     onOpenSubscriptions: () -> Unit,
     onOpenSelfProfile: () -> Unit,
     onOpenCollections: () -> Unit,
+    onOpenMyResources: () -> Unit,
+    onOpenMyToolsets: () -> Unit,
     onOpenProposals: () -> Unit,
     onOpenSubmissions: () -> Unit,
     onEditProfile: () -> Unit,
@@ -421,6 +429,20 @@ private fun LoggedInContent(
             supporting = "收藏夹管理与收藏的作品",
             icon = Icons.Outlined.Bookmarks,
             onClick = onOpenCollections,
+            trailing = { TrailingChevron() },
+        )
+        item(
+            headline = "我的资源",
+            supporting = "发布的下载资源与点赞的资源",
+            icon = Icons.Outlined.Download,
+            onClick = onOpenMyResources,
+            trailing = { TrailingChevron() },
+        )
+        item(
+            headline = "我的工具集",
+            supporting = "发布的工具、工具资源与收藏",
+            icon = Icons.Outlined.Build,
+            onClick = onOpenMyToolsets,
             trailing = { TrailingChevron() },
         )
         item(

@@ -109,9 +109,16 @@ fun UserProfileScreen(
     val snackbarHost = remember { SnackbarHostState() }
     val includeNsfw = nsfwDisplay.allowsNsfw
     var selectedTab by remember(userId, initialTab) {
-        mutableStateOf(if (initialTab == "resource-expire") UserTab.RESOURCE else UserTab.ACTIVITY)
+        mutableStateOf(
+            when (initialTab) {
+                "resource", "resource-expire", "resource-like" -> UserTab.RESOURCE
+                "toolset" -> UserTab.TOOLSET
+                else -> UserTab.ACTIVITY
+            },
+        )
     }
     val resourceInitialState = if (initialTab == "resource-expire") "expired" else "valid"
+    val resourceInitialRelation = if (initialTab == "resource-like") "liked" else "published"
     var overflowOpen by remember { mutableStateOf(false) }
     var reportOpen by remember { mutableStateOf(false) }
 
@@ -251,6 +258,7 @@ fun UserProfileScreen(
                             onOpenToolset = onOpenToolset,
                             onOpenWeb = onOpenWeb,
                             resourceInitialState = resourceInitialState,
+                            resourceInitialRelation = resourceInitialRelation,
                         )
                     }
                 }
@@ -426,6 +434,7 @@ private fun UserTabContent(
     onOpenToolset: (String) -> Unit,
     onOpenWeb: (String) -> Unit,
     resourceInitialState: String = "valid",
+    resourceInitialRelation: String = "published",
 ) {
     when (tab) {
         UserTab.ACTIVITY -> ActivityOverviewTab(
@@ -451,6 +460,7 @@ private fun UserTabContent(
             blurNsfw = blurNsfw,
             header = header,
             initialState = resourceInitialState,
+            initialRelation = resourceInitialRelation,
             onOpenResource = onOpenResource,
         )
         UserTab.QUIZ -> QuizTab(app, userId, isSelf, header, onOpenWeb)

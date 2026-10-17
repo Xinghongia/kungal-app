@@ -174,6 +174,8 @@ private object Routes {
 
     fun topic(id: String) = "topic/$id"
     fun user(id: String) = "user/$id"
+    fun user(id: String, tab: String?) =
+        if (tab.isNullOrBlank()) "user/$id" else "user/$id?tab=${Uri.encode(tab)}"
     fun followList(userId: String, followers: Boolean) = "user/$userId/follow?followers=$followers"
     fun editor(topicId: String? = null, draftId: String? = null) =
         "editor?topicId=${Uri.encode(topicId.orEmpty())}&draftId=${Uri.encode(draftId.orEmpty())}"
@@ -290,6 +292,14 @@ fun AppNav(app: KungalApp) {
             clean.startsWith("/galgame/trait/") && looksId -> nav.navigate(Routes.galgameTrait(segment))
             clean.startsWith("/galgame/") && looksId -> nav.navigate(Routes.galgameWork(segment))
             clean.startsWith("/collection/") && looksId -> nav.navigate(Routes.collection(segment))
+            clean.startsWith("/user/") -> {
+                val parsed = parseUserTabPath(clean)
+                if (parsed != null) {
+                    nav.navigate(Routes.user(parsed.first, parsed.second))
+                } else {
+                    AndroidActions.openInBrowser(context, "https://www.kungal.com$path")
+                }
+            }
             else -> AndroidActions.openInBrowser(context, "https://www.kungal.com$path")
         }
     }
@@ -336,7 +346,7 @@ fun AppNav(app: KungalApp) {
         }
     }
 
-    /** 通知里的站内路径：话题/用户进 App，其余（商店、Galgame 等）交给浏览器。 */
+    /** 通知里的站内路径：话题/用户/资源/工具集进 App，其余（商店等）交给浏览器。 */
     fun openNotificationPath(path: String) {
         if (path.isBlank()) return
         val clean = path.substringBefore('?').substringBefore('#').trimEnd('/')
@@ -348,8 +358,14 @@ fun AppNav(app: KungalApp) {
         when {
             clean.startsWith("/topic/") && topicId.isNotEmpty() && topicId.all { it.isDigit() } ->
                 nav.navigate(Routes.topic(topicId))
-            clean.startsWith("/user/") && userId.isNotEmpty() && userId.all { it.isDigit() } ->
-                nav.navigate(Routes.user(userId))
+            clean.startsWith("/user/") -> {
+                val parsed = parseUserTabPath(clean)
+                if (parsed != null) {
+                    nav.navigate(Routes.user(parsed.first, parsed.second))
+                } else {
+                    AndroidActions.openInBrowser(context, "https://www.kungal.com$path")
+                }
+            }
             clean.startsWith("/galgame/resource/") && resourceId.isNotEmpty() && resourceId.all { it.isDigit() } ->
                 nav.navigate(Routes.galgameResource(resourceId))
             clean.startsWith("/toolset/") && toolsetId.isNotEmpty() && toolsetId.all { it.isDigit() } ->
@@ -450,6 +466,12 @@ fun AppNav(app: KungalApp) {
                         currentUserId?.let { nav.navigate(Routes.user(it)) }
                     },
                     onOpenCollections = { nav.navigate(Routes.MY_COLLECTIONS) },
+                    onOpenMyResources = {
+                        currentUserId?.let { nav.navigate(Routes.user(it, "resource")) }
+                    },
+                    onOpenMyToolsets = {
+                        currentUserId?.let { nav.navigate(Routes.user(it, "toolset")) }
+                    },
                     onOpenProposals = { nav.navigate(Routes.GALGAME_PROPOSALS) },
                     onOpenSubmissions = { nav.navigate(Routes.GALGAME_SUBMISSIONS) },
                     onEditProfile = { nav.navigate(Routes.PROFILE_SETTINGS) },
@@ -662,7 +684,7 @@ fun AppNav(app: KungalApp) {
                 WallsScreen(
                     app = app,
                     onBack = { nav.popBackStack() },
-                    onOpenWeb = { url -> AndroidActions.openInBrowser(context, url) },
+                    onOpenWeb = ::openUrlOrPath,
                 )
             }
             composable(Routes.CHAT_LIST) {
@@ -1148,4 +1170,25 @@ private fun NavHostController.switchTab(route: String) {
         launchSingleTop = true
         restoreState = true
     }
+}
+
+/**
+ * 网页用户页深路径 → (userId, tab)：
+ * `/user/1` → 动态；`/user/1/toolset` → 工具集；
+ * `/user/1/resource/{valid|expire|galgame-resource-like}` → 资源（有效/过期/点赞）。
+ */
+internal fun parseUserTabPath(path: String): Pair<String, String?>? {
+    val parts = path.removePrefix("/user/").split('/').filter { it.isNotBlank() }
+    val userId = parts.firstOrNull()?.takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
+        ?: return null
+    val tab = when {
+        parts.getOrNull(1) == "toolset" -> "toolset"
+        parts.getOrNull(1) == "resource" -> when (parts.getOrNull(2)) {
+            "expire" -> "resource-expire"
+            "galgame-resource-like" -> "resource-like"
+            else -> "resource"
+        }
+        else -> null
+    }
+    return userId to tab
 }
