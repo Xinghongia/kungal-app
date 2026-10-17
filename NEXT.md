@@ -29,6 +29,16 @@ updated: 2026-10-17
 
 ## 最近证据
 
+- 2026-10-17 **小布局修复（版本 0.4.1）**（驾驶员实测反馈）：
+  - 话题评论/楼中楼评论的「回复」文字改为正文黑（onSurface）
+  - 根因修复：一排标签塞进不换行 `Row`，后续标签被挤到近 0 宽后逐字折行，
+    行高被撑到 606px → 资源资料库卡片「安卓手机版」竖排、词条页统计行上方大片空白
+    （实测头部 1057px → 690px）；共享 `Chip` 改为单行不折行；卡片与词条头部
+    平台标签改用短名（Windows / 安卓 / Switch …）；词条头部 chip 改 `FlowRow`
+  - 同类排查：资料编辑页头部操作行、词条页点赞/操作行改横向滚动；我的提交、
+    提案卡片、评分卡片/详情的 chip 与操作行改 `FlowRow`
+  - 证据：core 140 + app 50 = **190 项单测全绿**；`assembleDebug` 通过；已装机
+    （0.4.1/code 6）；详见 `docs/devlog/2026-10-17-小布局修复.md`
 - 2026-10-17 **BP-02 U6 投稿与我的提交交付（版本 0.4.0）**：
   - core：`SubmissionApi`（候选搜索 `/work-submission-candidates`、我的投稿
     `/me/work-submissions`、创建 `/work-submissions`（幂等键 + Location/ETag）、

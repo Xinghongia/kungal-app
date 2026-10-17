@@ -198,3 +198,36 @@ fun labelOf(options: List<FilterOption>, value: String): String =
 /** 平台标签，最多取 [max]。 */
 fun platformLabels(work: WorkSummary, max: Int = 3): List<String> =
     work.resourcePlatforms.take(max).map { labelOf(GalgamePlatformOptions, it) }
+
+/** 卡片用的短平台标签：半宽卡片放不下「Windows 电脑版」这类全称。 */
+private val PlatformShortLabels = mapOf(
+    "win" to "Windows",
+    "and" to "安卓",
+    "emulator" to "模拟器",
+    "web" to "网页",
+    "mob" to "功能机",
+    "swi" to "Switch",
+    "sw2" to "Switch 2",
+    "n3d" to "3DS",
+    "nds" to "NDS",
+    "wiu" to "Wii U",
+    "gba" to "GBA",
+    "gbc" to "GBC",
+    "nes" to "FC",
+    "sfc" to "SFC",
+    "psp" to "PSP",
+    "psv" to "PSV",
+    "xxs" to "Xbox X/S",
+    "sat" to "Saturn",
+    "smd" to "MD",
+    "scd" to "Mega-CD",
+    "drc" to "DC",
+    "pce" to "PCE",
+    "pcf" to "PC-FX",
+)
+
+fun platformShortLabel(value: String): String =
+    PlatformShortLabels[value] ?: labelOf(GalgamePlatformOptions, value)
+
+fun platformShortLabels(work: WorkSummary, max: Int = 3): List<String> =
+    work.resourcePlatforms.take(max).map { platformShortLabel(it) }

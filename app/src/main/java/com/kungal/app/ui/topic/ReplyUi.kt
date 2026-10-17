@@ -175,7 +175,11 @@ fun ReplyCard(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.width(4.dp))
-                    Text("回复", style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        "回复",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
                 }
                 TextButton(
                     onClick = {
@@ -434,7 +438,11 @@ private fun CommentRow(
                 onClick = { if (!loggedIn) onRequireLogin() else onReply() },
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp),
             ) {
-                Text("回复", style = MaterialTheme.typography.labelSmall)
+                Text(
+                    "回复",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
             }
         }
     }

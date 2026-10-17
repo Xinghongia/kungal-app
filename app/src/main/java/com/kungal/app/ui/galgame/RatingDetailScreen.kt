@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -60,6 +62,7 @@ import com.kungal.app.ui.util.relativeTime
 import com.kungal.core.model.RatingDetail
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RatingDetailScreen(
     app: KungalApp,
@@ -210,14 +213,14 @@ fun RatingDetailScreen(
                                             recommendLabel(value.recommend),
                                             style = MaterialTheme.typography.titleSmall,
                                         )
-                                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                             Chip(playStateLabel(value.playStatus))
                                             if (value.spoilerLevel != "none") {
                                                 Chip(ratingSpoilerLabel(value.spoilerLevel))
                                             }
                                         }
                                         if (value.gameTypes.isNotEmpty()) {
-                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                                 value.gameTypes.forEach { Chip(gameTypeLabel(it)) }
                                             }
                                         }

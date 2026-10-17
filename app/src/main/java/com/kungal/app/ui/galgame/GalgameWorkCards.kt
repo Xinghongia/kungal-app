@@ -112,7 +112,7 @@ fun GalgameWorkCard(
                     )
                 }
             }
-            val platforms = platformLabels(work)
+            val platforms = platformShortLabels(work)
             if (platforms.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     platforms.take(2).forEach { Chip(it) }
@@ -199,7 +199,7 @@ fun EntityWorkRow(
                     Chip("NSFW")
                 }
             }
-            val platforms = platformLabels(work)
+            val platforms = platformShortLabels(work)
             if (platforms.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     platforms.take(3).forEach { Chip(it) }

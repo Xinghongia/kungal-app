@@ -1,9 +1,13 @@
 package com.kungal.app.ui.galgame
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -280,6 +284,7 @@ fun WorkDetailScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun WorkHeader(
     work: Work,
@@ -393,10 +398,10 @@ private fun WorkHeader(
                         )
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    work.resourceTypes.take(2).forEach { Chip(labelOf(GalgameResourceTypeOptions, it)) }
-                    work.resourceLanguages.take(2).forEach { Chip(labelOf(GalgameLanguageOptions, it)) }
-                    work.resourcePlatforms.take(2).forEach { Chip(labelOf(GalgamePlatformOptions, it)) }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    work.resourceTypes.take(1).forEach { Chip(labelOf(GalgameResourceTypeOptions, it)) }
+                    work.resourceLanguages.take(1).forEach { Chip(labelOf(GalgameLanguageOptions, it)) }
+                    work.resourcePlatforms.take(2).forEach { Chip(platformShortLabel(it)) }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -442,7 +447,10 @@ private fun WorkHeader(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             FilledTonalButton(
@@ -487,7 +495,10 @@ private fun WorkHeader(
             }
         }
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             HeaderAction(Icons.Outlined.Edit, "编辑资料", onEdit)

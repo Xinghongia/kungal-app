@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -108,6 +110,7 @@ fun aspectItems(scores: AspectScores): List<Pair<String, Int>> = listOf(
 fun scoreText(value: Int): String = String.format(Locale.US, "%d", value)
 
 /** 评分列表 / 用户主页复用的评分卡片。 */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RatingRow(
     rating: RatingSummary,
@@ -165,7 +168,7 @@ fun RatingRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Chip(recommendLabel(rating.recommend))
                     rating.gameTypes.take(2).forEach { Chip(gameTypeLabel(it)) }
                     if (rating.spoilerLevel != "none") Chip(ratingSpoilerLabel(rating.spoilerLevel))
