@@ -15,8 +15,8 @@ private val Context.settingsDataStore by preferencesDataStore(name = "settings")
 /** 应用偏好：外观与浏览习惯（与登录会话的 "kungal_session" DataStore 分开存储）。 */
 data class Settings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    /** 动态取色（Android 12+ 跟随壁纸），默认关：默认使用极简主题 */
-    val dynamicColor: Boolean = false,
+    /** 动态取色（Android 12+ 跟随壁纸），默认开 */
+    val dynamicColor: Boolean = true,
     val presetThemeId: String = DefaultPresetThemeId,
     /** 深色模式下使用纯黑背景（OLED 省电 / 观感） */
     val amoledDark: Boolean = false,
@@ -39,7 +39,7 @@ class SettingsStore(private val context: Context) {
         Settings(
             themeMode = ThemeMode.entries.firstOrNull { it.name == prefs[themeModeKey] }
                 ?: ThemeMode.SYSTEM,
-            dynamicColor = prefs[dynamicColorKey] ?: false,
+            dynamicColor = prefs[dynamicColorKey] ?: true,
             presetThemeId = prefs[presetThemeIdKey] ?: DefaultPresetThemeId,
             amoledDark = prefs[amoledDarkKey] ?: false,
             defaultSort = prefs[defaultSortKey] ?: "",

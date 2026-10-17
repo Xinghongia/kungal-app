@@ -1,7 +1,7 @@
 ---
 handoff_schema: tavernweave/next/v1
 project_id: kungal-android-client
-status: bp05-u1
+status: bp05-u1-icons
 updated: 2026-10-17
 ---
 
@@ -24,12 +24,22 @@ updated: 2026-10-17
 - 官方 App 未发布（全平台「即将推出」、仓库私有）→ 第三方客户端定位成立（驾驶员已确认照做）
 - 匿名可读实测（`GET /api/v1/topics` 200）；API 无验证码/CSRF/UA 校验；Cloudflare 在最外层
 - **命名 = kungal-app**（包名 `com.kungal.app`，显示名 "kungal"）——驾驶员 2026-10-17 定案
+- **应用图标 = 站点图标**（2026-10-17 驾驶员指定 `https://www.kungal.com/` 的图标，
+  0.7.1 起生效）；「待决定」里的图标事项关闭
 - **官方化方向（C9）**：驾驶员日后联系站长争取本项目成为官方客户端（站长欢迎开源项目）；
   达成前保持非官方声明、不冒用身份；达成后可申请官方 client_id + 原生 OAuth 登录
 - 设计提案 P1–P4 已随设计确认生效（blueprint-set / First Playable 合同 / 技术选型 / 参考源码位置）
 
 ## 最近证据
 
+- 2026-10-17 **动态取色默认开启 + 应用图标（版本 0.7.1）**（驾驶员要求）：
+  - 「动态取色」默认值 `false → true`（未手动改过的安装生效；Android 12 以下仍回退预设主题）
+  - 应用图标改用站点 `https://www.kungal.com/` 的 PWA 图标（512×512 原图），
+    生成传统 mipmap 五档 + 自适应图标（`#FBFBFB` 背景、72dp 安全区前景）
+  - 证据：core 171 + app 76 = **247 项单测全绿**；`assembleDebug` 通过；已装机
+    （0.7.1/code 22）；启动冒烟无崩溃；详见
+    `docs/devlog/2026-10-17-默认动态取色与应用图标.md`
+  - 未验证：桌面图标实际观感需驾驶员确认（启动器可能缓存旧图标）
 - 2026-10-17 **BP-05 U1 全站搜索（版本 0.7.0）**：
   - core：`SearchApi`（用户 / 作品 / 留言墙）+ 两个搜索模型；`TopicApi` 三类搜索
     改用统一分页信封（`total` 可用于总数与翻页）；3 项新单测
