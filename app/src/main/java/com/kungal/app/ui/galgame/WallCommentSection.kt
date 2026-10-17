@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.AlertDialog
@@ -491,12 +492,13 @@ private fun CommentRow(
                 ContentDocumentView(comment.content)
             }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 32.dp)) {
+                val liked = comment.viewer?.hasLiked == true
                 TextButton(onClick = { onLike(comment) }) {
                     Icon(
-                        Icons.Outlined.ThumbUp,
+                        if (liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
-                        tint = if (comment.viewer?.hasLiked == true) {
+                        tint = if (liked) {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
@@ -506,6 +508,11 @@ private fun CommentRow(
                     Text(
                         comment.likeCount.toString(),
                         style = MaterialTheme.typography.labelSmall,
+                        color = if (liked) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                     )
                 }
                 TextButton(onClick = { onReply(comment) }) { Text("回复", style = MaterialTheme.typography.labelSmall) }

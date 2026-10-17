@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.ThumbUp
@@ -261,21 +262,23 @@ fun RatingDetailScreen(
                                 }
 
                                 Row(verticalAlignment = Alignment.CenterVertically) {
+                                    val liked = value.viewer?.hasLiked == true
                                     FilledTonalButton(
                                         onClick = {
                                             if (!app.isLoggedIn) {
                                                 onOpenLogin()
                                             } else if (!liking) {
-                                                val target = !(value.viewer?.hasLiked ?: false)
+                                                val target = !liked
                                                 liking = true
                                                 scope.launch {
                                                     runCatching { app.ratingApi.setLike(ratingId, target) }
                                                         .onSuccess { result ->
                                                             rating = value.copy(
                                                                 likeCount = result.likeCount,
-                                                                viewer = value.viewer?.copy(
-                                                                    hasLiked = result.viewer.hasLiked,
-                                                                ),
+                                                                // viewer 缺失时也要落成对象，否则图标不会切换
+                                                                viewer = (value.viewer
+                                                                    ?: com.kungal.core.model.RatingViewer())
+                                                                    .copy(hasLiked = result.viewer.hasLiked),
                                                             )
                                                             liking = false
                                                         }
@@ -287,19 +290,22 @@ fun RatingDetailScreen(
                                             }
                                         },
                                         enabled = !liking,
+                                        colors = if (liked) {
+                                            androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
+                                                containerColor = MaterialTheme.colorScheme.primary,
+                                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                            )
+                                        } else {
+                                            androidx.compose.material3.ButtonDefaults.filledTonalButtonColors()
+                                        },
                                     ) {
                                         Icon(
-                                            Icons.Outlined.ThumbUp,
+                                            if (liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                                             contentDescription = null,
                                             modifier = Modifier.size(16.dp),
-                                            tint = if (value.viewer?.hasLiked == true) {
-                                                MaterialTheme.colorScheme.primary
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            },
                                         )
                                         Spacer(Modifier.width(4.dp))
-                                        Text(if (value.viewer?.hasLiked == true) "已点赞" else "点赞")
+                                        Text(if (liked) "已点赞" else "点赞")
                                         Spacer(Modifier.width(4.dp))
                                         Text(value.likeCount.toString())
                                     }
