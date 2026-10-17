@@ -39,6 +39,7 @@ import com.kungal.core.model.TopicSubscription
 import com.kungal.core.model.TopicUpvote
 import com.kungal.core.model.UpvoteCreate
 import com.kungal.core.net.PageList
+import com.kungal.core.net.PagedList
 
 /**
  * 话题与讨论域的全部读写接口（topics / replies / comments / reactions / favorites /
@@ -461,10 +462,10 @@ class TopicApi(private val client: KungalClient) {
         page: Int = 1,
         limit: Int = 20,
         includeNsfw: Boolean = false,
-    ): PageList<Topic> = client.get(
+    ): PagedList<Topic> = client.get(
         path = "/search/topics",
         query = mapOf("q" to query, "page" to page, "limit" to limit, "include_nsfw" to includeNsfw),
-        deserializer = PageList.serializer(Topic.serializer()),
+        deserializer = PagedList.serializer(Topic.serializer()),
     )
 
     suspend fun searchReplies(
@@ -472,10 +473,10 @@ class TopicApi(private val client: KungalClient) {
         page: Int = 1,
         limit: Int = 20,
         includeNsfw: Boolean = false,
-    ): PageList<ReplySearchHit> = client.get(
+    ): PagedList<ReplySearchHit> = client.get(
         path = "/search/replies",
         query = mapOf("q" to query, "page" to page, "limit" to limit, "include_nsfw" to includeNsfw),
-        deserializer = PageList.serializer(ReplySearchHit.serializer()),
+        deserializer = PagedList.serializer(ReplySearchHit.serializer()),
     )
 
     suspend fun searchComments(
@@ -483,9 +484,9 @@ class TopicApi(private val client: KungalClient) {
         page: Int = 1,
         limit: Int = 20,
         includeNsfw: Boolean = false,
-    ): PageList<CommentSearchHit> = client.get(
+    ): PagedList<CommentSearchHit> = client.get(
         path = "/search/comments",
         query = mapOf("q" to query, "page" to page, "limit" to limit, "include_nsfw" to includeNsfw),
-        deserializer = PageList.serializer(CommentSearchHit.serializer()),
+        deserializer = PagedList.serializer(CommentSearchHit.serializer()),
     )
 }

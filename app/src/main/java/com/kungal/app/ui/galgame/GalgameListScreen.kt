@@ -637,7 +637,7 @@ private fun MonthChips(selected: Set<Int>, onToggle: (Int) -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun YearRangeDialog(
+internal fun YearRangeDialog(
     from: String,
     to: String,
     onApply: (String, String) -> Unit,

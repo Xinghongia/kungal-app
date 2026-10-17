@@ -91,7 +91,8 @@ import com.kungal.app.ui.messages.WallsScreen
 import com.kungal.app.ui.points.PointsScreen
 import com.kungal.app.ui.profile.ProfileScreen
 import com.kungal.app.ui.ranking.RankingScreen
-import com.kungal.app.ui.search.TopicSearchScreen
+import com.kungal.app.ui.search.EntityFamily
+import com.kungal.app.ui.search.SearchScreen
 import com.kungal.app.ui.settings.CloudPreferencesScreen
 import com.kungal.app.ui.settings.SettingsScreen
 import com.kungal.app.ui.shop.ShopScreen
@@ -255,6 +256,7 @@ fun AppNav(app: KungalApp) {
             clean.startsWith("/toolset/") && looksId -> nav.navigate(Routes.toolset(segment))
             clean.startsWith("/galgame/resource/") && looksId -> nav.navigate(Routes.galgameResource(segment))
             clean == "/gallib" -> nav.navigate(Routes.GALGAME_LIBRARY)
+            clean == "/search" -> nav.navigate(Routes.SEARCH)
             clean == "/galgame/official" -> nav.navigate(Routes.GALGAME_COMPANIES)
             clean == "/galgame/tag" -> nav.navigate(Routes.GALGAME_TAGS)
             clean == "/galgame/engine" -> nav.navigate(Routes.GALGAME_ENGINES)
@@ -572,11 +574,27 @@ fun AppNav(app: KungalApp) {
                 )
             }
             composable(Routes.SEARCH) {
-                TopicSearchScreen(
+                SearchScreen(
                     app = app,
                     nsfwDisplay = nsfwDisplay,
                     onBack = { nav.popBackStack() },
                     onOpenTopic = { id -> nav.navigate(Routes.topic(id)) },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                    onOpenResource = { id -> nav.navigate(Routes.galgameResource(id)) },
+                    onOpenToolset = { id -> nav.navigate(Routes.toolset(id)) },
+                    onOpenEntity = { family, id ->
+                        when (family) {
+                            EntityFamily.CHARACTER -> nav.navigate(Routes.galgameCharacter(id))
+                            EntityFamily.COMPANY -> nav.navigate(Routes.galgameCompany(id))
+                            EntityFamily.STAFF -> nav.navigate(Routes.galgameStaff(id))
+                            EntityFamily.TAG -> nav.navigate(Routes.galgameTag(id))
+                            EntityFamily.SERIES -> nav.navigate(Routes.galgameSeries(id))
+                            EntityFamily.ENGINE -> nav.navigate(Routes.galgameEngine(id))
+                            EntityFamily.ALL -> Unit
+                        }
+                    },
+                    onOpenPath = ::openUrlOrPath,
                 )
             }
             composable(Routes.SUBSCRIPTIONS) {

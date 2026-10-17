@@ -21,6 +21,7 @@ import com.kungal.core.api.NotificationApi
 import com.kungal.core.api.RatingApi
 import com.kungal.core.api.RankingApi
 import com.kungal.core.api.ResourceApi
+import com.kungal.core.api.SearchApi
 import com.kungal.core.api.SectionApi
 import com.kungal.core.api.ShopApi
 import com.kungal.core.api.SocialApi
@@ -110,10 +111,16 @@ class KungalApp : Application() {
     lateinit var toolsetApi: ToolsetApi
         private set
 
+    lateinit var searchApi: SearchApi
+        private set
+
     lateinit var sessionStore: SessionStore
         private set
 
     lateinit var settingsStore: SettingsStore
+        private set
+
+    lateinit var searchHistoryStore: SearchHistoryStore
         private set
 
     /** 登录态（供界面观察）；写操作前置检查用。 */
@@ -198,9 +205,11 @@ class KungalApp : Application() {
         submissionApi = SubmissionApi(client)
         resourceApi = ResourceApi(client)
         toolsetApi = ToolsetApi(client)
+        searchApi = SearchApi(client)
         chatRealtime = ChatRealtimeHub(this)
         sessionStore = SessionStore(this)
         settingsStore = SettingsStore(this)
+        searchHistoryStore = SearchHistoryStore(this)
         // 默认头像池：先内置快照可用，后台尝试刷新到站点最新版本
         appScope.launch { runCatching { AvatarPool.refresh() } }
         contentStance = combine(session, _accountStance, settingsStore.flow) { session, account, settings ->
