@@ -15,15 +15,15 @@
 
 | 话题 | Galgame 频道 | 词条详情 |
 | :-: | :-: | :-: |
-| ![话题](docs/screenshots/topic.jpg) | ![Galgame 频道](docs/screenshots/galgame.jpg) | ![词条详情](docs/screenshots/work.jpg) |
+| <img src="docs/screenshots/topic.jpg" width="240" height="533" alt="话题"> | <img src="docs/screenshots/galgame.jpg" width="240" height="533" alt="Galgame 频道"> | <img src="docs/screenshots/work.jpg" width="240" height="533" alt="词条详情"> |
 
 | Galgame 资料库 | 发现 | 我的 |
 | :-: | :-: | :-: |
-| ![Galgame 资料库](docs/screenshots/library.jpg) | ![发现](docs/screenshots/discover.jpg) | ![我的](docs/screenshots/profile.jpg) |
+| <img src="docs/screenshots/library.jpg" width="240" height="533" alt="Galgame 资料库"> | <img src="docs/screenshots/discover.jpg" width="240" height="533" alt="发现"> | <img src="docs/screenshots/profile.jpg" width="240" height="533" alt="我的"> |
 
 | 消息与私信 | 用户主页 | 设置 |
 | :-: | :-: | :-: |
-| ![消息](docs/screenshots/messages.jpg) | ![用户主页](docs/screenshots/user.jpg) | ![设置](docs/screenshots/settings.jpg) |
+| <img src="docs/screenshots/messages.jpg" width="240" height="533" alt="消息与私信"> | <img src="docs/screenshots/user.jpg" width="240" height="533" alt="用户主页"> | <img src="docs/screenshots/settings.jpg" width="240" height="533" alt="设置"> |
 
 ## 功能
 
