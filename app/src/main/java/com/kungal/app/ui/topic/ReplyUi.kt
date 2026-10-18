@@ -84,7 +84,8 @@ fun ReplyCard(
     var menuOpen by remember { mutableStateOf(false) }
     var commentOpen by remember { mutableStateOf(false) }
     var commentText by remember { mutableStateOf("") }
-    var replyTo by remember { mutableStateOf<ReplyComment?>(null) }
+    var commentReplyTarget by remember { mutableStateOf<ReplyComment?>(null) }
+    var commentReplyText by remember { mutableStateOf("") }
     val viewer = reply.viewer
     val hasAnyReaction = reply.reactions.any { it.count > 0 }
 
@@ -289,14 +290,39 @@ fun ReplyCard(
                             isSelf = false,
                             onLike = { onToggleCommentLike(comment.id) },
                             onReply = {
-                                replyTo = comment
-                                commentOpen = true
+                                if (!loggedIn) {
+                                    onRequireLogin()
+                                } else {
+                                    commentReplyTarget = comment
+                                    commentReplyText = ""
+                                }
                             },
                             onEdit = { onEditComment(comment.id) },
                             onDelete = { onDeleteComment(comment.id) },
                             onRequireLogin = onRequireLogin,
                             onOpenAuthor = onOpenAuthor,
                         )
+                        if (commentReplyTarget?.id == comment.id) {
+                            InlineCommentReply(
+                                target = comment,
+                                text = commentReplyText,
+                                sending = commentSending,
+                                onTextChange = { commentReplyText = it },
+                                onCancel = {
+                                    commentReplyTarget = null
+                                    commentReplyText = ""
+                                },
+                                onSend = {
+                                    if (!loggedIn) {
+                                        onRequireLogin()
+                                    } else if (commentReplyText.isNotBlank() && !commentSending) {
+                                        onSendComment(commentReplyText, comment.id)
+                                        commentReplyText = ""
+                                        commentReplyTarget = null
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -308,7 +334,7 @@ fun ReplyCard(
                         onValueChange = { commentText = it },
                         placeholder = {
                             Text(
-                                replyTo?.let { "回复 ${it.author.name ?: it.author.id}" } ?: "写下你的评论",
+                                "写下你的评论",
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         },
@@ -323,9 +349,8 @@ fun ReplyCard(
                                 onRequireLogin()
                                 return@TextButton
                             }
-                            onSendComment(commentText, replyTo?.id)
+                            onSendComment(commentText, null)
                             commentText = ""
-                            replyTo = null
                         },
                     ) {
                         if (commentSending) {
@@ -334,6 +359,54 @@ fun ReplyCard(
                             Text("发送")
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+/** 楼中楼「回复」：输入框直接出现在被回复的评论下方。 */
+@Composable
+private fun InlineCommentReply(
+    target: ReplyComment,
+    text: String,
+    sending: Boolean,
+    onTextChange: (String) -> Unit,
+    onCancel: () -> Unit,
+    onSend: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(start = 26.dp, top = 2.dp, bottom = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "回复 ${target.author.name ?: target.author.id}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.width(4.dp))
+            TextButton(onClick = onCancel) { Text("取消") }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = text,
+                onValueChange = onTextChange,
+                placeholder = {
+                    Text("回复这条评论…", style = MaterialTheme.typography.bodySmall)
+                },
+                modifier = Modifier.weight(1f),
+                maxLines = 3,
+                shape = RoundedCornerShape(20.dp),
+            )
+            TextButton(
+                enabled = text.isNotBlank() && !sending,
+                onClick = onSend,
+            ) {
+                if (sending) {
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("发送")
                 }
             }
         }

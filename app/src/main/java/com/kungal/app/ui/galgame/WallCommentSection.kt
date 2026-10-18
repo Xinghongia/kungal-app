@@ -82,7 +82,9 @@ fun WallCommentSection(
     var error by remember(subjectType, subjectId) { mutableStateOf<String?>(null) }
     var composer by remember(subjectType, subjectId) { mutableStateOf("") }
     var sending by remember(subjectType, subjectId) { mutableStateOf(false) }
-    var replyTo by remember(subjectType, subjectId) { mutableStateOf<WallComment?>(null) }
+    var replyingTo by remember(subjectType, subjectId) { mutableStateOf<WallComment?>(null) }
+    var replyText by remember(subjectType, subjectId) { mutableStateOf("") }
+    var sendingReply by remember(subjectType, subjectId) { mutableStateOf(false) }
     var editing by remember { mutableStateOf<WallComment?>(null) }
     var editText by remember { mutableStateOf("") }
     var savingEdit by remember { mutableStateOf(false) }
@@ -126,6 +128,32 @@ fun WallCommentSection(
         }
     }
 
+    fun sendReply() {
+        val target = replyingTo ?: return
+        val text = replyText.trim()
+        if (text.isEmpty() || sendingReply) return
+        sendingReply = true
+        scope.launch {
+            runCatching {
+                app.wallCommentApi.create(
+                    subjectType = subjectType,
+                    subjectId = subjectId,
+                    contentMarkdown = text,
+                    parentCommentId = target.id,
+                    idempotencyKey = UUID.randomUUID().toString(),
+                )
+            }.onSuccess {
+                sendingReply = false
+                replyingTo = null
+                replyText = ""
+                reload()
+            }.onFailure {
+                sendingReply = false
+                AppMessages.show(friendlyError(it))
+            }
+        }
+    }
+
     LaunchedEffect(subjectType, subjectId) { reload() }
 
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -142,17 +170,6 @@ fun WallCommentSection(
                 TextButton(onClick = onOpenLogin) { Text("去登录") }
             }
         } else {
-            if (replyTo != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "回复 @${replyTo?.author?.name ?: replyTo?.author?.id}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    TextButton(onClick = { replyTo = null }) { Text("取消") }
-                }
-            }
             OutlinedTextField(
                 value = composer,
                 onValueChange = { if (it.length <= maxLength) composer = it },
@@ -175,13 +192,12 @@ fun WallCommentSection(
                                     subjectType = subjectType,
                                     subjectId = subjectId,
                                     contentMarkdown = text,
-                                    parentCommentId = replyTo?.id,
+                                    parentCommentId = null,
                                     idempotencyKey = UUID.randomUUID().toString(),
                                 )
                             }.onSuccess {
                                 sending = false
                                 composer = ""
-                                replyTo = null
                                 reload()
                             }.onFailure {
                                 sending = false
@@ -213,9 +229,21 @@ fun WallCommentSection(
                     CommentThread(
                         root = root,
                         replies = replies[root.id].orEmpty(),
+                        replyingToId = replyingTo?.id,
+                        replyText = replyText,
+                        sendingReply = sendingReply,
+                        maxLength = maxLength,
+                        onReplyTextChange = { replyText = it },
+                        onCancelReply = { replyingTo = null; replyText = "" },
+                        onSubmitReply = { sendReply() },
                         onOpenUser = onOpenUser,
                         onReply = {
-                            if (app.isLoggedIn) replyTo = it else onOpenLogin()
+                            if (app.isLoggedIn) {
+                                replyingTo = it
+                                replyText = ""
+                            } else {
+                                onOpenLogin()
+                            }
                         },
                         onLike = { comment ->
                             if (!app.isLoggedIn) {
@@ -380,6 +408,13 @@ fun WallCommentSection(
 private fun CommentThread(
     root: WallComment,
     replies: List<WallComment>,
+    replyingToId: String?,
+    replyText: String,
+    sendingReply: Boolean,
+    maxLength: Int,
+    onReplyTextChange: (String) -> Unit,
+    onCancelReply: () -> Unit,
+    onSubmitReply: () -> Unit,
     onOpenUser: (String) -> Unit,
     onReply: (WallComment) -> Unit,
     onLike: (WallComment) -> Unit,
@@ -397,6 +432,18 @@ private fun CommentThread(
             onDelete = onDelete,
             onFlag = onFlag,
         )
+        if (replyingToId == root.id) {
+            InlineReplyComposer(
+                target = root,
+                text = replyText,
+                maxLength = maxLength,
+                sending = sendingReply,
+                indent = 32.dp,
+                onTextChange = onReplyTextChange,
+                onCancel = onCancelReply,
+                onSend = onSubmitReply,
+            )
+        }
         replies.forEach { reply ->
             Row(Modifier.fillMaxWidth()) {
                 Spacer(Modifier.width(28.dp))
@@ -410,8 +457,69 @@ private fun CommentThread(
                     onFlag = onFlag,
                 )
             }
+            if (replyingToId == reply.id) {
+                InlineReplyComposer(
+                    target = reply,
+                    text = replyText,
+                    maxLength = maxLength,
+                    sending = sendingReply,
+                    indent = 60.dp,
+                    onTextChange = onReplyTextChange,
+                    onCancel = onCancelReply,
+                    onSend = onSubmitReply,
+                )
+            }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+    }
+}
+
+/** 点击「回复」后直接出现在该条评论下方的输入框。 */
+@Composable
+private fun InlineReplyComposer(
+    target: WallComment,
+    text: String,
+    maxLength: Int,
+    sending: Boolean,
+    indent: androidx.compose.ui.unit.Dp,
+    onTextChange: (String) -> Unit,
+    onCancel: () -> Unit,
+    onSend: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = indent, top = 2.dp, bottom = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "回复 @${target.author.name ?: target.author.id}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.width(6.dp))
+            TextButton(onClick = onCancel) { Text("取消") }
+        }
+        OutlinedTextField(
+            value = text,
+            onValueChange = { if (it.length <= maxLength) onTextChange(it) },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            placeholder = { Text("回复这条评论…", style = MaterialTheme.typography.bodySmall) },
+            minLines = 2,
+            supportingText = { Text("${text.length}/$maxLength") },
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            Button(
+                shape = RoundedCornerShape(50),
+                onClick = onSend,
+                enabled = !sending && text.isNotBlank(),
+            ) { Text(if (sending) "发送中…" else "发送") }
+        }
     }
 }
 
