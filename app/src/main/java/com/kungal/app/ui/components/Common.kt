@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -37,6 +39,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -230,6 +237,63 @@ fun Chip(text: String, modifier: Modifier = Modifier) {
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 6.dp, vertical = 2.dp),
     )
+}
+
+/**
+ * 萌萌点图标：与网页用户卡片一致的「放大镜里套 @ 弧线」描边图标
+ * （站点 SSR 输出为 24×24 stroke SVG，这里按同一路径重绘）。
+ */
+val MoePointIcon: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "MoePoint",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).apply {
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 2f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(11f, 11f)
+            arcToRelative(2f, 2f, 0f, isMoreThanHalf = false, isPositiveArc = false, dx1 = 4f, dy1 = 0f)
+            arcToRelative(4f, 4f, 0f, isMoreThanHalf = false, isPositiveArc = false, dx1 = -8f, dy1 = 0f)
+            arcToRelative(6f, 6f, 0f, isMoreThanHalf = false, isPositiveArc = false, dx1 = 12f, dy1 = 0f)
+        }
+        path(
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = 2f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+        ) {
+            moveTo(3f, 11f)
+            arcToRelative(8f, 8f, 0f, isMoreThanHalf = true, isPositiveArc = true, dx1 = 16f, dy1 = 0f)
+            arcToRelative(8f, 8f, 0f, isMoreThanHalf = true, isPositiveArc = true, dx1 = -16f, dy1 = 0f)
+            moveTo(21f, 21f)
+            lineTo(16.7f, 16.7f)
+        }
+    }.build()
+}
+
+/** 作者名右侧的萌萌点数值（图标 + 数字，颜色与网页 text-secondary 对应）。 */
+@Composable
+fun MoePointBadge(points: Int, modifier: Modifier = Modifier) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = MoePointIcon,
+            contentDescription = "萌萌点",
+            modifier = Modifier.size(13.dp),
+            tint = MaterialTheme.colorScheme.secondary,
+        )
+        Spacer(Modifier.width(3.dp))
+        Text(
+            text = points.toString(),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.secondary,
+        )
+    }
 }
 
 /** 透明融合顶栏（沿用 saku 设计）：内容滚动时容器保持透明，标题加粗。 */

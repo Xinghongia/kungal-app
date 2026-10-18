@@ -514,9 +514,6 @@ private fun MathView(value: String) {
 private fun TableView(node: TableNode) {
     val rows = node.children.filterIsInstance<TableRowNode>()
     if (rows.isEmpty()) return
-    val linkColor = MaterialTheme.colorScheme.primary
-    val codeBg = MaterialTheme.colorScheme.surfaceVariant
-    val spoilerColor = MaterialTheme.colorScheme.onSurface
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
         shape = RoundedCornerShape(8.dp),
@@ -525,28 +522,62 @@ private fun TableView(node: TableNode) {
         Column {
             rows.forEachIndexed { rowIndex, row ->
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    val revealed = remember { mutableStateSetOf<String>() }
                     row.children.filterIsInstance<TableCellNode>().forEachIndexed { cellIndex, cell ->
-                        val alignment = when (cell.align) {
-                            "center" -> TextAlign.Center
-                            "right" -> TextAlign.End
-                            else -> TextAlign.Start
-                        }
-                        Text(
-                            text = buildAnnotatedString {
-                                appendInlines(
-                                    cell.children, "r$rowIndex-c$cellIndex", revealed,
-                                    linkColor, codeBg, spoilerColor,
-                                )
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = if (rowIndex == 0) FontWeight.Bold else FontWeight.Normal,
-                            textAlign = alignment,
+                        TableCellView(
+                            cell = cell,
+                            keyPrefix = "r$rowIndex-c$cellIndex",
+                            isHeader = rowIndex == 0,
                             modifier = Modifier.weight(1f).padding(horizontal = 8.dp, vertical = 6.dp),
                         )
                     }
                 }
                 if (rowIndex == 0) HorizontalDivider()
+            }
+        }
+    }
+}
+
+/**
+ * 表格单元格：文字与图片混排。Markdown 里一行放多张图会被服务端转成
+ * 「一行多列表格、每格一个 image 节点」，只走 appendInlines 会把图片整个吞掉。
+ */
+@Composable
+private fun TableCellView(
+    cell: TableCellNode,
+    keyPrefix: String,
+    isHeader: Boolean,
+    modifier: Modifier,
+) {
+    val linkColor = MaterialTheme.colorScheme.primary
+    val codeBg = MaterialTheme.colorScheme.surfaceVariant
+    val spoilerColor = MaterialTheme.colorScheme.onSurface
+    val alignment = when (cell.align) {
+        "center" -> TextAlign.Center
+        "right" -> TextAlign.End
+        else -> TextAlign.Start
+    }
+    val revealed = remember { mutableStateSetOf<String>() }
+    val parts = remember(cell.children) { groupParts(cell.children) }
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        parts.forEachIndexed { index, part ->
+            when (part) {
+                is TextRun -> {
+                    if (part.nodes.isEmpty()) return@forEachIndexed
+                    Text(
+                        text = buildAnnotatedString {
+                            appendInlines(
+                                part.nodes, "$keyPrefix.$index", revealed,
+                                linkColor, codeBg, spoilerColor,
+                            )
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = if (isHeader) FontWeight.Bold else FontWeight.Normal,
+                        textAlign = alignment,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                is ImagePart -> ImageBlock(part.node)
+                is VideoPart -> VideoLink(part.node.url)
             }
         }
     }

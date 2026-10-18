@@ -84,6 +84,7 @@ import com.kungal.app.ui.components.Chip
 import com.kungal.app.ui.components.ErrorBox
 import com.kungal.app.ui.components.KungalSnackbarHost
 import com.kungal.app.ui.components.LoadingBox
+import com.kungal.app.ui.components.MoePointBadge
 import com.kungal.app.ui.content.ContentDocumentView
 import com.kungal.app.ui.content.LocalTextSelectionClearSignal
 import com.kungal.app.ui.content.contentPlainText
@@ -676,11 +677,7 @@ private fun TopicHeader(topic: Topic, onOpenUser: (String) -> Unit) {
                         )
                         if (topic.authorMoemoepoint > 0) {
                             Spacer(Modifier.width(6.dp))
-                            Text(
-                                "@ ${topic.authorMoemoepoint}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            MoePointBadge(topic.authorMoemoepoint)
                         }
                     }
                     Text(

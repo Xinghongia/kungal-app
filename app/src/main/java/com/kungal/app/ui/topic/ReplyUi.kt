@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kungal.app.ui.components.AvatarImage
 import com.kungal.app.ui.components.Chip
+import com.kungal.app.ui.components.MoePointBadge
 import com.kungal.app.ui.content.ContentDocumentView
 import com.kungal.app.ui.util.fullDateTime
 import com.kungal.core.model.ReactionRecord
@@ -112,11 +113,7 @@ fun ReplyCard(
                             )
                             Spacer(Modifier.width(6.dp))
                             reply.authorMoemoepoint.takeIf { it > 0 }?.let {
-                                Text(
-                                    "@ $it",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                                MoePointBadge(it)
                             }
                             if (reply.isBestAnswer) {
                                 Spacer(Modifier.width(4.dp)); Chip("最佳答案")
