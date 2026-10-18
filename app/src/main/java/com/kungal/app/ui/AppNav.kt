@@ -48,6 +48,10 @@ import com.kungal.app.ui.activity.ActivityTimelineScreen
 import com.kungal.app.ui.activity.UpdateHistoryScreen
 import com.kungal.app.ui.activity.UpdateTodoScreen
 import com.kungal.app.ui.activity.FollowingScreen
+import com.kungal.app.ui.doc.DocDetailScreen
+import com.kungal.app.ui.doc.DocListScreen
+import com.kungal.app.ui.friendlinks.FriendLinksScreen
+import com.kungal.app.ui.sites.SitesScreen
 import com.kungal.app.ui.chat.ChatConversationScreen
 import com.kungal.app.ui.chat.ChatListScreen
 import com.kungal.app.ui.chat.ChatSettingsScreen
@@ -174,6 +178,10 @@ private object Routes {
     const val ACTIVITY_CATEGORY = "activity/category"
     const val UPDATE_HISTORY = "update/history"
     const val UPDATE_TODO = "update/todo"
+    const val DOC = "doc"
+    const val DOC_DETAIL = "doc/{slug}"
+    const val FRIEND_LINKS = "friend-links"
+    const val SITES = "sites"
     const val GALGAME_RESOURCE_LIST = "galgame/resources"
     const val GALGAME_LIBRARY = "galgame/library"
     const val GALGAME_WORK = "galgame/work/{workId}"
@@ -234,6 +242,7 @@ private object Routes {
     fun galgameQuizEdit(id: String) = "galgame/quiz/edit/$id"
     fun newsDetail(id: String) = "news/detail/$id"
     fun newsEdit(id: String) = "edit/news/$id"
+    fun docDetail(slug: String) = "doc/${Uri.encode(slug)}"
     fun websiteDetail(host: String) = "website/detail/${Uri.encode(host)}"
     fun websiteCategory(slug: String) = "website/category/${Uri.encode(slug)}"
     fun websiteTag(slug: String) = "website/tag/${Uri.encode(slug)}"
@@ -295,6 +304,7 @@ fun AppNav(app: KungalApp) {
         val clean = path.substringBefore('?').substringBefore('#').trimEnd('/')
         val segment = clean.substringAfterLast('/')
         val looksId = segment.isNotEmpty() && segment.all(Char::isDigit)
+        val docSlug = parseDocPath(clean)
         when {
             clean == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
             clean == "/news" -> nav.navigate(Routes.NEWS)
@@ -336,6 +346,10 @@ fun AppNav(app: KungalApp) {
             clean == "/activity/category" -> nav.navigate(Routes.ACTIVITY_CATEGORY)
             clean == "/update/history" -> nav.navigate(Routes.UPDATE_HISTORY)
             clean == "/update/todo" -> nav.navigate(Routes.UPDATE_TODO)
+            clean == "/doc" -> nav.navigate(Routes.DOC)
+            clean == "/friend-links" -> nav.navigate(Routes.FRIEND_LINKS)
+            clean == "/sites" -> nav.navigate(Routes.SITES)
+            docSlug != null -> nav.navigate(Routes.docDetail(docSlug))
             clean.startsWith("/website-category/") && segment.isNotBlank() ->
                 nav.navigate(Routes.websiteCategory(segment))
             clean.startsWith("/website-tag/") && segment.isNotBlank() ->
@@ -438,6 +452,9 @@ fun AppNav(app: KungalApp) {
             entry.webPath == "/activity/category" -> nav.navigate(Routes.ACTIVITY_CATEGORY)
             entry.webPath == "/update/history" -> nav.navigate(Routes.UPDATE_HISTORY)
             entry.webPath == "/update/todo" -> nav.navigate(Routes.UPDATE_TODO)
+            entry.webPath == "/doc" -> nav.navigate(Routes.DOC)
+            entry.webPath == "/friend-links" -> nav.navigate(Routes.FRIEND_LINKS)
+            entry.webPath == "/sites" -> nav.navigate(Routes.SITES)
             entry.webPath == "/edit/news" ->
                 if (app.isLoggedIn) nav.navigate(Routes.NEWS_EDIT) else nav.navigate(Routes.LOGIN)
             entry.webPath == "/galgame-quiz" -> nav.navigate(Routes.GALGAME_QUIZ)
@@ -472,8 +489,13 @@ fun AppNav(app: KungalApp) {
         val quizId = clean.removePrefix("/galgame-quiz/")
         val newsId = clean.removePrefix("/news/")
         val websiteHost = clean.removePrefix("/website/")
+        val docSlug = parseDocPath(clean)
         when {
             clean == "/news" -> nav.navigate(Routes.NEWS)
+            clean == "/doc" -> nav.navigate(Routes.DOC)
+            clean == "/friend-links" -> nav.navigate(Routes.FRIEND_LINKS)
+            clean == "/sites" -> nav.navigate(Routes.SITES)
+            docSlug != null -> nav.navigate(Routes.docDetail(docSlug))
             clean.startsWith("/news/") && newsId.isNotEmpty() && newsId.all { it.isDigit() } ->
                 nav.navigate(Routes.newsDetail(newsId))
             clean.startsWith("/website/") && websiteHost.isNotBlank() ->
@@ -1052,6 +1074,38 @@ fun AppNav(app: KungalApp) {
                     onOpenUser = { id -> nav.navigate(Routes.user(id)) },
                 )
             }
+            composable(Routes.DOC) {
+                DocListScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenDoc = { slug -> nav.navigate(Routes.docDetail(slug)) },
+                )
+            }
+            composable(
+                route = Routes.DOC_DETAIL,
+                arguments = listOf(navArgument("slug") { type = NavType.StringType }),
+            ) { entry ->
+                DocDetailScreen(
+                    app = app,
+                    slug = entry.arguments?.getString("slug").orEmpty(),
+                    onBack = { nav.popBackStack() },
+                    onOpenDoc = { slug -> nav.navigate(Routes.docDetail(slug)) },
+                )
+            }
+            composable(Routes.FRIEND_LINKS) {
+                FriendLinksScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenUrl = { url -> AndroidActions.openInBrowser(context, url) },
+                    onOpenContact = { nav.navigate(Routes.docDetail("contact")) },
+                )
+            }
+            composable(Routes.SITES) {
+                SitesScreen(
+                    onBack = { nav.popBackStack() },
+                    onOpenUrl = { url -> AndroidActions.openInBrowser(context, url) },
+                )
+            }
             composable(Routes.GALGAME_LIBRARY) {
                 GalgameListScreen(
                     app = app,
@@ -1599,8 +1653,7 @@ internal data class NewsMonthLink(
     val source: String? = null,
 )
 
-internal fun parseNewsMonthPath(path: String): NewsMonthLink? {
-    val clean = path.substringBefore('?').substringBefore('#').trimEnd('/')
+internal fun parseNewsMonthPath(path: String): NewsMonthLink? {    val clean = path.substringBefore('?').substringBefore('#').trimEnd('/')
     val parts = clean.removePrefix("/news/").split('/').filter { it.isNotBlank() }
     if (parts.size != 2) return null
     val year = parts[0].toIntOrNull()?.takeIf { it in 1970..9999 } ?: return null
@@ -1618,6 +1671,18 @@ internal fun parseNewsMonthPath(path: String): NewsMonthLink? {
         lane = params["lane"]?.takeIf { it == "news" || it == "column" },
         source = params["source"]?.takeIf { it.isNotBlank() },
     )
+}
+
+/**
+ * 文档详情路径 `/doc/{slug}`：slug 只允许小写字母、数字与连字符（网页路由约定）。
+ * `/doc` 本身返回 null，交给文档列表页。
+ */
+internal fun parseDocPath(path: String): String? {
+    val clean = path.substringBefore('?').substringBefore('#').trimEnd('/')
+    if (!clean.startsWith("/doc/")) return null
+    val slug = clean.removePrefix("/doc/")
+    if (slug.isBlank() || slug.contains('/')) return null
+    return slug.takeIf { it.matches(Regex("[a-z0-9]+(?:-[a-z0-9]+)*")) }
 }
 
 /**

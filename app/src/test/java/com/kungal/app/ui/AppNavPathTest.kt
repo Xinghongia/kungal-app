@@ -82,4 +82,15 @@ class AppNavPathTest {
         assertNull(parseNewsMonthPath("/news/2026"))
         assertNull(parseNewsMonthPath("/news/mine"))
     }
+
+    @Test
+    fun `文档路径解析 slug`() {
+        assertEquals("contact", parseDocPath("/doc/contact"))
+        assertEquals("how-to-run", parseDocPath("/doc/how-to-run?from=home"))
+        assertNull(parseDocPath("/doc"))
+        assertNull(parseDocPath("/doc/"))
+        assertNull(parseDocPath("/doc/contact/extra"))
+        assertNull(parseDocPath("/doc/UPPER"))
+        assertNull(parseDocPath("/friend-links"))
+    }
 }
