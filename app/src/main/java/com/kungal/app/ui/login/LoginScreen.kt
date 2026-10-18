@@ -3,6 +3,7 @@ package com.kungal.app.ui.login
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.webkit.CookieManager
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
@@ -11,9 +12,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -57,10 +60,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kungal.app.KungalApp
 import com.kungal.app.ui.components.AppMessages
+import com.kungal.core.api.oauthErrorMessage
+import com.kungal.core.oauth.Pkce
 import kotlinx.coroutines.launch
-
-private const val LOGIN_URL = "https://www.kungal.com/"
-private const val SESSION_COOKIE = "kungal_session"
 
 /**
  * 登录：默认使用原生账号密码表单（与网页同一套 NextMoe OAuth 流程）；
@@ -310,8 +312,11 @@ private fun PasswordField(
 }
 
 /**
- * 网页登录兜底：App 内 WebView 走站点自己的登录（账号统一在 account.nextmoe.com）。
- * 不代填账号密码；只观察站点自己种下的 kungal_session cookie，拿到即持久化完成登录。
+ * 网页登录兜底：直接打开 NextMoe 账号中心的 OAuth 授权页，不再经过论坛首页的登录弹窗。
+ * 站内登录页在窄屏上会把弹窗定位到屏幕外，绕开它可以避免不同机型显示错位/点不到。
+ *
+ * 流程：App 生成 PKCE → 账号中心登录或注册 → 授权后回跳站点回调地址 →
+ * WebView 拦下回跳，用现有原生逻辑把授权码换成 `kungal_session`。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("SetJavaScriptEnabled")
@@ -323,23 +328,51 @@ private fun WebLoginScreen(
     onSwitchToNative: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val pkce = remember { Pkce.generate() }
+    val loginUrl = remember(pkce) { app.authApi.buildAuthorizeUrl(pkce) }
     var loading by remember { mutableStateOf(true) }
-    var finished by remember { mutableStateOf(false) }
+    var finishing by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var handled by remember { mutableStateOf(false) }
     var webView by remember { mutableStateOf<WebView?>(null) }
 
-    fun captureSession(): Boolean {
-        val cookie = CookieManager.getInstance().getCookie("https://www.kungal.com").orEmpty()
-        val value = cookie
-            .split(';')
-            .map { it.trim() }
-            .firstOrNull { it.startsWith("$SESSION_COOKIE=") }
-            ?: return false
-        if (finished) return true
-        finished = true
+    fun failWith(message: String) {
+        handled = false
+        finishing = false
+        loading = false
+        error = message
+    }
+
+    fun handleCallback(url: String): Boolean {
+        val callback = parseOAuthCallback(url) ?: return false
+        if (handled || finishing) return true
+        handled = true
+        error = null
+
+        callback.error?.let { errorCode ->
+            failWith(oauthErrorMessage(errorCode, callback.errorDescription))
+            return true
+        }
+        if (callback.state != pkce.state) {
+            failWith("登录校验失败，请重试")
+            return true
+        }
+        val code = callback.code
+        if (code.isNullOrBlank()) {
+            failWith("登录失败：未收到授权码")
+            return true
+        }
+
+        loading = true
+        finishing = true
         scope.launch {
-            app.onLoggedIn(value)
-            AppMessages.show("登录成功，欢迎回来！")
-            onDone()
+            runCatching { app.authApi.exchangeAuthorizationCode(code, pkce.verifier) }
+                .onSuccess { cookie ->
+                    app.onLoggedIn(cookie)
+                    AppMessages.show("登录成功，欢迎回来！")
+                    onDone()
+                }
+                .onFailure { e -> failWith(e.message ?: "登录失败，请重试") }
         }
         return true
     }
@@ -363,15 +396,42 @@ private fun WebLoginScreen(
             )
         },
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .consumeWindowInsets(padding)
+                .imePadding(),
+        ) {
             Text(
-                text = "在下方网页里登录或注册（账号由 NextMoe·未萌 统一管理）。登录成功会自动返回。",
+                text = "在下方账号中心页面登录或注册（账号由 NextMoe·未萌 统一管理）。" +
+                    "登录成功会自动返回，不经过论坛首页。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             )
             if (loading) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            error?.let { message ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        onClick = {
+                            error = null
+                            loading = true
+                            webView?.loadUrl(loginUrl)
+                        },
+                    ) { Text("重新加载") }
+                }
             }
             Box(modifier = Modifier.fillMaxSize()) {
                 AndroidView(
@@ -380,25 +440,48 @@ private fun WebLoginScreen(
                         WebView(context).apply {
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = true
+                            // 与手机 Chrome 一致：按站点 viewport 排版并固定字号，
+                            // 避免不同机型或系统字体放大造成页面错位、弹窗跑出屏幕。
+                            settings.useWideViewPort = true
+                            settings.loadWithOverviewMode = true
+                            settings.textZoom = 100
+                            settings.setSupportZoom(true)
+                            settings.builtInZoomControls = true
+                            settings.displayZoomControls = false
                             webViewClient = object : WebViewClient() {
+                                override fun shouldOverrideUrlLoading(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                ): Boolean {
+                                    if (request?.isForMainFrame != true) return false
+                                    return handleCallback(request.url.toString())
+                                }
+
                                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                                    loading = true
+                                    // 服务端 302 有时不会走 shouldOverrideUrlLoading，这里兜底。
+                                    if (url != null && handleCallback(url)) {
+                                        view?.stopLoading()
+                                        return
+                                    }
+                                    if (!finishing) {
+                                        loading = true
+                                        error = null
+                                    }
                                 }
 
                                 override fun onPageFinished(view: WebView?, url: String?) {
-                                    loading = false
-                                    captureSession()
+                                    if (!finishing) loading = false
                                 }
                             }
                             CookieManager.getInstance().setAcceptCookie(true)
-                            loadUrl(LOGIN_URL)
+                            loadUrl(loginUrl)
                             webView = this
                         }
                     },
                 )
                 if (loading) {
                     Text(
-                        text = "网页加载中…",
+                        text = if (finishing) "正在完成登录…" else "网页加载中…",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,

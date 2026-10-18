@@ -6,6 +6,7 @@ import com.kungal.core.oauth.Pkce
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -47,6 +48,50 @@ class AccountAuthApiTest {
         assertTrue(codes.challenge.isNotBlank())
         assertTrue(codes.state.isNotBlank())
         assertEquals(codes.challenge, Pkce.challengeFor(codes.verifier))
+    }
+
+    @Test
+    fun `网页授权地址带齐 OAuth 参数`() {
+        val codes = Pkce.generate()
+        val url = api.buildAuthorizeUrl(codes).toHttpUrl()
+
+        assertEquals("/api/v1/oauth/authorize", url.encodedPath)
+        assertEquals(AccountAuthApi.WEB_CLIENT_ID, url.queryParameter("client_id"))
+        assertEquals(AccountAuthApi.REDIRECT_URI, url.queryParameter("redirect_uri"))
+        assertEquals("code", url.queryParameter("response_type"))
+        assertEquals(AccountAuthApi.SCOPE, url.queryParameter("scope"))
+        assertEquals(codes.state, url.queryParameter("state"))
+        assertEquals(codes.challenge, url.queryParameter("code_challenge"))
+        assertEquals("S256", url.queryParameter("code_challenge_method"))
+        assertEquals(null, url.queryParameter("prompt"))
+        assertEquals(
+            "login",
+            api.buildAuthorizeUrl(codes, prompt = "login").toHttpUrl().queryParameter("prompt"),
+        )
+    }
+
+    @Test
+    fun `网页回调授权码换取会话 cookie`() = runBlocking {
+        server.enqueue(
+            MockResponse.Builder()
+                .code(200)
+                .addHeader("Content-Type", "application/json")
+                .addHeader(
+                    "Set-Cookie",
+                    "kungal_session=web-session; max-age=7776000; path=/; HttpOnly; Secure",
+                )
+                .body("""{"code":0,"message":"成功","data":{"user":{"id":1}}}""")
+                .build(),
+        )
+
+        val cookie = api.exchangeAuthorizationCode("code-web", "verifier-web")
+        assertEquals("kungal_session=web-session", cookie)
+
+        val request = server.takeRequest()
+        assertEquals("/api/auth/oauth/callback", request.url.encodedPath)
+        val body = request.body!!.utf8()
+        assertTrue(body.contains("\"code\":\"code-web\""))
+        assertTrue(body.contains("\"code_verifier\":\"verifier-web\""))
     }
 
     @Test

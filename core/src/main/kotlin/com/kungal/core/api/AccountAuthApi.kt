@@ -3,6 +3,7 @@ package com.kungal.core.api
 import com.kungal.core.KungalClient
 import com.kungal.core.KungalJson
 import com.kungal.core.oauth.Pkce
+import com.kungal.core.oauth.PkceCodes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
@@ -147,6 +148,27 @@ class AccountAuthApi(
     ): String = authorize(register(name, email, password, code))
 
     /**
+     * 网页 OAuth 登录入口：直接打开账号中心的授权页，
+     * 登录/注册完成后重定向到 [REDIRECT_URI]。
+     */
+    fun buildAuthorizeUrl(codes: PkceCodes, prompt: String? = null): String {
+        val builder = "$oauthBaseUrl/oauth/authorize".toHttpUrl().newBuilder()
+            .addQueryParameter("client_id", WEB_CLIENT_ID)
+            .addQueryParameter("redirect_uri", REDIRECT_URI)
+            .addQueryParameter("response_type", "code")
+            .addQueryParameter("scope", SCOPE)
+            .addQueryParameter("state", codes.state)
+            .addQueryParameter("code_challenge", codes.challenge)
+            .addQueryParameter("code_challenge_method", "S256")
+        if (!prompt.isNullOrBlank()) builder.addQueryParameter("prompt", prompt)
+        return builder.build().toString()
+    }
+
+    /** 网页 OAuth 回调返回后，用授权码与本地 verifier 换取论坛会话 cookie。 */
+    suspend fun exchangeAuthorizationCode(code: String, verifier: String): String =
+        completeForumLogin(code, verifier)
+
+    /**
      * 用 access_token 请求授权同意（论坛客户端 auto_consent），
      * 从回调地址取 code，再让论坛后端换取会话 cookie。
      */
@@ -270,15 +292,6 @@ class AccountAuthApi(
             }
         }
 
-    private fun oauthErrorMessage(error: String, description: String?): String = when (error) {
-        "login_required" -> "登录已失效，请重试"
-        "consent_required" -> "需要手动确认授权，请改用网页登录"
-        "access_denied" -> "授权被拒绝"
-        "banned" -> "账号已被封禁"
-        "stepup_required" -> "该账号需要额外验证，请改用网页登录"
-        else -> description?.takeIf { it.isNotBlank() } ?: "授权失败（$error）"
-    }
-
     /** 仅用于账号中心每次响应可能种下的 cookie（如 nm_browser）。 */
     private class MemoryCookieJar : CookieJar {
         private val byHost = mutableMapOf<String, MutableList<Cookie>>()
@@ -296,4 +309,14 @@ class AccountAuthApi(
         override fun loadForRequest(url: HttpUrl): List<Cookie> =
             byHost[url.host].orEmpty().filter { it.matches(url) }
     }
+}
+
+/** 把 OAuth 回调里的 error 翻成用户能看懂的提示（原生与网页登录共用）。 */
+fun oauthErrorMessage(error: String, description: String?): String = when (error) {
+    "login_required" -> "登录已失效，请重试"
+    "consent_required" -> "需要手动确认授权后重试"
+    "access_denied" -> "授权被拒绝"
+    "banned" -> "账号已被封禁"
+    "stepup_required" -> "该账号需要额外验证，请在网页中完成验证后重试"
+    else -> description?.takeIf { it.isNotBlank() } ?: "授权失败（$error）"
 }
