@@ -35,6 +35,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kungal.app.KungalApp
@@ -618,13 +619,25 @@ private fun CommentRow(
             Box(Modifier.padding(start = 32.dp)) {
                 ContentDocumentView(comment.content)
             }
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 32.dp)) {
+            Row(
+                modifier = Modifier.padding(start = 32.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
                 val liked = comment.viewer?.hasLiked == true
-                TextButton(onClick = { onLike(comment) }) {
+                // 用轻量 clickable 而不是 TextButton：TextButton 自带 12dp 内容边距和最小宽度，
+                // 会把点赞缩进到正文右侧、并把「回复」推远。
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onLike(comment) }
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Icon(
                         if (liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                         contentDescription = null,
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(15.dp),
                         tint = if (liked) {
                             MaterialTheme.colorScheme.primary
                         } else {
@@ -638,11 +651,22 @@ private fun CommentRow(
                         color = if (liked) {
                             MaterialTheme.colorScheme.primary
                         } else {
-                            MaterialTheme.colorScheme.onSurface
+                            MaterialTheme.colorScheme.onSurfaceVariant
                         },
                     )
                 }
-                TextButton(onClick = { onReply(comment) }) { Text("回复", style = MaterialTheme.typography.labelSmall) }
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onReply(comment) }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        "回复",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
