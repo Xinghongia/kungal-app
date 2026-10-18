@@ -24,7 +24,7 @@ class GitHubPublicApi(
 ) {
     companion object {
         const val DEFAULT_WEB_BASE = "https://github.com"
-        const val USER_AGENT = "kungal-app/0.8.14 (Android)"
+        const val USER_AGENT = "kungal-app/0.8.17 (Android)"
 
         fun defaultHttp(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
