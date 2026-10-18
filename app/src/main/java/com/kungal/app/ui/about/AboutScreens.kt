@@ -47,7 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kungal.app.GitHubProfileSnapshot
 import com.kungal.app.KungalApp
-import com.kungal.app.isGitHubCacheFresh
+import com.kungal.app.isGitHubCacheUsable
 import com.kungal.app.ui.components.KungalImage
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.util.relativeTime
@@ -289,7 +289,10 @@ fun AboutMeScreen(
         error = null
         val cached = runCatching { app.githubProfileStore.load() }.getOrNull()
         val now = System.currentTimeMillis()
-        if (reload == 0 && cached != null && isGitHubCacheFresh(cached.fetchedAt, now)) {
+        // 缓存要同时满足两点才直接用：没过期，且覆盖当前全部项目与贡献图。
+        // 项目列表或仓库可见性变化后，旧缓存会缺项，必须重新抓一次。
+        val cacheUsable = isGitHubCacheUsable(cached, now, AboutProjects.map { it.repo })
+        if (reload == 0 && cacheUsable && cached != null) {
             snapshot = cached
             loading = false
             return@LaunchedEffect

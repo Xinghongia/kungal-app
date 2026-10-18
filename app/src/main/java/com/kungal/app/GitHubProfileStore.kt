@@ -24,6 +24,19 @@ const val GITHUB_CACHE_TTL_MS = 24L * 60 * 60 * 1000
 fun isGitHubCacheFresh(fetchedAt: Long, now: Long): Boolean =
     fetchedAt > 0 && now >= fetchedAt && now - fetchedAt < GITHUB_CACHE_TTL_MS
 
+/**
+ * 缓存能否直接使用：没过期，且覆盖当前全部项目与贡献图。
+ * 项目列表或仓库可见性变化后旧缓存会缺项，必须重新抓取。
+ */
+fun isGitHubCacheUsable(
+    snapshot: GitHubProfileSnapshot?,
+    now: Long,
+    repos: Collection<String>,
+): Boolean = snapshot != null &&
+    snapshot.contributions != null &&
+    repos.all { it in snapshot.stars } &&
+    isGitHubCacheFresh(snapshot.fetchedAt, now)
+
 class GitHubProfileStore(private val context: Context) {
 
     private val json = Json {
