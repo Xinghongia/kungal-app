@@ -47,6 +47,8 @@ updated: 2026-10-18
     `include_nsfw`，隐藏/模糊/显示三态在缩略图上同样生效；
   - 证据：core 234 + app 145 = **379 项单测全绿**；`assembleDebug` /
     `assembleRelease` 通过；正式签名 APK 已覆盖安装（0.8.19/code 48）并冒烟无崩溃；
+    已发布 GitHub Release **v0.8.19**（`kungal-app-0.8.19.apk`，SHA-256
+    `ba7d7c7b…`），驾驶员已实机验证；
     详见 `docs/devlog/2026-10-18-P0投票抽奖作者侧.md`
   - 未验证：投票/抽奖的真实创建、开奖、取消、删除与履约必须由驾驶员用测试话题
     亲自验证；奖品图片上传与窄屏表单需真机走查
