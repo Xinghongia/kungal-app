@@ -151,11 +151,10 @@ release 构建需要仓库根目录下的 `keystore.properties`（`storeFile` / 
 
 ## 下载
 
-最新发布版本 **0.8.16**（code 45）；仓库内开发版本为 **0.8.19**（code 48），
-尚未发布。安装包约 18 MB，要求 Android 8.0 及以上。
+最新发布版本 **0.8.19**（code 48）。安装包约 18 MB，要求 Android 8.0 及以上。
 
 从 [Releases](https://github.com/Xinghongia/kungal-app/releases) 页面下载
-`kungal-app-0.8.16.apk` 安装即可；首次安装需允许「安装未知来源应用」。
+`kungal-app-0.8.19.apk` 安装即可；首次安装需允许「安装未知来源应用」。
 
 - 不同版本将使用同一签名，可直接覆盖升级；
 - 从早期自编译的 debug 包切换时，因签名不同需先卸载旧版（会清除本机登录状态与设置）。
