@@ -1605,7 +1605,7 @@ fun AppNav(app: KungalApp) {
                     onBack = { nav.popBackStack() },
                     onOpenTopic = { id -> nav.navigate(Routes.topic(id)) },
                     onOpenUser = { id -> nav.navigate(Routes.user(id)) },
-                    onOpenWeb = { url -> AndroidActions.openInBrowser(context, url) },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
                 )
             }
             composable(

@@ -204,7 +204,7 @@ fun RankingScreen(
     onBack: () -> Unit,
     onOpenTopic: (String) -> Unit,
     onOpenUser: (String) -> Unit,
-    onOpenWeb: (String) -> Unit,
+    onOpenWork: (String) -> Unit,
 ) {
     val vm: RankingViewModel = viewModel(key = "ranking") {
         RankingViewModel(app, initialTab, nsfwDisplay.allowsNsfw)
@@ -294,11 +294,7 @@ fun RankingScreen(
                                 WorkRankingRow(
                                     entry = entry,
                                     blurNsfw = nsfwDisplay.blursMedia,
-                                    onClick = {
-                                        entry.work?.let {
-                                            onOpenWeb("https://www.kungal.com/galgame/${it.id}")
-                                        }
-                                    },
+                                    onClick = { entry.work?.let { onOpenWork(it.id) } },
                                 )
                             }
                         }

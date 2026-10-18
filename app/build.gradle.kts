@@ -23,8 +23,8 @@ android {
         applicationId = "com.kungal.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 44
-        versionName = "0.8.15"
+        versionCode = 45
+        versionName = "0.8.16"
     }
 
     signingConfigs {

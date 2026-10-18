@@ -265,7 +265,7 @@ private fun LegalPage(
             }
             item {
                 Text(
-                    text = "生效日期：2026-10-18 · 最近更新：0.8.15",
+                    text = "生效日期：2026-10-18 · 最近更新：0.8.16",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
