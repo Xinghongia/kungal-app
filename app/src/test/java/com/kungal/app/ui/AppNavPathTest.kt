@@ -33,4 +33,29 @@ class AppNavPathTest {
         assertNull(parseUserTabPath("/user/abc"))
         assertNull(parseUserTabPath("/user/abc/resource/valid"))
     }
+
+    @Test
+    fun `月历分享链接解析视图与同人开关`() {
+        assertEquals(
+            CalendarLink(view = "upcoming", doujin = true),
+            parseCalendarPath("/galgame-calendar?view=upcoming&doujin=1"),
+        )
+        assertEquals(
+            CalendarLink(view = "pending", year = 2027),
+            parseCalendarPath("/galgame-calendar?view=pending&year=2027"),
+        )
+        assertEquals(
+            CalendarLink(view = "month", month = "2026-10"),
+            parseCalendarPath("/galgame-calendar?view=month&month=2026-10"),
+        )
+        assertEquals(CalendarLink(), parseCalendarPath("/galgame-calendar"))
+    }
+
+    @Test
+    fun `月历链接忽略非法参数`() {
+        assertEquals(
+            CalendarLink(),
+            parseCalendarPath("/galgame-calendar?view=xxx&month=2026-1&year=abc&doujin=0"),
+        )
+    }
 }

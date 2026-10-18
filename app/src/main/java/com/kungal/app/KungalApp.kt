@@ -11,6 +11,7 @@ import com.kungal.app.ui.components.AvatarPool
 import com.kungal.core.KungalClient
 import com.kungal.core.api.AccountAuthApi
 import com.kungal.core.api.ActivityApi
+import com.kungal.core.api.CalendarApi
 import com.kungal.core.api.ChatApi
 import com.kungal.core.api.CollectionApi
 import com.kungal.core.api.EditApi
@@ -118,6 +119,9 @@ class KungalApp : Application() {
     lateinit var activityApi: ActivityApi
         private set
 
+    lateinit var calendarApi: CalendarApi
+        private set
+
     lateinit var sessionStore: SessionStore
         private set
 
@@ -211,6 +215,7 @@ class KungalApp : Application() {
         toolsetApi = ToolsetApi(client)
         searchApi = SearchApi(client)
         activityApi = ActivityApi(client)
+        calendarApi = CalendarApi(client)
         chatRealtime = ChatRealtimeHub(this)
         sessionStore = SessionStore(this)
         settingsStore = SettingsStore(this)

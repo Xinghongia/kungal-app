@@ -52,6 +52,7 @@ import com.kungal.app.ui.editor.DraftsScreen
 import com.kungal.app.ui.editor.TopicEditorScreen
 import com.kungal.app.ui.galgame.CharacterDetailScreen
 import com.kungal.app.ui.galgame.CharacterListScreen
+import com.kungal.app.ui.galgame.CalendarScreen
 import com.kungal.app.ui.galgame.CollectionDetailScreen
 import com.kungal.app.ui.galgame.CompanyDetailScreen
 import com.kungal.app.ui.galgame.CompanyListScreen
@@ -138,6 +139,7 @@ private object Routes {
     const val CHAT_SETTINGS = "messages/chat/settings"
     const val RANKING = "ranking?tab={tab}"
     const val GALGAME_WORKS = "galgame/works"
+    const val GALGAME_CALENDAR = "galgame/calendar?view={view}&month={month}&year={year}&doujin={doujin}"
     const val GALGAME_RESOURCE_LIST = "galgame/resources"
     const val GALGAME_LIBRARY = "galgame/library"
     const val GALGAME_WORK = "galgame/work/{workId}"
@@ -184,6 +186,13 @@ private object Routes {
         "messages/chat/room?conversationId=${Uri.encode(conversationId.orEmpty())}" +
             "&userId=${Uri.encode(userId.orEmpty())}"
     fun ranking(tab: String) = "ranking?tab=$tab"
+    fun galgameCalendar(
+        view: String? = null,
+        month: String? = null,
+        year: String? = null,
+        doujin: Boolean = false,
+    ): String = "galgame/calendar?view=${Uri.encode(view.orEmpty())}" +
+        "&month=${Uri.encode(month.orEmpty())}&year=${Uri.encode(year.orEmpty())}&doujin=$doujin"
     fun galgameWork(id: String) = "galgame/work/$id"
     fun galgameResource(id: String) = "galgame/resource/$id"
     fun toolset(id: String) = "toolset/detail/$id"
@@ -242,6 +251,17 @@ fun AppNav(app: KungalApp) {
         val looksId = segment.isNotEmpty() && segment.all(Char::isDigit)
         when {
             clean == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
+            clean == "/galgame-calendar" -> {
+                val link = parseCalendarPath(path)
+                nav.navigate(
+                    Routes.galgameCalendar(
+                        view = link.view,
+                        month = link.month,
+                        year = link.year?.toString(),
+                        doujin = link.doujin,
+                    ),
+                )
+            }
             clean == "/galgame/resource" -> nav.navigate(Routes.GALGAME_RESOURCE_LIST)
             clean == "/toolset" -> nav.navigate(Routes.TOOLSET_LIST)
             clean == "/edit/toolset/create" ->
@@ -331,6 +351,7 @@ fun AppNav(app: KungalApp) {
         when {
             rankingTab != null -> nav.navigate(Routes.ranking(rankingTab))
             entry.webPath == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
+            entry.webPath == "/galgame-calendar" -> nav.navigate(Routes.galgameCalendar())
             entry.webPath == "/galgame/resource" -> nav.navigate(Routes.GALGAME_RESOURCE_LIST)
             entry.webPath == "/toolset" -> nav.navigate(Routes.TOOLSET_LIST)
             entry.webPath == "/edit/toolset/create" ->
@@ -739,6 +760,26 @@ fun AppNav(app: KungalApp) {
                     app = app,
                     mode = GalgameListMode.RESOURCE,
                     nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_CALENDAR,
+                arguments = listOf(
+                    navArgument("view") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("month") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("year") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("doujin") { type = NavType.BoolType; defaultValue = false },
+                ),
+            ) { entry ->
+                CalendarScreen(
+                    app = app,
+                    nsfwDisplay = nsfwDisplay,
+                    initialView = entry.arguments?.getString("view").orEmpty(),
+                    initialMonth = entry.arguments?.getString("month")?.takeIf { it.isNotBlank() },
+                    initialYear = entry.arguments?.getString("year")?.toIntOrNull(),
+                    initialDoujin = entry.arguments?.getBoolean("doujin") ?: false,
                     onBack = { nav.popBackStack() },
                     onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
                 )
@@ -1191,12 +1232,37 @@ private fun NavHostController.switchTab(route: String) {
 }
 
 /**
+ * 月历分享链接的参数（网页把视图状态放在 URL 里）：
+ * `/galgame-calendar?view=upcoming&doujin=1&month=2026-10&year=2027`。
+ */
+internal data class CalendarLink(
+    val view: String? = null,
+    val month: String? = null,
+    val year: Int? = null,
+    val doujin: Boolean = false,
+)
+
+internal fun parseCalendarPath(path: String): CalendarLink {
+    val query = path.substringAfter('?', "").substringBefore('#')
+    if (query.isBlank()) return CalendarLink()
+    val params = query.split('&').mapNotNull { part ->
+        val index = part.indexOf('=')
+        if (index <= 0) null else part.substring(0, index) to part.substring(index + 1)
+    }.toMap()
+    return CalendarLink(
+        view = params["view"]?.takeIf { it in setOf("month", "upcoming", "pending", "tba") },
+        month = params["month"]?.takeIf { it.matches(Regex("""\d{4}-\d{2}""")) },
+        year = params["year"]?.toIntOrNull()?.takeIf { it > 0 },
+        doujin = params["doujin"] == "1" || params["doujin"] == "true",
+    )
+}
+
+/**
  * 网页用户页深路径 → (userId, tab)：
  * `/user/1` → 动态；`/user/1/toolset` → 工具集；
  * `/user/1/resource/{valid|expire|galgame-resource-like}` → 资源（有效/过期/点赞）。
  */
-internal fun parseUserTabPath(path: String): Pair<String, String?>? {
-    val parts = path.removePrefix("/user/").split('/').filter { it.isNotBlank() }
+internal fun parseUserTabPath(path: String): Pair<String, String?>? {    val parts = path.removePrefix("/user/").split('/').filter { it.isNotBlank() }
     val userId = parts.firstOrNull()?.takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
         ?: return null
     val tab = when {
