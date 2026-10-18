@@ -782,7 +782,9 @@ fun AppNav(app: KungalApp) {
                     onOpenResource = { id -> nav.navigate(Routes.galgameResource(id)) },
                     onOpenToolset = { id -> nav.navigate(Routes.toolset(id)) },
                     onOpenQuiz = { id -> nav.navigate(Routes.galgameQuiz(id)) },
-                    onOpenWeb = ::openUrlOrPath,
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                    onOpenRating = { id -> nav.navigate(Routes.galgameRating(id)) },
+                    onOpenCollection = { id -> nav.navigate(Routes.collection(id)) },
                     onEditProfile = { nav.navigate(Routes.PROFILE_SETTINGS) },
                 )
             }

@@ -89,7 +89,9 @@ fun ActivityOverviewTab(
     blurNsfw: Boolean,
     header: @Composable () -> Unit,
     onOpenTopic: (String) -> Unit,
-    onOpenWeb: (String) -> Unit,
+    onOpenWork: (String) -> Unit,
+    onOpenRating: (String) -> Unit,
+    onOpenResource: (String) -> Unit,
     onSelectTab: (UserTab) -> Unit,
 ) {
     var data by remember(userId, includeNsfw) { mutableStateOf<OverviewData?>(null) }
@@ -173,7 +175,7 @@ fun ActivityOverviewTab(
                         WorkRow(
                             work = work,
                             blurNsfw = blurNsfw,
-                            onClick = { onOpenWeb(siteUrl("/galgame/${work.id}")) },
+                            onClick = { onOpenWork(work.id) },
                         )
                     }
                 }
@@ -183,7 +185,7 @@ fun ActivityOverviewTab(
                         RatingRow(
                             rating = rating,
                             blurNsfw = blurNsfw,
-                            onClick = { onOpenWeb(siteUrl("/galgame-rating/${rating.id}")) },
+                            onClick = { onOpenRating(rating.id) },
                         )
                     }
                 }
@@ -193,7 +195,7 @@ fun ActivityOverviewTab(
                         ResourceRow(
                             resource = resource,
                             blurNsfw = blurNsfw,
-                            onClick = { onOpenWeb(siteUrl("/galgame/resource/${resource.id}")) },
+                            onClick = { onOpenResource(resource.id) },
                         )
                     }
                 }
@@ -212,7 +214,7 @@ fun LibraryTab(
     includeNsfw: Boolean,
     blurNsfw: Boolean,
     header: @Composable () -> Unit,
-    onOpenWeb: (String) -> Unit,
+    onOpenWork: (String) -> Unit,
 ) {
     var filter by remember(userId) { mutableStateOf("all") }
     val options = listOf(
@@ -241,15 +243,15 @@ fun LibraryTab(
             FilterChips(options = options, selected = filter, onSelect = { filter = it })
         },
         keyOf = { it.workSummary.id },
-    ) { record -> WorkRecordRow(record, blurNsfw, onOpenWeb) }
+    ) { record -> WorkRecordRow(record, blurNsfw, onOpenWork) }
 }
 
 @Composable
-private fun WorkRecordRow(record: UserWorkRecord, blurNsfw: Boolean, onOpenWeb: (String) -> Unit) {
+private fun WorkRecordRow(record: UserWorkRecord, blurNsfw: Boolean, onOpenWork: (String) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onOpenWeb(siteUrl("/galgame/${record.workSummary.id}")) }
+            .clickable { onOpenWork(record.workSummary.id) }
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -293,7 +295,8 @@ fun CollectionTab(
     includeNsfw: Boolean,
     header: @Composable () -> Unit,
     onOpenTopic: (String) -> Unit,
-    onOpenWeb: (String) -> Unit,
+    onOpenCollection: (String) -> Unit,
+    onOpenToolset: (String) -> Unit,
 ) {
     var mode by remember(userId) { mutableStateOf("folders") }
     val modeChips: @Composable () -> Unit = {
@@ -321,7 +324,7 @@ fun CollectionTab(
             keyOf = { it.id },
             pagination = true,
             pageSize = 24,
-        ) { collection -> CollectionRow(collection, onOpenWeb) }
+        ) { collection -> CollectionRow(collection, onOpenCollection) }
         "toolsets" -> PagedListContent(
             key = Pair(userId, "fav-toolsets"),
             load = { page, _ ->
@@ -335,7 +338,7 @@ fun CollectionTab(
             pagination = true,
             pageSize = 24,
         ) { toolset ->
-            ToolsetRow(toolset, onClick = { onOpenWeb(siteUrl("/toolset/${toolset.id}")) })
+            ToolsetRow(toolset, onClick = { onOpenToolset(toolset.id) })
         }
         else -> PagedListContent(
             key = Triple(userId, "fav-topics", includeNsfw),
@@ -362,11 +365,11 @@ fun CollectionTab(
 }
 
 @Composable
-private fun CollectionRow(collection: CollectionSummary, onOpenWeb: (String) -> Unit) {
+private fun CollectionRow(collection: CollectionSummary, onOpenCollection: (String) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onOpenWeb(siteUrl("/collection/${collection.id}")) }
+            .clickable { onOpenCollection(collection.id) }
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -548,7 +551,7 @@ fun WorksTab(
     includeNsfw: Boolean,
     blurNsfw: Boolean,
     header: @Composable () -> Unit,
-    onOpenWeb: (String) -> Unit,
+    onOpenWork: (String) -> Unit,
 ) {
     var relation by remember(userId) { mutableStateOf("published") }
     PagedListContent(
@@ -576,7 +579,7 @@ fun WorksTab(
         WorkRow(
             work = work,
             blurNsfw = blurNsfw,
-            onClick = { onOpenWeb(siteUrl("/galgame/${work.id}")) },
+            onClick = { onOpenWork(work.id) },
         )
     }
 }
@@ -630,7 +633,7 @@ fun RatingsTab(
     includeNsfw: Boolean,
     blurNsfw: Boolean,
     header: @Composable () -> Unit,
-    onOpenWeb: (String) -> Unit,
+    onOpenRating: (String) -> Unit,
 ) {
     PagedListContent(
         key = Pair(userId, includeNsfw),
@@ -648,7 +651,7 @@ fun RatingsTab(
         RatingRow(
             rating = rating,
             blurNsfw = blurNsfw,
-            onClick = { onOpenWeb(siteUrl("/galgame-rating/${rating.id}")) },
+            onClick = { onOpenRating(rating.id) },
         )
     }
 }
@@ -968,8 +971,7 @@ fun ToolsetTab(
     app: KungalApp,
     userId: String,
     header: @Composable () -> Unit,
-    onOpenWeb: (String) -> Unit,
-    onOpenToolset: (String) -> Unit = onOpenWeb,
+    onOpenToolset: (String) -> Unit,
 ) {
     var relation by remember(userId) { mutableStateOf("authored") }
     PagedListContent(
@@ -1029,7 +1031,7 @@ private fun ToolsetRow(toolset: ToolsetSummary, onClick: () -> Unit) {
 fun PlaytimeTab(
     app: KungalApp,
     header: @Composable () -> Unit,
-    onOpenWeb: (String) -> Unit,
+    onOpenWork: (String) -> Unit,
 ) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var items by remember { mutableStateOf<List<WorkPlaytime>>(emptyList()) }
@@ -1092,7 +1094,7 @@ fun PlaytimeTab(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onOpenWeb(siteUrl("/galgame/${item.workSummary.id}")) }
+                        .clickable { onOpenWork(item.workSummary.id) }
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

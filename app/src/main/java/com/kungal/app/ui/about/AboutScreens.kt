@@ -68,7 +68,6 @@ private data class AboutProject(
     val description: String,
     val language: String,
     val isFork: Boolean = false,
-    val comingSoon: Boolean = false,
 )
 
 private val AboutProjects = listOf(
@@ -77,7 +76,6 @@ private val AboutProjects = listOf(
         name = "kungal-app",
         description = "鲲 Galgame 论坛的第三方安卓客户端（Kotlin + Jetpack Compose），功能对照网页逐项实现。",
         language = "Kotlin",
-        comingSoon = true,
     ),
     AboutProject(
         repo = "Kirameku",
@@ -368,7 +366,6 @@ private suspend fun fetchGitHub(api: GitHubPublicApi): GitHubProfileSnapshot = c
         runCatching { api.contributions(GITHUB_USER) }.getOrNull()
     }
     val stars = AboutProjects
-        .filterNot { it.comingSoon }
         .map { project ->
             async {
                 project.repo to runCatching { api.repoStars(GITHUB_USER, project.repo) }.getOrNull()
@@ -479,7 +476,7 @@ private fun ProjectCard(project: AboutProject, stars: Int?, onClick: () -> Unit)
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(Modifier.width(6.dp))
-                Tag(if (project.comingSoon) "即将开源" else if (project.isFork) "Fork" else "Public")
+                Tag(if (project.isFork) "Fork" else "Public")
                 Spacer(Modifier.weight(1f))
                 if (stars != null) {
                     Icon(

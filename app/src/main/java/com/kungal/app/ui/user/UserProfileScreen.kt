@@ -97,7 +97,9 @@ fun UserProfileScreen(
     onOpenResource: (String) -> Unit,
     onOpenToolset: (String) -> Unit,
     onOpenQuiz: (String) -> Unit,
-    onOpenWeb: (String) -> Unit,
+    onOpenWork: (String) -> Unit,
+    onOpenRating: (String) -> Unit,
+    onOpenCollection: (String) -> Unit,
     onEditProfile: () -> Unit,
 ) {
     val vm: UserProfileViewModel = viewModel(key = "user-profile-$userId") {
@@ -258,7 +260,9 @@ fun UserProfileScreen(
                             onOpenResource = onOpenResource,
                             onOpenToolset = onOpenToolset,
                             onOpenQuiz = onOpenQuiz,
-                            onOpenWeb = onOpenWeb,
+                            onOpenWork = onOpenWork,
+                            onOpenRating = onOpenRating,
+                            onOpenCollection = onOpenCollection,
                             resourceInitialState = resourceInitialState,
                             resourceInitialRelation = resourceInitialRelation,
                         )
@@ -435,7 +439,9 @@ private fun UserTabContent(
     onOpenResource: (String) -> Unit,
     onOpenToolset: (String) -> Unit,
     onOpenQuiz: (String) -> Unit,
-    onOpenWeb: (String) -> Unit,
+    onOpenWork: (String) -> Unit,
+    onOpenRating: (String) -> Unit,
+    onOpenCollection: (String) -> Unit,
     resourceInitialState: String = "valid",
     resourceInitialRelation: String = "published",
 ) {
@@ -447,14 +453,24 @@ private fun UserTabContent(
             blurNsfw = blurNsfw,
             header = header,
             onOpenTopic = onOpenTopic,
-            onOpenWeb = onOpenWeb,
+            onOpenWork = onOpenWork,
+            onOpenRating = onOpenRating,
+            onOpenResource = onOpenResource,
             onSelectTab = onSelectTab,
         )
-        UserTab.LIBRARY -> LibraryTab(app, userId, includeNsfw, blurNsfw, header, onOpenWeb)
-        UserTab.COLLECTION -> CollectionTab(app, userId, includeNsfw, header, onOpenTopic, onOpenWeb)
+        UserTab.LIBRARY -> LibraryTab(app, userId, includeNsfw, blurNsfw, header, onOpenWork)
+        UserTab.COLLECTION -> CollectionTab(
+            app = app,
+            userId = userId,
+            includeNsfw = includeNsfw,
+            header = header,
+            onOpenTopic = onOpenTopic,
+            onOpenCollection = onOpenCollection,
+            onOpenToolset = onOpenToolset,
+        )
         UserTab.TOPIC -> TopicsTab(app, userId, includeNsfw, header, onOpenTopic)
-        UserTab.GALGAME -> WorksTab(app, userId, includeNsfw, blurNsfw, header, onOpenWeb)
-        UserTab.RATING -> RatingsTab(app, userId, includeNsfw, blurNsfw, header, onOpenWeb)
+        UserTab.GALGAME -> WorksTab(app, userId, includeNsfw, blurNsfw, header, onOpenWork)
+        UserTab.RATING -> RatingsTab(app, userId, includeNsfw, blurNsfw, header, onOpenRating)
         UserTab.RESOURCE -> ResourcesTab(
             app = app,
             userId = userId,
@@ -471,10 +487,9 @@ private fun UserTabContent(
             app = app,
             userId = userId,
             header = header,
-            onOpenWeb = onOpenWeb,
             onOpenToolset = onOpenToolset,
         )
-        UserTab.PLAYTIME -> PlaytimeTab(app, header, onOpenWeb)
+        UserTab.PLAYTIME -> PlaytimeTab(app, header, onOpenWork)
         UserTab.ABOUT -> AboutTab(profile, userId, header)
     }
 }
