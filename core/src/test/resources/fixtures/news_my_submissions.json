@@ -1,0 +1,52 @@
+{
+  "object": "list",
+  "items": [
+    {
+      "object": "news_submission",
+      "id": "4790",
+      "state": "pending",
+      "news_source": "community",
+      "lane": "news",
+      "title": "某社新作公开，预计 2027 年春季发售",
+      "preview": "本周某社公开了新作的首支预告与主要制作阵容。",
+      "content_markdown": "## 新作公开\n\n本周某社公开了新作的首支预告。",
+      "source_url": "",
+      "banner": {
+        "url": "https://image.kungal.iloveren.link/ab/cd/abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789.webp",
+        "hash": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+        "width": 1280,
+        "height": 720,
+        "thumbhash": "4AcGHYR2WJVlfHpyjAc4STyg5HQL",
+        "sexual": "safe"
+      },
+      "published_at": "2026-10-18T02:11:45Z"
+    },
+    {
+      "object": "news_submission",
+      "id": "4781",
+      "state": "published",
+      "news_source": "community",
+      "lane": "column",
+      "title": "一篇用户投稿的专栏",
+      "preview": "这是投稿人写的导语。",
+      "content_markdown": "正文第一段。\n\n正文第二段。",
+      "source_url": "https://example.com/original",
+      "banner": null,
+      "published_at": "2026-10-16T08:30:00Z"
+    },
+    {
+      "object": "news_submission",
+      "id": "4770",
+      "state": "rejected",
+      "news_source": "community",
+      "lane": "news",
+      "title": "未通过审核的投稿",
+      "preview": "导语。",
+      "content_markdown": "",
+      "source_url": "https://example.com/rejected",
+      "banner": null,
+      "published_at": "2026-10-15T11:02:13Z"
+    }
+  ],
+  "next_cursor": "cur_eyJ2IjoxLCJzIjoicHVibGlzaGVkX2Rlc2MifQ"
+}

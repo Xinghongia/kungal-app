@@ -90,7 +90,9 @@ import com.kungal.app.ui.messages.NotificationListScreen
 import com.kungal.app.ui.messages.NotificationPreferencesScreen
 import com.kungal.app.ui.messages.WallsScreen
 import com.kungal.app.ui.news.NewsDetailScreen
+import com.kungal.app.ui.news.NewsEditorScreen
 import com.kungal.app.ui.news.NewsListScreen
+import com.kungal.app.ui.news.NewsMineScreen
 import com.kungal.app.ui.news.NewsMonthScreen
 import com.kungal.app.ui.points.PointsScreen
 import com.kungal.app.ui.profile.ProfileScreen
@@ -151,7 +153,10 @@ private object Routes {
     const val GALGAME_QUIZ_EDIT = "galgame/quiz/edit/{quizId}"
     const val GALGAME_CALENDAR = "galgame/calendar?view={view}&month={month}&year={year}&doujin={doujin}"
     const val NEWS = "news"
+    const val NEWS_MINE = "news/mine"
     const val NEWS_DETAIL = "news/detail/{newsItemId}"
+    const val NEWS_EDIT = "edit/news"
+    const val NEWS_EDIT_ID = "edit/news/{submissionId}"
     const val NEWS_MONTH = "news/archive/{year}/{month}?lane={lane}&source={source}"
     const val GALGAME_RESOURCE_LIST = "galgame/resources"
     const val GALGAME_LIBRARY = "galgame/library"
@@ -212,6 +217,7 @@ private object Routes {
         "galgame/quiz/create?workId=${Uri.encode(workId.orEmpty())}"
     fun galgameQuizEdit(id: String) = "galgame/quiz/edit/$id"
     fun newsDetail(id: String) = "news/detail/$id"
+    fun newsEdit(id: String) = "edit/news/$id"
     fun newsMonth(year: Int, month: Int, lane: String? = null, source: String? = null): String =
         "news/archive/$year/$month?lane=${Uri.encode(lane.orEmpty())}" +
             "&source=${Uri.encode(source.orEmpty())}"
@@ -273,6 +279,12 @@ fun AppNav(app: KungalApp) {
         when {
             clean == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
             clean == "/news" -> nav.navigate(Routes.NEWS)
+            clean == "/news/mine" ->
+                if (app.isLoggedIn) nav.navigate(Routes.NEWS_MINE) else nav.navigate(Routes.LOGIN)
+            clean == "/edit/news" ->
+                if (app.isLoggedIn) nav.navigate(Routes.NEWS_EDIT) else nav.navigate(Routes.LOGIN)
+            clean.startsWith("/edit/news/") && looksId ->
+                if (app.isLoggedIn) nav.navigate(Routes.newsEdit(segment)) else nav.navigate(Routes.LOGIN)
             clean.startsWith("/news/") -> {
                 val monthLink = parseNewsMonthPath(path)
                 val newsId = clean.removePrefix("/news/")
@@ -391,6 +403,8 @@ fun AppNav(app: KungalApp) {
             entry.webPath == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
             entry.webPath == "/galgame-calendar" -> nav.navigate(Routes.galgameCalendar())
             entry.webPath == "/news" -> nav.navigate(Routes.NEWS)
+            entry.webPath == "/edit/news" ->
+                if (app.isLoggedIn) nav.navigate(Routes.NEWS_EDIT) else nav.navigate(Routes.LOGIN)
             entry.webPath == "/galgame-quiz" -> nav.navigate(Routes.GALGAME_QUIZ)
             entry.webPath == "/edit/galgame/quiz" ->
                 if (app.isLoggedIn) nav.navigate(Routes.galgameQuizCreate()) else nav.navigate(Routes.LOGIN)
@@ -546,6 +560,7 @@ fun AppNav(app: KungalApp) {
                     },
                     onOpenProposals = { nav.navigate(Routes.GALGAME_PROPOSALS) },
                     onOpenSubmissions = { nav.navigate(Routes.GALGAME_SUBMISSIONS) },
+                    onOpenNewsSubmissions = { nav.navigate(Routes.NEWS_MINE) },
                     onEditProfile = { nav.navigate(Routes.PROFILE_SETTINGS) },
                     onOpenPoints = { nav.navigate(Routes.POINTS) },
                     onOpenShop = { nav.navigate(Routes.SHOP) },
@@ -843,6 +858,49 @@ fun AppNav(app: KungalApp) {
                         nav.navigate(Routes.newsMonth(year, month, lane, source))
                     },
                     onOpenUrl = { url -> AndroidActions.openInBrowser(context, url) },
+                    onCreateSubmission = {
+                        if (app.isLoggedIn) nav.navigate(Routes.NEWS_EDIT) else nav.navigate(Routes.LOGIN)
+                    },
+                    onOpenMySubmissions = {
+                        if (app.isLoggedIn) nav.navigate(Routes.NEWS_MINE) else nav.navigate(Routes.LOGIN)
+                    },
+                )
+            }
+            composable(Routes.NEWS_MINE) {
+                NewsMineScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenNews = { nav.navigate(Routes.NEWS) },
+                    onCreate = { nav.navigate(Routes.NEWS_EDIT) },
+                    onOpenEditor = { id -> nav.navigate(Routes.newsEdit(id)) },
+                    onOpenItem = { id -> nav.navigate(Routes.newsDetail(id)) },
+                    onOpenLogin = { nav.navigate(Routes.LOGIN) },
+                )
+            }
+            composable(Routes.NEWS_EDIT) {
+                NewsEditorScreen(
+                    app = app,
+                    submissionId = null,
+                    onBack = { nav.popBackStack() },
+                    onSaved = {
+                        nav.navigate(Routes.NEWS_MINE) {
+                            popUpTo(Routes.NEWS_EDIT) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    onOpenMine = { nav.navigate(Routes.NEWS_MINE) },
+                )
+            }
+            composable(
+                route = Routes.NEWS_EDIT_ID,
+                arguments = listOf(navArgument("submissionId") { type = NavType.StringType }),
+            ) { entry ->
+                NewsEditorScreen(
+                    app = app,
+                    submissionId = entry.arguments?.getString("submissionId").orEmpty(),
+                    onBack = { nav.popBackStack() },
+                    onSaved = { nav.popBackStack() },
+                    onOpenMine = { nav.navigate(Routes.NEWS_MINE) },
                 )
             }
             composable(

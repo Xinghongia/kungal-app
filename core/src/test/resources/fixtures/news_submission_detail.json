@@ -1,0 +1,20 @@
+{
+  "object": "news_submission",
+  "id": "4781",
+  "state": "published",
+  "news_source": "community",
+  "lane": "column",
+  "title": "一篇用户投稿的专栏",
+  "preview": "这是投稿人写的导语。",
+  "content_markdown": "正文第一段。\n\n正文第二段。",
+  "source_url": "https://example.com/original",
+  "banner": {
+    "url": "https://image.kungal.iloveren.link/ab/cd/abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789.webp",
+    "hash": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    "width": 1280,
+    "height": 720,
+    "thumbhash": null,
+    "sexual": "safe"
+  },
+  "published_at": "2026-10-16T08:30:00Z"
+}

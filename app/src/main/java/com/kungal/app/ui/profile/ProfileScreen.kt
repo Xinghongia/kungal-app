@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Login
 import androidx.compose.material.icons.outlined.Mail
+import androidx.compose.material.icons.outlined.Newspaper
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.ShoppingBag
@@ -94,6 +95,7 @@ fun ProfileScreen(
     onOpenMyToolsets: () -> Unit,
     onOpenProposals: () -> Unit,
     onOpenSubmissions: () -> Unit,
+    onOpenNewsSubmissions: () -> Unit,
     onEditProfile: () -> Unit,
     onOpenPoints: () -> Unit,
     onOpenShop: () -> Unit,
@@ -211,6 +213,7 @@ fun ProfileScreen(
                     onOpenMyToolsets = onOpenMyToolsets,
                     onOpenProposals = onOpenProposals,
                     onOpenSubmissions = onOpenSubmissions,
+                    onOpenNewsSubmissions = onOpenNewsSubmissions,
                     onEditProfile = onEditProfile,
                     onOpenPoints = onOpenPoints,
                     onOpenShop = onOpenShop,
@@ -307,6 +310,7 @@ private fun LoggedInContent(
     onOpenMyToolsets: () -> Unit,
     onOpenProposals: () -> Unit,
     onOpenSubmissions: () -> Unit,
+    onOpenNewsSubmissions: () -> Unit,
     onEditProfile: () -> Unit,
     onOpenPoints: () -> Unit,
     onOpenShop: () -> Unit,
@@ -457,6 +461,13 @@ private fun LoggedInContent(
             supporting = "新建申请的状态、拒绝原因与撤回",
             icon = Icons.Outlined.UploadFile,
             onClick = onOpenSubmissions,
+            trailing = { TrailingChevron() },
+        )
+        item(
+            headline = "我的情报投稿",
+            supporting = "Galgame 情报的审核状态、编辑与撤回",
+            icon = Icons.Outlined.Newspaper,
+            onClick = onOpenNewsSubmissions,
             trailing = { TrailingChevron() },
         )
     }

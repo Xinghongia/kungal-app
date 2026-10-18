@@ -29,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.Newspaper
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -97,6 +98,8 @@ fun NewsListScreen(
     onOpenItem: (String) -> Unit,
     onOpenMonth: (year: Int, month: Int, lane: String?, source: String?) -> Unit,
     onOpenUrl: (String) -> Unit,
+    onCreateSubmission: () -> Unit,
+    onOpenMySubmissions: () -> Unit,
 ) {
     val vm: NewsFeedViewModel = viewModel(key = "news-feed") { NewsFeedViewModel(app) }
     val state by vm.state.collectAsState()
@@ -153,6 +156,12 @@ fun NewsListScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
                     }
+                },
+                actions = {
+                    IconButton(onClick = onOpenMySubmissions) {
+                        Icon(Icons.Outlined.Assignment, contentDescription = "我的投稿")
+                    }
+                    TextButton(onClick = onCreateSubmission) { Text("投稿") }
                 },
             )
         },

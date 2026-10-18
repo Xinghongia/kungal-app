@@ -20,6 +20,7 @@ import com.kungal.core.api.GalgameEntityApi
 import com.kungal.core.api.ImageApi
 import com.kungal.core.api.MeApi
 import com.kungal.core.api.NewsApi
+import com.kungal.core.api.NewsSubmissionApi
 import com.kungal.core.api.NotificationApi
 import com.kungal.core.api.QuizApi
 import com.kungal.core.api.RatingApi
@@ -130,6 +131,9 @@ class KungalApp : Application() {
     lateinit var newsApi: NewsApi
         private set
 
+    lateinit var newsSubmissionApi: NewsSubmissionApi
+        private set
+
     lateinit var sessionStore: SessionStore
         private set
 
@@ -226,6 +230,7 @@ class KungalApp : Application() {
         activityApi = ActivityApi(client)
         calendarApi = CalendarApi(client)
         newsApi = NewsApi(client)
+        newsSubmissionApi = NewsSubmissionApi(client)
         chatRealtime = ChatRealtimeHub(this)
         sessionStore = SessionStore(this)
         settingsStore = SettingsStore(this)
