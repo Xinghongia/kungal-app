@@ -3,7 +3,7 @@
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.3-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-[![Tests](https://img.shields.io/badge/tests-358%20passing-brightgreen)](#测试)
+[![Tests](https://img.shields.io/badge/tests-360%20passing-brightgreen)](#测试)
 [![Release](https://img.shields.io/github/v/release/Xinghongia/kungal-app?label=release)](https://github.com/Xinghongia/kungal-app/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -139,7 +139,7 @@ release 构建需要仓库根目录下的 `keystore.properties`（`storeFile` / 
 
 ## 测试
 
-当前版本 **0.8.16**，单元测试共 **358 项**（core 220 + app 138），全部通过。
+当前版本 **0.8.16**，单元测试共 **360 项**（core 220 + app 140），全部通过。
 
 - `core` 使用 MockWebServer 与真实响应夹具，逐接口校验路径、参数与模型解析；
 - `app` 覆盖路径解析、分页、渲染与缓存等纯逻辑。
