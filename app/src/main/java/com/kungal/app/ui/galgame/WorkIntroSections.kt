@@ -20,7 +20,6 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -503,16 +502,7 @@ private fun CharacterCard(
                 .clip(RoundedCornerShape(8.dp)),
         ) {
             if (image == null) {
-                Box(
-                    Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Outlined.Person,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                NoCoverArtwork(Modifier.fillMaxSize())
             } else if (!allowNsfw && explicit) {
                 Box(
                     Modifier.fillMaxSize(),
@@ -530,7 +520,7 @@ private fun CharacterCard(
                     modifier = Modifier.fillMaxSize().clickable { onOpenImage(image.url) },
                 )
             } else {
-                KungalImage(
+                CharacterImage(
                     url = image.url,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize().clickable { onOpenImage(image.url) },

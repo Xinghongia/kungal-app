@@ -634,26 +634,30 @@ fun CharacterDetailScreen(
                     DetailCard(title = character!!.localized["zh-Hans"]?.value ?: character!!.displayName) {
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             val art = character!!.figure ?: character!!.image
-                            if (art != null) {
-                                if (nsfwDisplay.blursMedia && art.sexual == "explicit") {
-                                    NsfwCoverImage(
-                                        url = art.url,
-                                        modifier = Modifier
-                                            .width(96.dp)
-                                            .aspectRatio(3f / 4f)
-                                            .clip(RoundedCornerShape(8.dp)),
-                                    )
-                                } else {
-                                    KungalImage(
-                                        url = art.url,
-                                        contentDescription = character!!.displayName,
-                                        modifier = Modifier
-                                            .width(96.dp)
-                                            .aspectRatio(3f / 4f)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .clickable { viewerUrl = art.url },
-                                    )
-                                }
+                            if (art != null && nsfwDisplay.blursMedia && art.sexual == "explicit") {
+                                NsfwCoverImage(
+                                    url = art.url,
+                                    modifier = Modifier
+                                        .width(96.dp)
+                                        .aspectRatio(3f / 4f)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                )
+                            } else {
+                                CharacterImage(
+                                    url = art?.url,
+                                    contentDescription = character!!.displayName,
+                                    modifier = Modifier
+                                        .width(96.dp)
+                                        .aspectRatio(3f / 4f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .then(
+                                            if (art != null) {
+                                                Modifier.clickable { viewerUrl = art.url }
+                                            } else {
+                                                Modifier
+                                            },
+                                        ),
+                                )
                             }
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 if (character!!.latin != null) {
@@ -992,7 +996,7 @@ fun TraitDetailScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    KungalImage(
+                    CharacterImage(
                         url = character.image?.url,
                         contentDescription = character.displayName,
                         modifier = Modifier.width(48.dp).aspectRatio(3f / 4f).clip(RoundedCornerShape(6.dp)),

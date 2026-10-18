@@ -422,7 +422,7 @@ private fun CharacterListRow(
                 modifier = Modifier.width(52.dp).aspectRatio(3f / 4f).clip(RoundedCornerShape(6.dp)),
             )
         } else {
-            KungalImage(
+            CharacterImage(
                 url = character.image?.url,
                 contentDescription = character.displayName,
                 modifier = Modifier.width(52.dp).aspectRatio(3f / 4f).clip(RoundedCornerShape(6.dp)),

@@ -1,7 +1,7 @@
 ---
 handoff_schema: tavernweave/next/v1
 project_id: kungal-android-client
-status: inline-reply-0.8.1
+status: character-placeholder-0.8.6
 updated: 2026-10-18
 ---
 
@@ -32,6 +32,20 @@ updated: 2026-10-18
 
 ## 最近证据
 
+- 2026-10-18 **无立绘角色显示站点占位图（版本 0.8.6）**（驾驶员要求）：
+  - 新增共享 `CharacterImage`：无图/加载失败复用月历页同款站点占位图
+    （`galgame-no-cover.webp`）
+  - 接入角色列表、特质详情角色行、角色详情头部立绘；作品词条「出演角色」
+    空图占位由人形图标改为同一张占位图
+  - 证据：core 189 + app 96 = **285 项单测全绿**；`assembleDebug` 通过；已装机
+    （0.8.6/code 35）；启动冒烟无崩溃；详见 `docs/devlog/2026-10-18-角色占位图.md`
+  - 未验证：各角色页面占位图实际观感需驾驶员确认
+- 2026-10-18 **评论三点菜单回退（版本 0.8.5）**（驾驶员反馈自绘菜单过大）：
+  - 删除 0.8.4 的自绘 `EndAnchoredMenu`，评论墙与楼中楼回退为标准
+    `DropdownMenu`，保留「菜单锚定在按钮 Box 内」的修复
+  - 证据：core 189 + app 96 = **285 项单测全绿**；`assembleDebug` 通过；已装机
+    （0.8.5/code 34）；驾驶员已确认效果；详见
+    `docs/devlog/2026-10-18-评论菜单回退.md`
 - 2026-10-18 **评论点赞/回复按钮对齐与间距（版本 0.8.2）**（驾驶员截图反馈）：
   - 根因：操作行用 `TextButton`，默认 12dp 内容边距 + 最小宽度，点赞被推离正文、
     两个按钮之间空出一大截

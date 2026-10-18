@@ -79,6 +79,21 @@ fun NoCoverArtwork(modifier: Modifier = Modifier) {
     }
 }
 
+/** 角色立绘/头像：无图或加载失败时与作品封面一致，显示站点「暂无封面」占位图。 */
+@Composable
+fun CharacterImage(
+    url: String?,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+) {
+    KungalImage(
+        url = url,
+        contentDescription = contentDescription,
+        modifier = modifier,
+        fallback = { NoCoverArtwork() },
+    )
+}
+
 /** 资料库网格卡片（两列）：封面 + 标题 + 会社 + 发售 + 评分 + 平台。 */
 @Composable
 fun GalgameWorkCard(
