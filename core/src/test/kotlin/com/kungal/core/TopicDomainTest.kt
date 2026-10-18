@@ -194,7 +194,15 @@ class TopicDomainTest {
             ),
             idempotencyKey = "01J-p",
         )
-        assertEquals("POST", server.takeRequest().method)
+        val create = server.takeRequest()
+        assertEquals("POST", create.method)
+        assertEquals("/api/v1/topics/4481/polls", create.url.encodedPath)
+        assertEquals("01J-p", create.headers["Idempotency-Key"])
+        val createBody = create.body!!.utf8()
+        assertTrue(createBody.contains("\"title\":\"喜欢吗\""))
+        assertTrue(createBody.contains("\"choice_type\":\"single\""))
+        assertTrue(createBody.contains("\"result_visibility\":\"always\""))
+        assertTrue(createBody.contains("\"options\":[{\"text\":\"yes\"},{\"text\":\"no\"}]"))
 
         server.enqueue(okFile("poll_domain.json"))
         api.votePoll("42", listOf("198"))

@@ -64,6 +64,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -90,9 +91,12 @@ import com.kungal.app.ui.content.LocalTextSelectionClearSignal
 import com.kungal.app.ui.content.contentPlainText
 import com.kungal.app.ui.util.AndroidActions
 import com.kungal.app.ui.util.fullDateTime
+import com.kungal.core.model.Lottery
+import com.kungal.core.model.Poll
 import com.kungal.core.model.Reply
 import com.kungal.core.model.Topic
 import com.kungal.core.model.TopicViewer
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,6 +125,15 @@ fun TopicDetailScreen(
     var deleteCommentTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
     var nsfwRevealed by remember(topicId) { mutableStateOf(false) }
     var selectionClearSignal by remember { mutableIntStateOf(0) }
+    val miniAppScope = rememberCoroutineScope()
+    var pollFormOpen by remember { mutableStateOf(false) }
+    var pollToEdit by remember { mutableStateOf<Poll?>(null) }
+    var lotteryFormOpen by remember { mutableStateOf(false) }
+    var lotteryToEdit by remember { mutableStateOf<Lottery?>(null) }
+    var deletePollTarget by remember { mutableStateOf<Poll?>(null) }
+    var deleteLotteryTarget by remember { mutableStateOf<Lottery?>(null) }
+    var drawLotteryTarget by remember { mutableStateOf<Lottery?>(null) }
+    var cancelLotteryTarget by remember { mutableStateOf<Lottery?>(null) }
 
     // 回复面板：只有点击「回复」/「写回复」时才弹出（与网站一致）
     var replySheetOpen by remember { mutableStateOf(false) }
@@ -135,6 +148,9 @@ fun TopicDetailScreen(
     val topic = state.topic
     val nsfwGated = topic?.isNsfw == true && nsfwDisplay == NsfwDisplayMode.HIDE && !nsfwRevealed
     val loggedIn = session != null
+    val isTopicAdmin = topic?.let {
+        it.author.id == currentUserId || it.viewer?.canEdit == true
+    } == true
 
     fun openReplySheet(target: Reply?) {
         quoteReply = target
@@ -148,6 +164,8 @@ fun TopicDetailScreen(
             vm.consumeMessage()
         }
     }
+
+    LaunchedEffect(nsfwDisplay) { vm.reloadLotteries() }
 
     // 回复触底加载
     LaunchedEffect(listState) {
@@ -186,6 +204,79 @@ fun TopicDetailScreen(
                 TextButton(onClick = { hideConfirm = false; vm.setHidden(true) }) { Text("隐藏") }
             },
             dismissButton = { TextButton(onClick = { hideConfirm = false }) { Text("取消") } },
+        )
+    }
+    if (pollFormOpen) {
+        PollFormDialog(
+            initial = pollToEdit,
+            onDismiss = { pollFormOpen = false; pollToEdit = null },
+            onCreate = { payload -> vm.createPoll(payload) },
+            onUpdate = { pollId, patch -> vm.updatePoll(pollId, patch) },
+        )
+    }
+    if (lotteryFormOpen) {
+        LotteryFormDialog(
+            app = app,
+            initial = lotteryToEdit,
+            onDismiss = { lotteryFormOpen = false; lotteryToEdit = null },
+            onCreate = { payload -> vm.createLottery(payload) },
+            onUpdate = { lotteryId, patch -> vm.updateLottery(lotteryId, patch) },
+        )
+    }
+    deletePollTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { deletePollTarget = null },
+            title = { Text("删除投票") },
+            text = { Text("删除投票后，所有投票数据都将丢失，该操作不可恢复！") },
+            confirmButton = {
+                TextButton(onClick = {
+                    deletePollTarget = null
+                    miniAppScope.launch { vm.deletePoll(target.id) }
+                }) { Text("删除") }
+            },
+            dismissButton = { TextButton(onClick = { deletePollTarget = null }) { Text("取消") } },
+        )
+    }
+    drawLotteryTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { drawLotteryTarget = null },
+            title = { Text("立即开奖") },
+            text = { Text("开奖后中奖名单立即固定，无法撤销，也不能再修改奖项。确定现在开奖吗？") },
+            confirmButton = {
+                TextButton(onClick = {
+                    drawLotteryTarget = null
+                    miniAppScope.launch { vm.drawLottery(target.id) }
+                }) { Text("开奖") }
+            },
+            dismissButton = { TextButton(onClick = { drawLotteryTarget = null }) { Text("取消") } },
+        )
+    }
+    cancelLotteryTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { cancelLotteryTarget = null },
+            title = { Text("取消抽奖") },
+            text = { Text("取消后将不再开奖，已参与的用户不会获得任何奖品。萌萌点奖池会全额退回给发起人。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    cancelLotteryTarget = null
+                    miniAppScope.launch { vm.cancelLottery(target.id) }
+                }) { Text("取消抽奖") }
+            },
+            dismissButton = { TextButton(onClick = { cancelLotteryTarget = null }) { Text("再想想") } },
+        )
+    }
+    deleteLotteryTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { deleteLotteryTarget = null },
+            title = { Text("删除抽奖") },
+            text = { Text("删除后所有参与记录、中奖名单与托管的兑换码都会一并丢失，该操作不可恢复！未开奖的萌萌点奖池会退回给发起人。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    deleteLotteryTarget = null
+                    miniAppScope.launch { vm.deleteLottery(target.id) }
+                }) { Text("删除") }
+            },
+            dismissButton = { TextButton(onClick = { deleteLotteryTarget = null }) { Text("取消") } },
         )
     }
     state.editingReply?.let { target ->
@@ -425,6 +516,8 @@ fun TopicDetailScreen(
                             },
                             onClearVote = { vm.clearPollVote(poll.id) },
                             onShowVotes = { app.topicApi.pollVotes(poll.id).items },
+                            onEdit = { pollToEdit = poll; pollFormOpen = true },
+                            onDelete = { deletePollTarget = poll },
                         )
                     }
                 }
@@ -444,6 +537,28 @@ fun TopicDetailScreen(
                             onWithdraw = { vm.withdrawLottery(lottery.id) },
                             loadEntries = { app.topicApi.lotteryEntries(lottery.id).items },
                             onRevealCode = { app.topicApi.revealLotteryCode(lottery.id).code },
+                            onEdit = { lotteryToEdit = lottery; lotteryFormOpen = true },
+                            onDelete = { deleteLotteryTarget = lottery },
+                            onDraw = { drawLotteryTarget = lottery },
+                            onCancel = { cancelLotteryTarget = lottery },
+                            onSetFulfillment = { winnerId, fulfillment ->
+                                vm.setFulfillment(lottery.id, winnerId, fulfillment)
+                            },
+                            nsfwDisplay = nsfwDisplay,
+                        )
+                    }
+                }
+                if (isTopicAdmin) {
+                    item {
+                        TopicMiniAppPanel(
+                            onCreatePoll = {
+                                pollToEdit = null
+                                pollFormOpen = true
+                            },
+                            onCreateLottery = {
+                                lotteryToEdit = null
+                                lotteryFormOpen = true
+                            },
                         )
                     }
                 }

@@ -11,10 +11,15 @@ import com.kungal.core.model.FollowingActivitySummary
 import com.kungal.core.model.FollowingReadMarker
 import com.kungal.core.model.Lottery
 import com.kungal.core.model.LotteryCodeReveal
+import com.kungal.core.model.LotteryCreate
 import com.kungal.core.model.LotteryEntry
+import com.kungal.core.model.LotteryPatch
+import com.kungal.core.model.LotteryWinner
+import com.kungal.core.model.LotteryWinnerPatch
 import com.kungal.core.model.PinReplyBody
 import com.kungal.core.model.Poll
 import com.kungal.core.model.PollCreate
+import com.kungal.core.model.PollPatch
 import com.kungal.core.model.PollVote
 import com.kungal.core.model.PollVoteBody
 import com.kungal.core.model.ReactionRecord
@@ -370,6 +375,16 @@ class TopicApi(private val client: KungalClient) {
             deserializer = Poll.serializer(),
         )
 
+    suspend fun updatePoll(pollId: String, payload: PollPatch): Poll = client.patchJson(
+        path = "/polls/$pollId",
+        body = encode(payload),
+        deserializer = Poll.serializer(),
+    )
+
+    suspend fun deletePoll(pollId: String) {
+        client.deleteNoBody("/polls/$pollId")
+    }
+
     suspend fun votePoll(pollId: String, optionIds: List<String>): Poll = client.putJson(
         path = "/polls/$pollId/vote",
         body = encode(PollVoteBody(optionIds)),
@@ -404,6 +419,43 @@ class TopicApi(private val client: KungalClient) {
         path = "/lotteries/$lotteryId",
         query = mapOf("include_nsfw" to includeNsfw),
         deserializer = Lottery.serializer(),
+    )
+
+    suspend fun createLottery(
+        topicId: String,
+        payload: LotteryCreate,
+        idempotencyKey: String,
+    ): Lottery = client.postJson(
+        path = "/topics/$topicId/lotteries",
+        body = encode(payload),
+        idempotencyKey = idempotencyKey,
+        deserializer = Lottery.serializer(),
+    )
+
+    suspend fun updateLottery(lotteryId: String, payload: LotteryPatch): Lottery =
+        client.patchJson(
+            path = "/lotteries/$lotteryId",
+            body = encode(payload),
+            deserializer = Lottery.serializer(),
+        )
+
+    suspend fun deleteLottery(lotteryId: String) {
+        client.deleteNoBody("/lotteries/$lotteryId")
+    }
+
+    suspend fun lotteryWinner(lotteryId: String, winnerId: String): LotteryWinner = client.get(
+        path = "/lotteries/$lotteryId/winners/$winnerId",
+        deserializer = LotteryWinner.serializer(),
+    )
+
+    suspend fun updateLotteryWinner(
+        lotteryId: String,
+        winnerId: String,
+        fulfillment: String,
+    ): LotteryWinner = client.patchJson(
+        path = "/lotteries/$lotteryId/winners/$winnerId",
+        body = encode(LotteryWinnerPatch(fulfillment)),
+        deserializer = LotteryWinner.serializer(),
     )
 
     suspend fun enterLottery(lotteryId: String): Lottery = client.put(

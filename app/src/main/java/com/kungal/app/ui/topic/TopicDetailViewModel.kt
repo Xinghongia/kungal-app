@@ -3,8 +3,13 @@ package com.kungal.app.ui.topic
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kungal.app.KungalApp
+import com.kungal.app.NsfwDisplayMode
 import com.kungal.core.model.Lottery
+import com.kungal.core.model.LotteryCreate
+import com.kungal.core.model.LotteryPatch
 import com.kungal.core.model.Poll
+import com.kungal.core.model.PollCreate
+import com.kungal.core.model.PollPatch
 import com.kungal.core.model.ReportCreate
 import com.kungal.core.model.ReportReason
 import com.kungal.core.model.Reply
@@ -102,19 +107,40 @@ class TopicDetailViewModel(
                     .onSuccess { sub -> _state.update { it.copy(subscription = sub) } }
             }
         }
-        if (topic.miniApps.contains("poll")) {
+        if (topic.miniApps.contains("poll") || canManageMiniApps(topic)) {
             viewModelScope.launch {
                 runCatching { app.topicApi.polls(topicId) }
                     .onSuccess { page -> _state.update { it.copy(polls = page.items) } }
             }
         }
-        if (topic.miniApps.contains("lottery")) {
-            viewModelScope.launch {
-                runCatching { app.topicApi.lotteries(topicId, includeNsfw = true) }
-                    .onSuccess { page -> _state.update { it.copy(lotteries = page.items) } }
-            }
+        if (topic.miniApps.contains("lottery") || canManageMiniApps(topic)) {
+            loadLotteries(app.contentStance.value != NsfwDisplayMode.HIDE)
         }
     }
+
+    private var lastLotteryIncludeNsfw: Boolean? = null
+
+    /** 内容分级变化后按新的 include_nsfw 重新拉取奖品图片。 */
+    fun reloadLotteries() {
+        val topic = _state.value.topic ?: return
+        if (topic.miniApps.contains("lottery") || canManageMiniApps(topic)) {
+            loadLotteries(app.contentStance.value != NsfwDisplayMode.HIDE)
+        }
+    }
+
+    private fun loadLotteries(includeNsfw: Boolean) {
+        if (lastLotteryIncludeNsfw == includeNsfw) return
+        lastLotteryIncludeNsfw = includeNsfw
+        viewModelScope.launch {
+            runCatching { app.topicApi.lotteries(topicId, includeNsfw = includeNsfw) }
+                .onSuccess { page -> _state.update { it.copy(lotteries = page.items) } }
+                .onFailure { lastLotteryIncludeNsfw = null }
+        }
+    }
+
+    /** 作者或有权管理话题的人总能看到小程序面板，即使话题还没有挂过任何小程序。 */
+    private fun canManageMiniApps(topic: Topic): Boolean =
+        app.currentUserId.value == topic.author.id || topic.viewer?.canEdit == true
 
     fun loadReplies(reset: Boolean = false) {
         val current = _state.value
@@ -595,6 +621,132 @@ class TopicDetailViewModel(
             s.copy(lotteries = s.lotteries.map { if (it.id == lottery.id) lottery else it })
         }
     }
+
+    // ---------- 作者侧：投票 / 抽奖管理 ----------
+
+    suspend fun createPoll(payload: PollCreate): String? {
+        val result = runCatching {
+            app.topicApi.createPoll(topicId, payload, UUID.randomUUID().toString())
+        }
+        result.onSuccess { poll ->
+            _state.update { it.copy(polls = it.polls + poll, message = "创建投票成功") }
+        }.onFailure { e ->
+            _state.update { it.copy(message = friendlyError(e)) }
+        }
+        return result.exceptionOrNull()?.let(::friendlyError)
+    }
+
+    suspend fun updatePoll(pollId: String, payload: PollPatch): String? {
+        val result = runCatching {
+            app.topicApi.updatePoll(pollId, payload)
+        }
+        result.onSuccess { poll ->
+            _state.update { s ->
+                s.copy(polls = s.polls.map { if (it.id == pollId) poll else it }, message = "保存投票成功")
+            }
+        }.onFailure { e ->
+            _state.update { it.copy(message = friendlyError(e)) }
+        }
+        return result.exceptionOrNull()?.let(::friendlyError)
+    }
+
+    suspend fun deletePoll(pollId: String): Boolean =
+        runCatching {
+            app.topicApi.deletePoll(pollId)
+        }.onSuccess {
+            _state.update { s ->
+                s.copy(polls = s.polls.filterNot { it.id == pollId }, message = "删除投票成功")
+            }
+        }.onFailure { e ->
+            _state.update { it.copy(message = friendlyError(e)) }
+        }.isSuccess
+
+    suspend fun createLottery(payload: LotteryCreate): String? {
+        val result = runCatching {
+            val created = app.topicApi.createLottery(topicId, payload, UUID.randomUUID().toString())
+            hydrateLottery(created)
+        }
+        result.onSuccess { lottery ->
+            _state.update { it.copy(lotteries = it.lotteries + lottery, message = "创建抽奖成功") }
+        }.onFailure { e ->
+            _state.update { it.copy(message = friendlyError(e)) }
+        }
+        return result.exceptionOrNull()?.let(::friendlyError)
+    }
+
+    suspend fun updateLottery(lotteryId: String, payload: LotteryPatch): String? {
+        val result = runCatching {
+            hydrateLottery(app.topicApi.updateLottery(lotteryId, payload))
+        }
+        result.onSuccess { lottery ->
+            replaceLottery(lottery)
+            _state.update { it.copy(message = "保存抽奖成功") }
+        }.onFailure { e ->
+            _state.update { it.copy(message = friendlyError(e)) }
+        }
+        return result.exceptionOrNull()?.let(::friendlyError)
+    }
+
+    /** 写接口不带 include_nsfw；补一次详情读取，避免刚上传的 R18 奖品图立即消失。 */
+    private suspend fun hydrateLottery(lottery: Lottery): Lottery =
+        runCatching {
+            app.topicApi.lottery(
+                lottery.id,
+                includeNsfw = app.contentStance.value != NsfwDisplayMode.HIDE,
+            )
+        }.getOrDefault(lottery)
+
+    suspend fun deleteLottery(lotteryId: String): Boolean =
+        runCatching {
+            app.topicApi.deleteLottery(lotteryId)
+        }.onSuccess {
+            _state.update { s ->
+                s.copy(lotteries = s.lotteries.filterNot { it.id == lotteryId }, message = "删除抽奖成功")
+            }
+        }.onFailure { e ->
+            _state.update { it.copy(message = friendlyError(e)) }
+        }.isSuccess
+
+    suspend fun drawLottery(lotteryId: String): Boolean =
+        updateLotteryState(lotteryId, "drawn", "已开奖")
+
+    suspend fun cancelLottery(lotteryId: String): Boolean =
+        updateLotteryState(lotteryId, "cancelled", "已取消抽奖")
+
+    private suspend fun updateLotteryState(
+        lotteryId: String,
+        state: String,
+        successMessage: String,
+    ): Boolean = runCatching {
+        hydrateLottery(app.topicApi.updateLottery(lotteryId, LotteryPatch(state = state)))
+    }.onSuccess { lottery ->
+        replaceLottery(lottery)
+        _state.update { it.copy(message = successMessage) }
+    }.onFailure { e ->
+        _state.update { it.copy(message = friendlyError(e)) }
+    }.isSuccess
+
+    suspend fun setFulfillment(
+        lotteryId: String,
+        winnerId: String,
+        fulfillment: String,
+    ): Boolean = runCatching {
+        app.topicApi.updateLotteryWinner(lotteryId, winnerId, fulfillment)
+    }.onSuccess { winner ->
+        _state.update { s ->
+            s.copy(
+                lotteries = s.lotteries.map { lottery ->
+                    if (lottery.id != lotteryId) lottery
+                    else lottery.copy(
+                        winners = lottery.winners.map { if (it.id == winner.id) winner else it },
+                    )
+                },
+                message = "履约状态已更新",
+            )
+        }
+    }.onFailure { e ->
+        _state.update { it.copy(message = friendlyError(e)) }
+    }.isSuccess
 
     fun consumeMessage() {
         _state.update { it.copy(message = null) }

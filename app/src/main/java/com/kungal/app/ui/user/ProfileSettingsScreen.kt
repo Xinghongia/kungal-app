@@ -173,11 +173,14 @@ class ProfileSettingsViewModel(private val app: KungalApp) : ViewModel() {
         viewModelScope.launch {
             runCatching { app.meApi.updateProfile(name = name) }
                 .onSuccess { profile ->
+                    // 改名会扣萌萌点，顺带把 /me 的余额刷新成扣款后的值
+                    val refreshed = runCatching { app.meApi.me() }.getOrNull()
                     app.notifyAccountChanged()
                     _state.update {
                         it.copy(
                             savingName = false,
                             account = it.account?.copy(name = profile.name),
+                            me = refreshed ?: it.me,
                             name = profile.name.orEmpty(),
                             message = "昵称已更新",
                         )
@@ -352,8 +355,18 @@ fun ProfileSettingsScreen(
             title = { Text("确认修改昵称") },
             text = {
                 val cost = state.renameCost ?: 0
+                val balance = state.me?.moemoepoint
+                val balanceText = if (cost > 0 && balance != null) {
+                    if (balance >= cost) {
+                        "当前余额 $balance 萌萌点，改名后剩余 ${balance - cost}。"
+                    } else {
+                        "当前余额 $balance 萌萌点，不足以支付改名费用。"
+                    }
+                } else {
+                    ""
+                }
                 Text(
-                    if (cost > 0) "改名将消耗 $cost 萌萌点，修改后立即生效。确定继续吗？"
+                    if (cost > 0) "改名将消耗 $cost 萌萌点，修改后立即生效。${balanceText}确定继续吗？"
                     else "修改昵称后立即生效，确定继续吗？",
                 )
             },
@@ -425,7 +438,16 @@ fun ProfileSettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     supportingText = {
-                        Text("1–17 位；改名会消耗萌萌点" + (state.renameCost?.let { "（当前 $it）" } ?: ""))
+                        val cost = state.renameCost
+                        val costText = when {
+                            cost == null -> "改名需要消耗萌萌点。"
+                            cost == 0 -> "改名免费。"
+                            else -> "改名需要 $cost 个萌萌点。"
+                        }
+                        Column {
+                            Text("1–17 位，全局唯一。$costText")
+                            Text("当前昵称：${state.account?.name.orEmpty()}")
+                        }
                     },
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -435,8 +457,11 @@ fun ProfileSettingsScreen(
                             state.name.trim().isNotBlank() &&
                             state.name.trim() != state.account?.name,
                     ) { Text(if (state.savingName) "保存中…" else "保存昵称") }
+                    state.me?.moemoepoint?.let { balance ->
+                        Chip("余额 $balance 萌萌点")
+                    }
                     if ((state.renameCost ?: 0) > 0) {
-                        Chip("花费 ${state.renameCost} 萌萌点")
+                        Chip("改名花费 ${state.renameCost}")
                     }
                 }
 

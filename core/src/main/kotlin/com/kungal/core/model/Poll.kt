@@ -2,6 +2,7 @@ package com.kungal.core.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class Poll(
@@ -83,6 +84,34 @@ data class PollCreate(
 
 @Serializable
 data class PollOptionCreate(val text: String)
+
+/** PATCH /polls/{id}：只发需要变化的字段；closes_at 用 JsonNull 表示清除截止时间。 */
+@Serializable
+data class PollPatch(
+    val title: String? = null,
+    val description: String? = null,
+    @SerialName("choice_type") val choiceType: String? = null,
+    @SerialName("min_choice") val minChoice: Int? = null,
+    @SerialName("max_choice") val maxChoice: Int? = null,
+    @SerialName("closes_at") val closesAt: JsonElement? = null,
+    @SerialName("result_visibility") val resultVisibility: String? = null,
+    @SerialName("is_anonymous") val isAnonymous: Boolean? = null,
+    @SerialName("can_change_vote") val canChangeVote: Boolean? = null,
+    @SerialName("option_changes") val optionChanges: PollOptionChanges? = null,
+)
+
+@Serializable
+data class PollOptionChanges(
+    val add: List<PollOptionCreate> = emptyList(),
+    val update: List<PollOptionUpdate> = emptyList(),
+    val remove: List<String> = emptyList(),
+)
+
+@Serializable
+data class PollOptionUpdate(
+    @SerialName("option_id") val optionId: String,
+    val text: String,
+)
 
 @Serializable
 data class PollVoteBody(
