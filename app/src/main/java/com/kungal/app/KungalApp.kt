@@ -19,6 +19,7 @@ import com.kungal.core.api.EditApi
 import com.kungal.core.api.FriendLinkApi
 import com.kungal.core.api.GalgameApi
 import com.kungal.core.api.GalgameEntityApi
+import com.kungal.core.api.GitHubPublicApi
 import com.kungal.core.api.ImageApi
 import com.kungal.core.api.MeApi
 import com.kungal.core.api.NewsApi
@@ -142,6 +143,12 @@ class KungalApp : Application() {
     lateinit var friendLinkApi: FriendLinkApi
         private set
 
+    lateinit var githubApi: GitHubPublicApi
+        private set
+
+    lateinit var githubProfileStore: GitHubProfileStore
+        private set
+
     lateinit var calendarApi: CalendarApi
         private set
 
@@ -256,10 +263,12 @@ class KungalApp : Application() {
         newsApi = NewsApi(client)
         newsSubmissionApi = NewsSubmissionApi(client)
         websiteApi = WebsiteApi(client)
+        githubApi = GitHubPublicApi()
         chatRealtime = ChatRealtimeHub(this)
         sessionStore = SessionStore(this)
         settingsStore = SettingsStore(this)
         searchHistoryStore = SearchHistoryStore(this)
+        githubProfileStore = GitHubProfileStore(this)
         // 默认头像池：先内置快照可用，后台尝试刷新到站点最新版本
         appScope.launch { runCatching { AvatarPool.refresh() } }
         contentStance = combine(session, _accountStance, settingsStore.flow) { session, account, settings ->

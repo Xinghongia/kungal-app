@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.Bookmarks
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Chat
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Login
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material.icons.outlined.Newspaper
 import androidx.compose.material.icons.outlined.Person
@@ -103,6 +105,9 @@ fun ProfileScreen(
     onSwitchAccount: () -> Unit,
     onOpenFollowers: () -> Unit,
     onOpenFollowing: () -> Unit,
+    onOpenAboutMe: () -> Unit,
+    onOpenDisclaimer: () -> Unit,
+    onOpenPrivacy: () -> Unit,
 ) {
     val vm: ProfileViewModel = viewModel { ProfileViewModel(app) }
     val state by vm.state.collectAsState()
@@ -200,7 +205,12 @@ fun ProfileScreen(
         ) {
             when (val current = state) {
                 ProfileViewModel.UiState.Loading -> LoadingBox()
-                ProfileViewModel.UiState.LoggedOut -> LoggedOutContent(onOpenLogin)
+                ProfileViewModel.UiState.LoggedOut -> LoggedOutContent(
+                    onOpenLogin = onOpenLogin,
+                    onOpenAboutMe = onOpenAboutMe,
+                    onOpenDisclaimer = onOpenDisclaimer,
+                    onOpenPrivacy = onOpenPrivacy,
+                )
                 is ProfileViewModel.UiState.Error -> ErrorBox(current.message, onRetry = vm::refresh)
                 is ProfileViewModel.UiState.Ready -> LoggedInContent(
                     state = current,
@@ -222,6 +232,9 @@ fun ProfileScreen(
                     onSwitchAccount = { confirmSwitch = true },
                     onOpenFollowers = onOpenFollowers,
                     onOpenFollowing = onOpenFollowing,
+                    onOpenAboutMe = onOpenAboutMe,
+                    onOpenDisclaimer = onOpenDisclaimer,
+                    onOpenPrivacy = onOpenPrivacy,
                     onLogout = { confirmLogout = true },
                 )
             }
@@ -261,7 +274,12 @@ private fun ShowCheckInDialog(
 }
 
 @Composable
-private fun LoggedOutContent(onOpenLogin: () -> Unit) {
+private fun LoggedOutContent(
+    onOpenLogin: () -> Unit,
+    onOpenAboutMe: () -> Unit,
+    onOpenDisclaimer: () -> Unit,
+    onOpenPrivacy: () -> Unit,
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -295,7 +313,11 @@ private fun LoggedOutContent(onOpenLogin: () -> Unit) {
         )
     }
 
-    AboutGroup()
+    AboutGroup(
+        onOpenAboutMe = onOpenAboutMe,
+        onOpenDisclaimer = onOpenDisclaimer,
+        onOpenPrivacy = onOpenPrivacy,
+    )
 }
 
 @Composable
@@ -319,6 +341,9 @@ private fun LoggedInContent(
     onSwitchAccount: () -> Unit,
     onOpenFollowers: () -> Unit,
     onOpenFollowing: () -> Unit,
+    onOpenAboutMe: () -> Unit,
+    onOpenDisclaimer: () -> Unit,
+    onOpenPrivacy: () -> Unit,
     onLogout: () -> Unit,
 ) {
     val me = state.me
@@ -532,7 +557,11 @@ private fun LoggedInContent(
         )
     }
 
-    AboutGroup()
+    AboutGroup(
+        onOpenAboutMe = onOpenAboutMe,
+        onOpenDisclaimer = onOpenDisclaimer,
+        onOpenPrivacy = onOpenPrivacy,
+    )
 }
 
 @Composable
@@ -616,9 +645,31 @@ private fun TrailingValue(value: String) {
 }
 
 @Composable
-private fun AboutGroup() {
+private fun AboutGroup(
+    onOpenAboutMe: () -> Unit,
+    onOpenDisclaimer: () -> Unit,
+    onOpenPrivacy: () -> Unit,
+) {
     val context = androidx.compose.ui.platform.LocalContext.current
     SettingsGroup(title = "关于") {
+        item(
+            headline = "关于我",
+            supporting = "个人介绍、项目与 GitHub 贡献",
+            icon = Icons.Outlined.Person,
+            onClick = onOpenAboutMe,
+        )
+        item(
+            headline = "免责说明",
+            supporting = "非官方客户端与内容责任",
+            icon = Icons.Outlined.Article,
+            onClick = onOpenDisclaimer,
+        )
+        item(
+            headline = "隐私协议",
+            supporting = "本地数据与网络请求说明",
+            icon = Icons.Outlined.Lock,
+            onClick = onOpenPrivacy,
+        )
         item(
             headline = "版本",
             icon = Icons.Outlined.Info,

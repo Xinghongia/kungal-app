@@ -48,6 +48,9 @@ import com.kungal.app.ui.activity.ActivityTimelineScreen
 import com.kungal.app.ui.activity.UpdateHistoryScreen
 import com.kungal.app.ui.activity.UpdateTodoScreen
 import com.kungal.app.ui.activity.FollowingScreen
+import com.kungal.app.ui.about.AboutMeScreen
+import com.kungal.app.ui.about.DisclaimerScreen
+import com.kungal.app.ui.about.PrivacyPolicyScreen
 import com.kungal.app.ui.doc.DocDetailScreen
 import com.kungal.app.ui.doc.DocListScreen
 import com.kungal.app.ui.friendlinks.FriendLinksScreen
@@ -182,6 +185,9 @@ private object Routes {
     const val DOC_DETAIL = "doc/{slug}"
     const val FRIEND_LINKS = "friend-links"
     const val SITES = "sites"
+    const val ABOUT_ME = "about/me"
+    const val ABOUT_DISCLAIMER = "about/disclaimer"
+    const val ABOUT_PRIVACY = "about/privacy"
     const val GALGAME_RESOURCE_LIST = "galgame/resources"
     const val GALGAME_LIBRARY = "galgame/library"
     const val GALGAME_WORK = "galgame/work/{workId}"
@@ -632,6 +638,9 @@ fun AppNav(app: KungalApp) {
                     onOpenFollowing = {
                         currentUserId?.let { nav.navigate(Routes.followList(it, false)) }
                     },
+                    onOpenAboutMe = { nav.navigate(Routes.ABOUT_ME) },
+                    onOpenDisclaimer = { nav.navigate(Routes.ABOUT_DISCLAIMER) },
+                    onOpenPrivacy = { nav.navigate(Routes.ABOUT_PRIVACY) },
                 )
             }
 
@@ -1105,6 +1114,19 @@ fun AppNav(app: KungalApp) {
                     onBack = { nav.popBackStack() },
                     onOpenUrl = { url -> AndroidActions.openInBrowser(context, url) },
                 )
+            }
+            composable(Routes.ABOUT_ME) {
+                AboutMeScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenUrl = { url -> AndroidActions.openInBrowser(context, url) },
+                )
+            }
+            composable(Routes.ABOUT_DISCLAIMER) {
+                DisclaimerScreen(onBack = { nav.popBackStack() })
+            }
+            composable(Routes.ABOUT_PRIVACY) {
+                PrivacyPolicyScreen(onBack = { nav.popBackStack() })
             }
             composable(Routes.GALGAME_LIBRARY) {
                 GalgameListScreen(
