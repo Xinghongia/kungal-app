@@ -100,6 +100,20 @@ data class QuizEngagementViewer(
     @SerialName("has_favorited") val hasFavorited: Boolean = false,
 )
 
+/** 批量收藏态（GET /me/quiz-states），missing 为查不到的题目 id。 */
+@Serializable
+data class QuizStates(
+    @SerialName("object") val obj: String = "list",
+    val items: List<QuizState> = emptyList(),
+    val missing: List<String> = emptyList(),
+)
+
+@Serializable
+data class QuizState(
+    @SerialName("quiz_id") val quizId: String = "",
+    @SerialName("has_favorited") val hasFavorited: Boolean = false,
+)
+
 /** 质量评分返回体。 */
 @Serializable
 data class QuizQuality(

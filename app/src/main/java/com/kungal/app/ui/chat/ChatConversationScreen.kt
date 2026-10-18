@@ -32,6 +32,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.AddReaction
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.MarkEmailUnread
@@ -91,12 +92,15 @@ import com.kungal.app.ui.components.KungalImage
 import com.kungal.app.ui.components.KungalSnackbarHost
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
+import com.kungal.app.ui.components.StickerPickerDialog
 import com.kungal.core.model.ChatConversation
 import com.kungal.core.model.ChatMessage
+import com.kungal.core.model.ChatPhoto
 import com.kungal.core.model.ChatPush
 import com.kungal.core.model.ChatReactionOption
 import com.kungal.core.model.ChatUpdatesPage
 import com.kungal.core.model.ChatUser
+import com.kungal.core.model.Sticker
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -309,27 +313,53 @@ class ChatViewModel(
     fun sendPhoto(bytes: ByteArray, fileName: String, contentType: String) {
         val conversation = _state.value.conversation ?: return
         if (_state.value.uploading || _state.value.sending) return
-        val replySeq = _state.value.replyTo?.seq
         _state.update { it.copy(uploading = true, message = null) }
         viewModelScope.launch {
-            runCatching {
-                val photo = app.chatApi.uploadPhoto(bytes, fileName, contentType)
-                app.chatApi.send(
-                    conversationId = conversation.id,
-                    clientMessageId = UUID.randomUUID().toString(),
-                    text = "",
-                    replyToSeq = replySeq,
-                    photo = photo,
-                )
-            }.onSuccess { message ->
-                appendMessage(message)
-                _state.update {
-                    it.copy(uploading = false, replyTo = null, sentTicks = it.sentTicks + 1)
+            runCatching { app.chatApi.uploadPhoto(bytes, fileName, contentType) }
+                .onSuccess { sendMedia(conversation.id, it) }
+                .onFailure { e ->
+                    _state.update { it.copy(uploading = false, message = ChatCatalog.errorText(e)) }
                 }
-                app.refreshMessageBadge()
-            }.onFailure { e ->
-                _state.update { it.copy(uploading = false, message = ChatCatalog.errorText(e)) }
+        }
+    }
+
+    /** 表情包直接作为图片消息发送（image_hash 已在官方图床）。 */
+    fun sendSticker(sticker: Sticker) {
+        val conversation = _state.value.conversation ?: return
+        val image = sticker.image ?: return
+        if (_state.value.uploading || _state.value.sending) return
+        _state.update { it.copy(uploading = true, message = null) }
+        viewModelScope.launch {
+            sendMedia(
+                conversation.id,
+                ChatPhoto(
+                    imageHash = image.hash,
+                    width = image.width ?: 0,
+                    height = image.height ?: 0,
+                    url = image.url,
+                ),
+            )
+        }
+    }
+
+    private suspend fun sendMedia(conversationId: String, photo: ChatPhoto) {
+        val replySeq = _state.value.replyTo?.seq
+        runCatching {
+            app.chatApi.send(
+                conversationId = conversationId,
+                clientMessageId = UUID.randomUUID().toString(),
+                text = "",
+                replyToSeq = replySeq,
+                photo = photo,
+            )
+        }.onSuccess { message ->
+            appendMessage(message)
+            _state.update {
+                it.copy(uploading = false, replyTo = null, sentTicks = it.sentTicks + 1)
             }
+            app.refreshMessageBadge()
+        }.onFailure { e ->
+            _state.update { it.copy(uploading = false, message = ChatCatalog.errorText(e)) }
         }
     }
 
@@ -855,6 +885,7 @@ fun ChatConversationScreen(
     var reporting by remember { mutableStateOf<ChatMessage?>(null) }
     var reactionTarget by remember { mutableStateOf<ChatMessage?>(null) }
     var pinnedOpen by remember { mutableStateOf(false) }
+    var stickerOpen by remember { mutableStateOf(false) }
     var lastSentTicks by remember { mutableStateOf(0) }
     var confirmClear by remember { mutableStateOf(false) }
 
@@ -1116,6 +1147,7 @@ fun ChatConversationScreen(
                         uploading = state.uploading,
                         onSend = { vm.send(draft) },
                         onAttach = { pickPhoto.launch("image/*") },
+                        onSticker = { stickerOpen = true },
                     )
                 }
             }
@@ -1249,6 +1281,17 @@ fun ChatConversationScreen(
         }
     }
 
+    if (stickerOpen) {
+        StickerPickerDialog(
+            load = { app.stickerPacks() },
+            onPick = { sticker ->
+                vm.sendSticker(sticker)
+                stickerOpen = false
+            },
+            onDismiss = { stickerOpen = false },
+        )
+    }
+
     editing?.let { message ->
         EditDialog(
             original = message.text,
@@ -1336,6 +1379,7 @@ private fun Composer(
     uploading: Boolean,
     onSend: () -> Unit,
     onAttach: () -> Unit,
+    onSticker: () -> Unit,
 ) {
     Surface(
         tonalElevation = 2.dp,
@@ -1351,6 +1395,9 @@ private fun Composer(
                 } else {
                     Icon(Icons.Outlined.AttachFile, contentDescription = "发送图片")
                 }
+            }
+            IconButton(onClick = onSticker, enabled = !sending && !uploading) {
+                Icon(Icons.Outlined.EmojiEmotions, contentDescription = "发送表情")
             }
             OutlinedTextField(
                 value = draft,

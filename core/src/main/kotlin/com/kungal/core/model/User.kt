@@ -198,6 +198,14 @@ data class CollectionViewer(
     @SerialName("is_owner") val isOwner: Boolean = false,
 )
 
+/** 旧论坛收藏夹 id 到资料库收藏夹 id 的映射（GET /collection-aliases/{id}）。 */
+@Serializable
+data class CollectionAlias(
+    @SerialName("object") val obj: String = "collection_alias",
+    @SerialName("alias_id") val aliasId: String = "",
+    @SerialName("collection_id") val collectionId: String = "",
+)
+
 /** 关注/粉丝条目：followers 用 follower，following 用 followee。 */
 @Serializable
 data class FollowEdge(

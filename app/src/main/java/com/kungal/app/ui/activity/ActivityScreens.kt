@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -24,11 +25,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.kungal.app.KungalApp
 import com.kungal.app.NsfwDisplayMode
+import com.kungal.app.ui.components.AppMessages
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.PageResult
 import com.kungal.app.ui.components.PagedListContent
 import com.kungal.app.ui.galgame.FilterOptionSheet
 import com.kungal.app.ui.galgame.FilterPill
+import com.kungal.app.ui.topic.friendlyError
+import com.kungal.core.model.FeedActivity
+import kotlinx.coroutines.launch
 
 private const val ACTIVITY_PAGE_SIZE = 50
 
@@ -44,6 +49,25 @@ fun ActivityTimelineScreen(
     onOpenPath: (String) -> Unit,
     onOpenUser: (String) -> Unit,
 ) {
+    var quizStates by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    val scope = rememberCoroutineScope()
+
+    fun toggleQuizFavorite(quizId: String) {
+        val current = quizStates[quizId] ?: false
+        val next = !current
+        quizStates = quizStates + (quizId to next)
+        scope.launch {
+            runCatching { app.quizApi.setFavorite(quizId, next) }
+                .onSuccess { result ->
+                    quizStates = quizStates + (quizId to (result.viewer?.hasFavorited ?: next))
+                }
+                .onFailure { e ->
+                    quizStates = quizStates + (quizId to current)
+                    AppMessages.show(friendlyError(e))
+                }
+        }
+    }
+
     Scaffold(
         topBar = {
             KungalTopAppBar(
@@ -65,6 +89,7 @@ fun ActivityTimelineScreen(
                     limit = ACTIVITY_PAGE_SIZE,
                     includeNsfw = nsfwDisplay.allowsNsfw,
                 )
+                quizStates = loadQuizStates(app, page.items, quizStates)
                 PageResult(
                     items = page.items,
                     nextCursor = page.nextCursor,
@@ -81,10 +106,25 @@ fun ActivityTimelineScreen(
                 blurCover = nsfwDisplay.blursMedia,
                 onOpenPath = onOpenPath,
                 onOpenUser = onOpenUser,
+                quizFavorited = activity.quiz?.quizId?.let { quizStates[it] },
+                onToggleQuizFavorite = if (app.isLoggedIn) ::toggleQuizFavorite else null,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             )
         }
     }
+}
+
+/** 按当前页批量读取题库收藏态，避免每张卡片各发一次请求。 */
+private suspend fun loadQuizStates(
+    app: KungalApp,
+    items: List<FeedActivity>,
+    current: Map<String, Boolean>,
+): Map<String, Boolean> {
+    if (!app.isLoggedIn) return current
+    val ids = items.mapNotNull { it.quiz?.quizId }.distinct().take(100)
+    if (ids.isEmpty()) return current
+    val result = runCatching { app.quizApi.states(ids) }.getOrNull() ?: return current
+    return current + result.items.associate { it.quizId to it.hasFavorited }
 }
 
 /**
@@ -101,6 +141,24 @@ fun ActivityCategoryScreen(
 ) {
     var selectedType by rememberSaveable { mutableStateOf("topic_creation") }
     var sheet by remember { mutableStateOf(false) }
+    var quizStates by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    val scope = rememberCoroutineScope()
+
+    fun toggleQuizFavorite(quizId: String) {
+        val current = quizStates[quizId] ?: false
+        val next = !current
+        quizStates = quizStates + (quizId to next)
+        scope.launch {
+            runCatching { app.quizApi.setFavorite(quizId, next) }
+                .onSuccess { result ->
+                    quizStates = quizStates + (quizId to (result.viewer?.hasFavorited ?: next))
+                }
+                .onFailure { e ->
+                    quizStates = quizStates + (quizId to current)
+                    AppMessages.show(friendlyError(e))
+                }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -124,6 +182,7 @@ fun ActivityCategoryScreen(
                     activityTypes = listOf(selectedType),
                     includeNsfw = nsfwDisplay.allowsNsfw,
                 )
+                quizStates = loadQuizStates(app, page.items, quizStates)
                 PageResult(
                     items = page.items,
                     nextCursor = page.nextCursor,
@@ -158,6 +217,8 @@ fun ActivityCategoryScreen(
                 blurCover = nsfwDisplay.blursMedia,
                 onOpenPath = onOpenPath,
                 onOpenUser = onOpenUser,
+                quizFavorited = activity.quiz?.quizId?.let { quizStates[it] },
+                onToggleQuizFavorite = if (app.isLoggedIn) ::toggleQuizFavorite else null,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             )
         }

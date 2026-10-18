@@ -45,6 +45,7 @@ import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.components.NsfwCoverImage
 import com.kungal.app.ui.components.PageResult
 import com.kungal.app.ui.components.PagedListContent
+import com.kungal.app.ui.content.ContentDocumentView
 import com.kungal.app.ui.content.documentPlainText
 import com.kungal.app.ui.galgame.ResourceEditorSheet
 import com.kungal.app.ui.galgame.WorkCoverImage
@@ -59,6 +60,7 @@ import com.kungal.core.model.UserCommentItem
 import com.kungal.core.model.UserReplyItem
 import com.kungal.core.model.UserTopicItem
 import com.kungal.core.model.UserWorkRecord
+import com.kungal.core.model.WallComment
 import com.kungal.core.model.WorkPlaytime
 import com.kungal.core.model.WorkSummary
 import kotlinx.coroutines.async
@@ -544,6 +546,17 @@ fun TopicsTab(
 
 // ---------- Galgame 作品 ----------
 
+private const val WALL_AUTHORED = "wall-authored"
+private const val WALL_LIKED = "wall-liked"
+
+private val GALGAME_RELATIONS = listOf(
+    "published" to "发布",
+    "contributed" to "贡献",
+    "liked" to "点赞",
+    WALL_AUTHORED to "评论",
+    WALL_LIKED to "点赞评论",
+)
+
 @Composable
 fun WorksTab(
     app: KungalApp,
@@ -554,6 +567,42 @@ fun WorksTab(
     onOpenWork: (String) -> Unit,
 ) {
     var relation by remember(userId) { mutableStateOf("published") }
+    val wallRelation = when (relation) {
+        WALL_AUTHORED -> "authored"
+        WALL_LIKED -> "liked"
+        else -> null
+    }
+    if (wallRelation != null) {
+        // 评论 / 点赞评论是作品留言墙，游标分页，点按回到对应作品。
+        PagedListContent(
+            key = Triple(userId, relation, includeNsfw),
+            load = { _, cursor ->
+                val result = app.userApi.wallComments(
+                    userId, relation = wallRelation, cursor = cursor, limit = 24,
+                )
+                PageResult(
+                    result.items,
+                    nextCursor = result.nextCursor,
+                    ended = result.nextCursor == null,
+                )
+            },
+            emptyText = if (relation == WALL_LIKED) "还没有点赞过评论" else "这里还没有评论",
+            modifier = Modifier.fillMaxSize(),
+            header = {
+                header()
+                FilterChips(
+                    options = GALGAME_RELATIONS,
+                    selected = relation,
+                    onSelect = { relation = it },
+                )
+            },
+            keyOf = { it.id },
+        ) { comment ->
+            WallCommentRow(comment = comment, onClick = { onOpenWork(comment.subjectId) })
+        }
+        return
+    }
+
     PagedListContent(
         key = Triple(userId, relation, includeNsfw),
         load = { page, _ ->
@@ -567,7 +616,7 @@ fun WorksTab(
         header = {
             header()
             FilterChips(
-                options = listOf("published" to "发布", "contributed" to "贡献", "liked" to "点赞"),
+                options = GALGAME_RELATIONS,
                 selected = relation,
                 onSelect = { relation = it },
             )
@@ -581,6 +630,48 @@ fun WorksTab(
             blurNsfw = blurNsfw,
             onClick = { onOpenWork(work.id) },
         )
+    }
+}
+
+/** 用户主页的留言墙条目：评论正文 + 所属作品 + 时间。 */
+@Composable
+private fun WallCommentRow(comment: WallComment, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "评论于 Galgame #${comment.subjectId}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.weight(1f))
+            Text(
+                relativeTime(comment.createdAt),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (comment.state == "deleted") {
+            Text(
+                "该评论已删除",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            ContentDocumentView(comment.content)
+        }
+        if (comment.likeCount > 0) {
+            Text(
+                "${comment.likeCount} 赞",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

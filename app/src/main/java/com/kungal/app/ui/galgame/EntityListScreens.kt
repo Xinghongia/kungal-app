@@ -1,19 +1,37 @@
 package com.kungal.app.ui.galgame
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,11 +40,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import com.kungal.app.KungalApp
 import com.kungal.app.NsfwDisplayMode
 import com.kungal.app.ui.components.EmptyBox
@@ -41,6 +56,7 @@ import com.kungal.core.model.Engine
 import com.kungal.core.model.SeriesSummary
 import com.kungal.core.model.TagSummary
 import com.kungal.core.model.TraitSummary
+import kotlinx.coroutines.delay
 
 private fun zhName(displayName: String, localized: Map<String, com.kungal.core.model.LocalizedText>): String =
     localized["zh-Hans"]?.value?.takeIf { it.isNotBlank() } ?: displayName
@@ -75,52 +91,280 @@ fun TagListScreen(
     nsfwDisplay: NsfwDisplayMode,
     onBack: () -> Unit,
     onOpenTag: (String) -> Unit,
+    onOpenWork: (String) -> Unit,
 ) {
     var draft by remember { mutableStateOf("") }
     var query by rememberSaveable { mutableStateOf("") }
+    var selected by remember { mutableStateOf<List<TagSummary>>(emptyList()) }
+    var pickerOpen by remember { mutableStateOf(false) }
     val includeNsfw = nsfwDisplay.allowsNsfw
     EntityListScaffold("Galgame 标签", "按标签浏览资料库", onBack) {
-        PagedListContent(
-            key = Triple("tags", query, includeNsfw),
-            load = { page, _ ->
-                val result = app.entityApi.tags(
-                    q = query.ifBlank { null },
-                    page = page,
-                    limit = 24,
-                    includeNsfw = includeNsfw,
-                )
-                PageResult(
-                    result.items,
-                    ended = result.items.size < 24 || page * 24 >= result.total,
-                    total = result.total,
-                )
-            },
-            emptyText = "没有找到标签",
-            modifier = Modifier.fillMaxSize(),
-            keyOf = { it.id },
-            pagination = true,
-            pageSize = 24,
-            header = {
-                EntitySearchRow(
-                    value = draft,
-                    onValueChange = { draft = it },
-                    onSearch = { query = draft.trim() },
-                    placeholder = "搜索标签名称",
-                )
-            },
-        ) { tag ->
-            EntityListRow(
-                title = zhName(tag.displayName, tag.localized),
-                subtitle = buildString {
-                    append(if (tag.tagKind == "content") "内容标签" else "属性标签")
-                    append(" · 含 ${tag.descendantCount} 个子标签")
-                    if (tag.isSexual) append(" · 成人")
+        if (selected.isEmpty()) {
+            PagedListContent(
+                key = Triple("tags", query, includeNsfw),
+                load = { page, _ ->
+                    val result = app.entityApi.tags(
+                        q = query.ifBlank { null },
+                        page = page,
+                        limit = 24,
+                        includeNsfw = includeNsfw,
+                    )
+                    PageResult(
+                        result.items,
+                        ended = result.items.size < 24 || page * 24 >= result.total,
+                        total = result.total,
+                    )
                 },
-                trailing = "${tag.catalogWorkCount} 部",
-                onClick = { onOpenTag(tag.id) },
-            )
+                emptyText = "没有找到标签",
+                modifier = Modifier.fillMaxSize(),
+                keyOf = { it.id },
+                pagination = true,
+                pageSize = 24,
+                header = {
+                    EntitySearchRow(
+                        value = draft,
+                        onValueChange = { draft = it },
+                        onSearch = { query = draft.trim() },
+                        placeholder = "搜索标签名称",
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        AssistChip(
+                            onClick = { pickerOpen = true },
+                            label = { Text("多标签筛选") },
+                        )
+                        Text(
+                            "选中多个标签，只看同时含有它们的 Galgame",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+            ) { tag ->
+                EntityListRow(
+                    title = zhName(tag.displayName, tag.localized),
+                    subtitle = buildString {
+                        append(if (tag.tagKind == "content") "内容标签" else "属性标签")
+                        append(" · 含 ${tag.descendantCount} 个子标签")
+                        if (tag.isSexual) append(" · 成人")
+                    },
+                    trailing = "${tag.catalogWorkCount} 部",
+                    onClick = { onOpenTag(tag.id) },
+                )
+            }
+        } else {
+            PagedListContent(
+                key = Triple("tagged-works", selected.map { it.id }, includeNsfw),
+                load = { page, _ ->
+                    val result = app.entityApi.taggedWorks(
+                        tagIds = selected.map { it.id },
+                        page = page,
+                        limit = 24,
+                        includeNsfw = includeNsfw,
+                    )
+                    PageResult(
+                        result.items,
+                        ended = result.items.isEmpty() || result.items.size < 24 ||
+                            (result.total > 0 && page * 24 >= result.total),
+                        total = result.total,
+                    )
+                },
+                emptyText = "没有同时含有这些标签的作品",
+                modifier = Modifier.fillMaxSize(),
+                keyOf = { it.id },
+                pagination = true,
+                pageSize = 24,
+                header = {
+                    SelectedTagsHeader(
+                        selected = selected,
+                        onRemove = { tag -> selected = selected.filterNot { it.id == tag.id } },
+                        onClear = { selected = emptyList() },
+                        onEdit = { pickerOpen = true },
+                    )
+                },
+            ) { work ->
+                EntityWorkRow(
+                    work = work,
+                    blurCover = nsfwDisplay.blursMedia,
+                    onClick = { onOpenWork(work.id) },
+                )
+            }
         }
     }
+    if (pickerOpen) {
+        TagPickerDialog(
+            app = app,
+            includeNsfw = includeNsfw,
+            initial = selected,
+            onDismiss = { pickerOpen = false },
+            onConfirm = {
+                selected = it
+                pickerOpen = false
+            },
+        )
+    }
+}
+
+private const val TAG_FILTER_MAX = 10
+
+@Composable
+private fun SelectedTagsHeader(
+    selected: List<TagSummary>,
+    onRemove: (TagSummary) -> Unit,
+    onClear: () -> Unit,
+    onEdit: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "已选 ${selected.size} 个标签",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onEdit) { Text("添加标签") }
+            TextButton(onClick = onClear) { Text("清空") }
+        }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            selected.forEach { tag ->
+                AssistChip(
+                    onClick = { onRemove(tag) },
+                    label = {
+                        Text(
+                            zhName(tag.displayName, tag.localized),
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    },
+                    trailingIcon = {
+                        Icon(Icons.Outlined.Close, contentDescription = "移除", modifier = Modifier.size(14.dp))
+                    },
+                )
+            }
+        }
+        Text(
+            "只看同时含有这些标签的 Galgame，最多 ${TAG_FILTER_MAX} 个",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun TagPickerDialog(
+    app: KungalApp,
+    includeNsfw: Boolean,
+    initial: List<TagSummary>,
+    onDismiss: () -> Unit,
+    onConfirm: (List<TagSummary>) -> Unit,
+) {
+    var text by remember { mutableStateOf("") }
+    var tags by remember { mutableStateOf<List<TagSummary>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var picked by remember { mutableStateOf(initial) }
+
+    LaunchedEffect(text, includeNsfw) {
+        loading = true
+        if (text.isNotBlank()) delay(350)
+        runCatching {
+            app.entityApi.tags(
+                q = text.trim().ifBlank { null },
+                limit = 50,
+                includeNsfw = includeNsfw,
+            )
+        }.onSuccess { tags = it.items }
+            .onFailure { tags = emptyList() }
+        loading = false
+    }
+
+    fun toggle(tag: TagSummary) {
+        picked = if (picked.any { it.id == tag.id }) {
+            picked.filterNot { it.id == tag.id }
+        } else if (picked.size >= TAG_FILTER_MAX) {
+            picked
+        } else {
+            picked + tag
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("多标签筛选") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    placeholder = { Text("搜索标签，例如 校园") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    "已选 ${picked.size} / $TAG_FILTER_MAX，只看同时含有这些标签的作品",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (loading) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                    ) { CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp) }
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 340.dp)) {
+                        items(tags, key = { it.id }) { tag ->
+                            val checked = picked.any { it.id == tag.id }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { toggle(tag) }
+                                    .padding(vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Checkbox(checked = checked, onCheckedChange = null)
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        zhName(tag.displayName, tag.localized),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        "${tag.catalogWorkCount} 部",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                if (!loading && tags.isEmpty()) {
+                    Text(
+                        "没有找到标签",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(picked) },
+                enabled = picked.isNotEmpty(),
+            ) { Text("查看结果") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
 }
 
 private val CompanyKindOptions = listOf(

@@ -24,6 +24,14 @@ data class UserRef(
     @SerialName("avatar_frame") val avatarFrame: AvatarFrame? = null,
 )
 
+/** 用户搜索 / id 解析结果（GET /users），missing 为查不到的 id。 */
+@Serializable
+data class UserResolveList(
+    @SerialName("object") val obj: String = "list",
+    val items: List<UserRef> = emptyList(),
+    val missing: List<String> = emptyList(),
+)
+
 /** 反应汇总（ReactionSummary）：一种反应 token 的计数与参与人。token 词汇会增长，未知值按中性处理。 */
 @Serializable
 data class ReactionSummary(

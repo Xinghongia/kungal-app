@@ -87,6 +87,45 @@ class GalgameEntityApiTest {
     }
 
     @Test
+    fun `多标签联合筛选带全部标签与分页参数`() = runBlocking {
+        server.enqueue(ok(Fixtures.text("galgame_works_list.json")))
+        val result = api.taggedWorks(
+            tagIds = listOf("1333", "42"),
+            page = 3,
+            limit = 24,
+            includeNsfw = true,
+            includeAllOriginalLanguages = true,
+            excludeTagIds = listOf("7"),
+            excludeTagTrees = listOf("8"),
+        )
+        assertEquals(2, result.items.size)
+        val request = server.takeRequest()
+        assertEquals("/api/v1/tagged-works", request.url.encodedPath)
+        assertEquals(listOf("1333", "42"), request.url.queryParameterValues("tag_ids"))
+        assertEquals("3", request.url.queryParameter("page"))
+        assertEquals("24", request.url.queryParameter("limit"))
+        assertEquals("true", request.url.queryParameter("include_nsfw"))
+        assertEquals("true", request.url.queryParameter("include_all_original_languages"))
+        assertEquals(listOf("7"), request.url.queryParameterValues("exclude_tag_ids"))
+        assertEquals(listOf("8"), request.url.queryParameterValues("exclude_tag_trees"))
+    }
+
+    @Test
+    fun `旧收藏夹与旧会社 id 解析`() = runBlocking {
+        server.enqueue(ok("""{"object":"collection_alias","alias_id":"12","collection_id":"99"}"""))
+        val alias = collections.alias("12")
+        assertEquals("99", alias.collectionId)
+        assertEquals("/api/v1/collection-aliases/12", server.takeRequest().url.encodedPath)
+
+        server.enqueue(
+            ok("""{"object":"wiki_company_redirect","wiki_company_id":"7","company_id":"70"}"""),
+        )
+        val redirect = api.companyRedirect("7")
+        assertEquals("70", redirect.companyId)
+        assertEquals("/api/v1/wiki-company-redirects/7", server.takeRequest().url.encodedPath)
+    }
+
+    @Test
     fun `标签屏蔽读不到时返回 null 并支持设置与取消`() = runBlocking {
         server.enqueue(
             MockResponse.Builder().code(404)

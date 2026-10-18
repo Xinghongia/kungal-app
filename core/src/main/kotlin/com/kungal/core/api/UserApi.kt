@@ -11,8 +11,10 @@ import com.kungal.core.model.ToolsetSummary
 import com.kungal.core.model.UserCommentItem
 import com.kungal.core.model.UserProfile
 import com.kungal.core.model.UserReplyItem
+import com.kungal.core.model.UserResolveList
 import com.kungal.core.model.UserTopicItem
 import com.kungal.core.model.UserWorkRecord
+import com.kungal.core.model.WallCommentList
 import com.kungal.core.model.WorkRecordPage
 import com.kungal.core.model.WorkSummary
 import com.kungal.core.net.PageList
@@ -23,6 +25,27 @@ import com.kungal.core.net.PagedList
  * 本人游玩时长。写操作（关注/资料/签到）分别在 SocialApi / MeApi。
  */
 class UserApi(private val client: KungalClient) {
+
+    /** 按昵称搜索或按 id 批量解析（GET /users）；q 与 ids 二选一，limit 只对 q 生效。 */
+    suspend fun resolveUsers(
+        q: String? = null,
+        ids: List<String> = emptyList(),
+        limit: Int = 8,
+    ): UserResolveList {
+        require(q != null || ids.isNotEmpty()) { "q 与 ids 必须提供其一" }
+        return client.get(
+            path = "/users",
+            query = buildMap {
+                if (ids.isNotEmpty()) {
+                    put("ids", ids.take(100))
+                } else {
+                    put("q", q)
+                    put("limit", limit.coerceIn(1, 20))
+                }
+            },
+            deserializer = UserResolveList.serializer(),
+        )
+    }
 
     suspend fun profile(userId: String): UserProfile = client.get(
         path = "/users/$userId",
@@ -128,6 +151,24 @@ class UserApi(private val client: KungalClient) {
             "include_nsfw" to includeNsfw,
         ),
         deserializer = WorkRecordPage.serializer(),
+    )
+
+    /** relation: authored / liked；subjectType 传 `galgame` 只看作品留言墙，null 表示全部墙。 */
+    suspend fun wallComments(
+        userId: String,
+        relation: String = "authored",
+        subjectType: String? = "galgame",
+        cursor: String? = null,
+        limit: Int = 24,
+    ): WallCommentList = client.get(
+        path = "/users/$userId/wall-comments",
+        query = mapOf(
+            "relation" to relation,
+            "subject_type" to subjectType,
+            "cursor" to cursor,
+            "limit" to limit,
+        ),
+        deserializer = WallCommentList.serializer(),
     )
 
     suspend fun followers(userId: String, cursor: String? = null, limit: Int = 30): PageList<FollowEdge> =

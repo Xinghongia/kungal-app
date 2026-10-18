@@ -22,10 +22,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,8 +47,10 @@ import com.kungal.app.ui.components.KungalPullToRefresh
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.util.relativeTime
+import com.kungal.app.ui.topic.friendlyError
 import com.kungal.core.model.FollowingActivityGroup
 import com.kungal.core.model.FollowingActivityItem
+import kotlinx.coroutines.launch
 
 /** 关注动态：关注的人发布/回复/评论/评分等分组列表。 */
 @Composable
@@ -94,6 +101,7 @@ fun FollowingScreen(
                 items(state.groups, key = { it.id }) { group ->
                     FollowingGroupCard(
                         group = group,
+                        app = app,
                         onOpenTopic = onOpenTopic,
                         onOpenWeb = onOpenWeb,
                         onOpenUser = onOpenUser,
@@ -118,10 +126,32 @@ fun FollowingScreen(
 @Composable
 private fun FollowingGroupCard(
     group: FollowingActivityGroup,
+    app: KungalApp,
     onOpenTopic: (String) -> Unit,
     onOpenWeb: (String) -> Unit,
     onOpenUser: (String) -> Unit,
 ) {
+    val scope = rememberCoroutineScope()
+    var expandedItems by remember(group.id) { mutableStateOf<List<FollowingActivityItem>?>(null) }
+    var nextCursor by remember(group.id) { mutableStateOf<String?>(null) }
+    var expanding by remember(group.id) { mutableStateOf(false) }
+    var expandError by remember(group.id) { mutableStateOf<String?>(null) }
+
+    fun loadGroup(cursor: String?) {
+        if (expanding) return
+        expanding = true
+        expandError = null
+        scope.launch {
+            runCatching { app.topicApi.followingGroupItems(group.id, cursor = cursor, limit = 20) }
+                .onSuccess { page ->
+                    expandedItems = (expandedItems ?: emptyList()) + page.items
+                    nextCursor = page.nextCursor
+                }
+                .onFailure { e -> expandError = friendlyError(e) }
+            expanding = false
+        }
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
         shape = RoundedCornerShape(14.dp),
@@ -156,12 +186,29 @@ private fun FollowingGroupCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            group.items.forEach { item ->
+            (expandedItems ?: group.items).forEach { item ->
                 FollowingItemRow(item, group, onOpenTopic, onOpenWeb)
             }
-            if (group.itemCount > group.items.size) {
-                Text(
-                    "共 ${group.itemCount} 条",
+            when {
+                expandError != null -> Text(
+                    expandError!!,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                expandedItems == null && group.itemCount > group.items.size -> TextButton(
+                    onClick = { loadGroup(null) },
+                    enabled = !expanding,
+                ) {
+                    Text(if (expanding) "加载中…" else "查看全部 ${group.itemCount} 条")
+                }
+                expandedItems != null && nextCursor != null -> TextButton(
+                    onClick = { loadGroup(nextCursor) },
+                    enabled = !expanding,
+                ) {
+                    Text(if (expanding) "加载中…" else "加载更多")
+                }
+                expandedItems != null -> Text(
+                    "共 ${expandedItems!!.size} 条",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

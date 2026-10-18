@@ -11,6 +11,7 @@ import com.kungal.core.model.QuizPatch
 import com.kungal.core.model.QuizQuality
 import com.kungal.core.model.QuizQualityBody
 import com.kungal.core.model.QuizSource
+import com.kungal.core.model.QuizStates
 import com.kungal.core.model.QuizSubmission
 import com.kungal.core.model.QuizSummary
 import com.kungal.core.net.PagedList
@@ -87,6 +88,13 @@ class QuizApi(private val client: KungalClient) {
             client.delete(path, QuizEngagement.serializer())
         }
     }
+
+    /** 批量读取本人收藏态（1–100 个 id），供动态卡片等列表初始化。 */
+    suspend fun states(quizIds: List<String>): QuizStates = client.get(
+        path = "/me/quiz-states",
+        query = mapOf("quiz_ids" to quizIds.joinToString(",")),
+        deserializer = QuizStates.serializer(),
+    )
 
     /** 质量评分 1–10（须已作答）。 */
     suspend fun rateQuality(quizId: String, rating: Int): QuizQuality = client.putJson(

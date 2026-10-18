@@ -6,6 +6,7 @@ import com.kungal.core.model.CommentCreate
 import com.kungal.core.model.CommentPatch
 import com.kungal.core.model.CommentSearchHit
 import com.kungal.core.model.FollowingActivityGroup
+import com.kungal.core.model.FollowingActivityItem
 import com.kungal.core.model.FollowingActivitySummary
 import com.kungal.core.model.FollowingReadMarker
 import com.kungal.core.model.Lottery
@@ -448,6 +449,22 @@ class TopicApi(private val client: KungalClient) {
             query = mapOf("include_nsfw" to includeNsfw),
             deserializer = FollowingActivitySummary.serializer(),
         )
+
+    /** 展开一个关注动态分组：组内条目游标分页（limit ≤ 50）。 */
+    suspend fun followingGroupItems(
+        groupId: String,
+        cursor: String? = null,
+        limit: Int = 20,
+        includeNsfw: Boolean = false,
+    ): PageList<FollowingActivityItem> = client.get(
+        path = "/activity-groups/$groupId/items",
+        query = mapOf(
+            "cursor" to cursor,
+            "limit" to limit,
+            "include_nsfw" to includeNsfw,
+        ),
+        deserializer = PageList.serializer(FollowingActivityItem.serializer()),
+    )
 
     suspend fun markFollowingSeen(): FollowingReadMarker = client.putJson(
         path = "/me/following-activities/read-marker",

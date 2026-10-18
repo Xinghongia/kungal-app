@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,6 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -47,7 +49,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,10 +62,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kungal.app.KungalApp
+import com.kungal.app.ui.components.AvatarImage
 import com.kungal.app.ui.components.KungalImage
 import com.kungal.app.ui.components.KungalSnackbarHost
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
+import com.kungal.app.ui.components.StickerPickerDialog
+import com.kungal.core.model.UserRef
+import com.kungal.core.model.stickerMarkdown
+import kotlinx.coroutines.delay
 import com.kungal.app.ui.topic.TopicCategorySections
 
 /** 分类显示名（与网站一致）。 */
@@ -105,6 +114,37 @@ fun TopicEditorScreen(
     val state by vm.state.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
+    var stickerOpen by remember { mutableStateOf(false) }
+    var mentionResults by remember { mutableStateOf<List<UserRef>>(emptyList()) }
+    val mentionQuery = remember(state.content) {
+        Regex("""(?:^|\s)@([^\s@]{0,50})$""").find(state.content)?.groupValues?.get(1)
+    }
+
+    LaunchedEffect(mentionQuery, app.isLoggedIn) {
+        val query = mentionQuery?.takeIf { it.isNotBlank() }
+        if (query == null || !app.isLoggedIn) {
+            mentionResults = emptyList()
+            return@LaunchedEffect
+        }
+        delay(300)
+        runCatching { app.userApi.resolveUsers(q = query, limit = 8) }
+            .onSuccess { mentionResults = it.items }
+            .onFailure { mentionResults = emptyList() }
+    }
+
+    fun applyMention(name: String) {
+        val current = state.content
+        val at = current.lastIndexOf('@')
+        val tail = if (at >= 0) current.substring(at + 1) else ""
+        vm.setContent(
+            if (at >= 0 && tail.none { it.isWhitespace() }) {
+                current.substring(0, at) + "@$name "
+            } else {
+                current + "@$name "
+            },
+        )
+        mentionResults = emptyList()
+    }
 
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
@@ -219,6 +259,37 @@ fun TopicEditorScreen(
                 placeholder = { Text("支持 Markdown：标题、列表、代码块、图片、@提及…") },
                 modifier = Modifier.fillMaxWidth().height(280.dp),
             )
+            if (mentionResults.isNotEmpty() && mentionQuery != null) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    tonalElevation = 2.dp,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(Modifier.padding(vertical = 4.dp)) {
+                        mentionResults.take(6).forEach { user ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { applyMention(user.name ?: user.id) }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                AvatarImage(
+                                    url = user.avatar?.url,
+                                    seed = user.name ?: user.id,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    user.name ?: user.id,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextButton(
@@ -234,6 +305,11 @@ fun TopicEditorScreen(
                         Spacer(Modifier.width(6.dp))
                         Text("插入图片")
                     }
+                }
+                TextButton(onClick = { stickerOpen = true }) {
+                    Icon(Icons.Outlined.EmojiEmotions, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("插入表情")
                 }
                 Spacer(Modifier.weight(1f))
                 Text(
@@ -325,6 +401,20 @@ fun TopicEditorScreen(
                 }
             }
         }
+    }
+    if (stickerOpen) {
+        StickerPickerDialog(
+            load = { app.stickerPacks() },
+            onPick = { sticker ->
+                val markdown = stickerMarkdown(sticker)
+                if (markdown.isNotBlank()) {
+                    val base = state.content.trimEnd()
+                    vm.setContent(if (base.isEmpty()) markdown else "$base\n\n$markdown\n")
+                }
+                stickerOpen = false
+            },
+            onDismiss = { stickerOpen = false },
+        )
     }
 }
 

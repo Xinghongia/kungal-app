@@ -281,6 +281,20 @@ class TopicDomainTest {
         assertEquals(1, page.items.size)
         assertEquals("publish", page.items[0].verb)
         assertEquals("新话题", page.items[0].items[0].title)
+        server.takeRequest() // summary
+        server.takeRequest() // activities
+
+        server.enqueue(
+            okFile("following_items_domain.json"),
+        )
+        val items = api.followingGroupItems("9001", cursor = "c1", limit = 20)
+        assertEquals(2, items.items.size)
+        assertEquals("7101", items.items[0].id)
+        val request = server.takeRequest().url
+        assertEquals("/api/v1/activity-groups/9001/items", request.encodedPath)
+        assertEquals("c1", request.queryParameter("cursor"))
+        assertEquals("20", request.queryParameter("limit"))
+        assertEquals("false", request.queryParameter("include_nsfw"))
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.kungal.core.api
 
 import com.kungal.core.KungalClient
 import com.kungal.core.KungalJson
+import com.kungal.core.model.CollectionAlias
 import com.kungal.core.model.CollectionChoice
 import com.kungal.core.model.CollectionPatchBody
 import com.kungal.core.model.CollectionSummary
@@ -76,6 +77,12 @@ class CollectionApi(private val client: KungalClient) {
             query = mapOf("include_nsfw" to includeNsfw),
             deserializer = CollectionSummary.serializer(),
         )
+
+    /** 旧论坛收藏夹 id 解析（老链接兼容）；不存在时抛 404。 */
+    suspend fun alias(aliasId: String): CollectionAlias = client.get(
+        path = "/collection-aliases/$aliasId",
+        deserializer = CollectionAlias.serializer(),
+    )
 
     /** sort: favorited_desc / favorited_asc / released_desc / released_asc。 */
     suspend fun works(

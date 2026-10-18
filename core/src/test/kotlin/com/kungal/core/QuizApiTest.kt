@@ -198,6 +198,26 @@ class QuizApiTest {
     }
 
     @Test
+    fun `批量读取题库收藏态`() = runBlocking {
+        server.enqueue(
+            ok(
+                """{"object":"list","items":[
+                   {"quiz_id":"295","has_favorited":true},
+                   {"quiz_id":"296","has_favorited":false}],
+                   "missing":["297"]}""",
+            ),
+        )
+        val states = api.states(listOf("295", "296", "297"))
+        assertEquals(2, states.items.size)
+        assertTrue(states.items[0].hasFavorited)
+        assertFalse(states.items[1].hasFavorited)
+        assertEquals(listOf("297"), states.missing)
+        val request = server.takeRequest().url
+        assertEquals("/api/v1/me/quiz-states", request.encodedPath)
+        assertEquals("295,296,297", request.queryParameter("quiz_ids"))
+    }
+
+    @Test
     fun `质量评分提交 1 到 10`() = runBlocking {
         server.enqueue(
             ok(

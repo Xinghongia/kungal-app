@@ -227,6 +227,48 @@ class UserApiTest {
     }
 
     @Test
+    fun `用户搜索与 id 解析二选一`() = runBlocking {
+        server.enqueue(
+            ok(
+                """{"object":"list","items":[{"object":"user","id":"42","name":"星鸿",
+                   "avatar":null,"avatar_frame":null}],"missing":[]}""",
+            ),
+        )
+        val found = api.resolveUsers(q = "星", limit = 5)
+        assertEquals("星鸿", found.items[0].name)
+        val search = server.takeRequest().url
+        assertEquals("/api/v1/users", search.encodedPath)
+        assertEquals("星", search.queryParameter("q"))
+        assertEquals("5", search.queryParameter("limit"))
+        assertNull(search.queryParameter("ids"))
+
+        server.enqueue(ok("""{"object":"list","items":[],"missing":["9"]}"""))
+        val resolved = api.resolveUsers(ids = listOf("42", "9"))
+        assertEquals(listOf("9"), resolved.missing)
+        val batch = server.takeRequest().url
+        assertEquals(listOf("42", "9"), batch.queryParameterValues("ids"))
+        assertNull(batch.queryParameter("q"))
+        assertNull(batch.queryParameter("limit"))
+    }
+
+    @Test
+    fun `用户作品留言墙按关系与游标分页`() = runBlocking {
+        server.enqueue(ok(Fixtures.text("galgame_wall_comments.json")))
+        val page = api.wallComments("42", relation = "liked", cursor = "c1", limit = 24)
+        assertEquals(5, page.items.size)
+        assertEquals("galgame", page.items[0].subjectType)
+        assertEquals("229", page.items[0].subjectId)
+        assertTrue(page.nextCursor!!.startsWith("cur_"))
+
+        val url = server.takeRequest().url
+        assertEquals("/api/v1/users/42/wall-comments", url.encodedPath)
+        assertEquals("liked", url.queryParameter("relation"))
+        assertEquals("galgame", url.queryParameter("subject_type"))
+        assertEquals("c1", url.queryParameter("cursor"))
+        assertEquals("24", url.queryParameter("limit"))
+    }
+
+    @Test
     fun `点赞资源列表不传 state`() = runBlocking {
         server.enqueue(ok("""{"object":"list","items":[],"total":0,"total_relation":"eq"}"""))
         api.resources("42", relation = "liked", state = null)

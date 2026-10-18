@@ -107,6 +107,14 @@ data class CompanyWork(
     @SerialName("via_company") val viaCompany: CompanyRef? = null,
 )
 
+/** 旧 wiki 会社 id 到资料库会社 id 的映射（GET /wiki-company-redirects/{id}）。 */
+@Serializable
+data class WikiCompanyRedirect(
+    @SerialName("object") val obj: String = "wiki_company_redirect",
+    @SerialName("wiki_company_id") val wikiCompanyId: String = "",
+    @SerialName("company_id") val companyId: String = "",
+)
+
 @Serializable
 data class CompanyGraph(
     @SerialName("object") val obj: String = "company_graph",

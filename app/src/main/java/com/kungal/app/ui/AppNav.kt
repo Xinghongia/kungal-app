@@ -1411,6 +1411,7 @@ fun AppNav(app: KungalApp) {
                     nsfwDisplay = nsfwDisplay,
                     onBack = { nav.popBackStack() },
                     onOpenTag = { id -> nav.navigate(Routes.galgameTag(id)) },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
                 )
             }
             composable(

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -13,8 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,6 +59,8 @@ fun ActivityCard(
     blurCover: Boolean,
     onOpenPath: (String) -> Unit,
     onOpenUser: (String) -> Unit,
+    quizFavorited: Boolean? = null,
+    onToggleQuizFavorite: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -80,7 +87,7 @@ fun ActivityCard(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 ActivityHeader(activity, onOpenUser)
-                ActivityBody(activity, blurCover)
+                ActivityBody(activity, blurCover, quizFavorited, onToggleQuizFavorite)
             }
         }
     }
@@ -133,7 +140,12 @@ private fun ActivityTypeChip(label: String) {
 }
 
 @Composable
-private fun ActivityBody(activity: FeedActivity, blurCover: Boolean) {
+private fun ActivityBody(
+    activity: FeedActivity,
+    blurCover: Boolean,
+    quizFavorited: Boolean?,
+    onToggleQuizFavorite: ((String) -> Unit)?,
+) {
     when (activity.activityType) {
         "topic_creation", "topic_upvote" -> TopicActivityBody(activity, blurCover)
         "topic_reply_creation", "best_answer_set" -> ReplyActivityBody(activity)
@@ -143,7 +155,7 @@ private fun ActivityBody(activity: FeedActivity, blurCover: Boolean) {
         "galgame_rating_creation" -> GalgameRatingBody(activity, blurCover)
         "galgame_resource_creation" -> GalgameResourceBody(activity, blurCover)
         "galgame_comment_creation" -> GalgameCommentBody(activity, blurCover)
-        "galgame_quiz_creation" -> QuizActivityBody(activity)
+        "galgame_quiz_creation" -> QuizActivityBody(activity, quizFavorited, onToggleQuizFavorite)
         "galgame_website_creation" -> SimpleNoteBody("创建了网站", activity.excerptMarkdown)
         "toolset_creation" -> SimpleNoteBody("创建了工具", activity.excerptMarkdown)
         "toolset_resource_creation" ->
@@ -467,7 +479,11 @@ private fun GalgameCommentBody(activity: FeedActivity, blurCover: Boolean) {
 }
 
 @Composable
-private fun QuizActivityBody(activity: FeedActivity) {
+private fun QuizActivityBody(
+    activity: FeedActivity,
+    favorited: Boolean?,
+    onToggleFavorite: ((String) -> Unit)?,
+) {
     val quiz = activity.quiz ?: return
     Text(
         "出了一道题目，${quizDifficultyLabel(quiz.difficulty)}·难度${quiz.difficulty}，" +
@@ -493,6 +509,31 @@ private fun QuizActivityBody(activity: FeedActivity) {
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+    if (onToggleFavorite != null) {
+        val marked = favorited == true
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .clickable { onToggleFavorite(quiz.quizId) }
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                if (marked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                contentDescription = if (marked) "取消收藏" else "收藏",
+                tint = if (marked) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                if (marked) "已收藏" else "收藏",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (marked) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

@@ -56,6 +56,7 @@ import com.kungal.app.ui.components.PageResult
 import com.kungal.app.ui.components.PagedListContent
 import com.kungal.app.ui.content.FullScreenImageViewer
 import com.kungal.app.ui.topic.friendlyError
+import com.kungal.core.net.KungalApiException
 import com.kungal.core.model.CharacterDetail
 import com.kungal.core.model.CompanyDetail
 import com.kungal.core.model.CompanyGraph
@@ -351,6 +352,7 @@ fun CompanyDetailScreen(
     val scope = rememberCoroutineScope()
     var company by remember(companyId) { mutableStateOf<CompanyDetail?>(null) }
     var graph by remember(companyId) { mutableStateOf<CompanyGraph?>(null) }
+    var resolvedId by remember(companyId) { mutableStateOf(companyId) }
     var error by remember(companyId) { mutableStateOf<String?>(null) }
     var loading by remember(companyId) { mutableStateOf(true) }
 
@@ -358,10 +360,22 @@ fun CompanyDetailScreen(
         scope.launch {
             loading = true
             error = null
-            runCatching { app.entityApi.company(companyId) }
-                .onSuccess { company = it }
+            runCatching {
+                try {
+                    app.entityApi.company(companyId)
+                } catch (e: KungalApiException) {
+                    // 旧 wiki 会社 id：先解析跳转再取资料库会社
+                    if (e.httpStatus != 404) throw e
+                    val redirect = app.entityApi.companyRedirect(companyId)
+                    app.entityApi.company(redirect.companyId)
+                }
+            }
+                .onSuccess {
+                    company = it
+                    resolvedId = it.id.ifBlank { companyId }
+                }
                 .onFailure { error = friendlyError(it); loading = false; return@launch }
-            runCatching { app.entityApi.companyGraph(companyId) }
+            runCatching { app.entityApi.companyGraph(resolvedId) }
                 .onSuccess { graph = it }
             loading = false
         }
@@ -378,10 +392,10 @@ fun CompanyDetailScreen(
             error != null -> ErrorBox(error!!, onRetry = { load() })
             company == null -> EmptyBox("未找到这个会社")
             else -> EntityWorksList(
-                entityKey = "company-works-$companyId",
+                entityKey = "company-works-$resolvedId",
                 includeNsfw = nsfwDisplay.allowsNsfw,
                 blurNsfw = nsfwDisplay.blursMedia,
-                load = { query -> app.entityApi.companyWorks(companyId, query) },
+                load = { query -> app.entityApi.companyWorks(resolvedId, query) },
                 onOpenWork = onOpenWork,
                 showVia = true,
                 header = {

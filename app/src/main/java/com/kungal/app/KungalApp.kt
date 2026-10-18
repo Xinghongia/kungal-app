@@ -34,6 +34,7 @@ import com.kungal.core.api.SectionApi
 import com.kungal.core.api.ShopApi
 import com.kungal.core.api.SocialApi
 import com.kungal.core.api.SubmissionApi
+import com.kungal.core.api.StickerApi
 import com.kungal.core.api.TodoApi
 import com.kungal.core.api.ToolsetApi
 import com.kungal.core.api.TopicApi
@@ -42,6 +43,7 @@ import com.kungal.core.api.UserApi
 import com.kungal.core.api.WallCommentApi
 import com.kungal.core.api.WebsiteApi
 import com.kungal.core.model.Account
+import com.kungal.core.model.StickerPackList
 import com.kungal.core.session.Session
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +55,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class KungalApp : Application() {
 
@@ -146,6 +150,9 @@ class KungalApp : Application() {
     lateinit var githubApi: GitHubPublicApi
         private set
 
+    lateinit var stickerApi: StickerApi
+        private set
+
     lateinit var githubProfileStore: GitHubProfileStore
         private set
 
@@ -217,6 +224,14 @@ class KungalApp : Application() {
 
     val isLoggedIn: Boolean get() = _session.value != null
 
+    private val stickerMutex = Mutex()
+    private var stickerPacksCache: StickerPackList? = null
+
+    /** 官方表情包整包缓存：编辑器和私信共用，本次进程内只请求一次。 */
+    suspend fun stickerPacks(): StickerPackList = stickerMutex.withLock {
+        stickerPacksCache ?: stickerApi.packs().also { stickerPacksCache = it }
+    }
+
     override fun onCreate() {
         super.onCreate()
         // 站点表情是动态 WebP（/emoji/*.webp），需要注册动图解码器才会动起来
@@ -264,6 +279,7 @@ class KungalApp : Application() {
         newsSubmissionApi = NewsSubmissionApi(client)
         websiteApi = WebsiteApi(client)
         githubApi = GitHubPublicApi()
+        stickerApi = StickerApi(client)
         chatRealtime = ChatRealtimeHub(this)
         sessionStore = SessionStore(this)
         settingsStore = SettingsStore(this)

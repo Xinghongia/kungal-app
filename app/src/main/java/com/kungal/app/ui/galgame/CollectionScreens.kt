@@ -56,6 +56,7 @@ import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.components.PageResult
 import com.kungal.app.ui.components.PagedListContent
 import com.kungal.app.ui.topic.friendlyError
+import com.kungal.core.net.KungalApiException
 import com.kungal.core.model.CollectionPatchBody
 import com.kungal.core.model.CollectionSummary
 import com.kungal.core.model.WorkSummary
@@ -184,6 +185,7 @@ fun CollectionDetailScreen(
     val scope = rememberCoroutineScope()
     val includeNsfw = nsfwDisplay.allowsNsfw
     var collection by remember(collectionId) { mutableStateOf<CollectionSummary?>(null) }
+    var resolvedId by remember(collectionId) { mutableStateOf(collectionId) }
     var loading by remember(collectionId) { mutableStateOf(true) }
     var error by remember(collectionId) { mutableStateOf<String?>(null) }
     var reloadToken by remember { mutableStateOf(0) }
@@ -195,8 +197,21 @@ fun CollectionDetailScreen(
     LaunchedEffect(collectionId, includeNsfw, reloadToken) {
         loading = true
         error = null
-        runCatching { app.collectionApi.collection(collectionId, includeNsfw) }
-            .onSuccess { collection = it; loading = false }
+        runCatching {
+            try {
+                app.collectionApi.collection(collectionId, includeNsfw)
+            } catch (e: KungalApiException) {
+                // 旧论坛收藏夹 id：先解析别名再取新收藏夹
+                if (e.httpStatus != 404) throw e
+                val alias = app.collectionApi.alias(collectionId)
+                app.collectionApi.collection(alias.collectionId, includeNsfw)
+            }
+        }
+            .onSuccess {
+                collection = it
+                resolvedId = it.id.ifBlank { collectionId }
+                loading = false
+            }
             .onFailure { error = friendlyError(it); loading = false }
     }
 
@@ -216,10 +231,10 @@ fun CollectionDetailScreen(
             error != null && collection == null -> ErrorBox(error!!, onRetry = { reloadToken++ })
             collection == null -> EmptyBox("未找到这个收藏夹")
             else -> PagedListContent(
-                key = listOf("collection-works", collectionId, sort, includeNsfw, reloadToken),
+                key = listOf("collection-works", resolvedId, sort, includeNsfw, reloadToken),
                 load = { page, _ ->
                     val result = app.collectionApi.works(
-                        collectionId = collectionId,
+                        collectionId = resolvedId,
                         page = page,
                         limit = 24,
                         sort = sort,
@@ -286,7 +301,7 @@ fun CollectionDetailScreen(
             onDismiss = { editOpen = false },
             onSubmit = { title, description, visibility ->
                 app.collectionApi.update(
-                    collectionId,
+                    resolvedId,
                     CollectionPatchBody(
                         title = title,
                         description = description,
@@ -310,7 +325,7 @@ fun CollectionDetailScreen(
                 TextButton(onClick = {
                     deleteOpen = false
                     scope.launch {
-                        runCatching { app.collectionApi.delete(collectionId) }
+                        runCatching { app.collectionApi.delete(resolvedId) }
                             .onSuccess { onBack() }
                             .onFailure { error = friendlyError(it) }
                     }
@@ -330,7 +345,7 @@ fun CollectionDetailScreen(
                     val target = work
                     pendingRemove = null
                     scope.launch {
-                        runCatching { app.collectionApi.setWork(collectionId, target.id, false) }
+                        runCatching { app.collectionApi.setWork(resolvedId, target.id, false) }
                             .onSuccess { reloadToken++ }
                             .onFailure { error = friendlyError(it) }
                     }

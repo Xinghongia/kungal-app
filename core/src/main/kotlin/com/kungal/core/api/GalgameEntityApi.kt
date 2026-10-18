@@ -19,6 +19,7 @@ import com.kungal.core.model.TagNodeList
 import com.kungal.core.model.TagSummary
 import com.kungal.core.model.TraitDetail
 import com.kungal.core.model.TraitSummary
+import com.kungal.core.model.WikiCompanyRedirect
 import com.kungal.core.model.WorkSummary
 import com.kungal.core.net.KungalApiException
 import com.kungal.core.net.PagedList
@@ -105,6 +106,29 @@ class GalgameEntityApi(private val client: KungalClient) {
         deserializer = PagedList.serializer(WorkSummary.serializer()),
     )
 
+    /** 多标签联合筛选：只看同时含有 [tagIds]（1–10 个）全部标签的作品。 */
+    suspend fun taggedWorks(
+        tagIds: List<String>,
+        page: Int = 1,
+        limit: Int = 24,
+        includeNsfw: Boolean = false,
+        includeAllOriginalLanguages: Boolean = false,
+        excludeTagIds: List<String> = emptyList(),
+        excludeTagTrees: List<String> = emptyList(),
+    ): PagedList<WorkSummary> = client.get(
+        path = "/tagged-works",
+        query = buildMap {
+            put("tag_ids", tagIds)
+            put("page", page)
+            put("limit", limit)
+            put("include_nsfw", includeNsfw)
+            if (includeAllOriginalLanguages) put("include_all_original_languages", true)
+            if (excludeTagIds.isNotEmpty()) put("exclude_tag_ids", excludeTagIds)
+            if (excludeTagTrees.isNotEmpty()) put("exclude_tag_trees", excludeTagTrees)
+        },
+        deserializer = PagedList.serializer(WorkSummary.serializer()),
+    )
+
     /** 未屏蔽时服务端返回 404；按「未屏蔽」处理。 */
     suspend fun tagBlockOrNull(tagId: String): TagBlock? = try {
         client.get("/me/blocked-tags/$tagId", deserializer = TagBlock.serializer())
@@ -145,6 +169,12 @@ class GalgameEntityApi(private val client: KungalClient) {
     suspend fun company(companyId: String): CompanyDetail = client.get(
         path = "/companies/$companyId",
         deserializer = CompanyDetail.serializer(),
+    )
+
+    /** 旧 wiki 会社 id 解析（老链接兼容）；不存在时抛 404。 */
+    suspend fun companyRedirect(wikiCompanyId: String): WikiCompanyRedirect = client.get(
+        path = "/wiki-company-redirects/$wikiCompanyId",
+        deserializer = WikiCompanyRedirect.serializer(),
     )
 
     suspend fun companyWorks(companyId: String, query: EntityWorkQuery): PagedList<WorkSummary> = client.get(
