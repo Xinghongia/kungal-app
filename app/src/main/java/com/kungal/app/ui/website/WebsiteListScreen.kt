@@ -49,9 +49,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kungal.app.KungalApp
 import com.kungal.app.NsfwDisplayMode
+import com.kungal.app.ui.components.AppMessages
 import com.kungal.app.ui.components.EmptyBox
 import com.kungal.app.ui.components.ErrorBox
 import com.kungal.app.ui.components.KungalImage
+import com.kungal.app.ui.components.KungalPullToRefresh
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.topic.friendlyError
@@ -77,13 +79,14 @@ fun WebsiteListScreen(
     var entries by remember { mutableStateOf<List<WebsiteEntry>>(emptyList()) }
     var categories by remember { mutableStateOf<List<WebsiteCategory>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
+    var refreshing by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
     var total by remember { mutableStateOf(0) }
     var query by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(nsfwDisplay.allowsNsfw, reload) {
-        loading = true
+        if (!refreshing) loading = true
         error = null
         runCatching {
             categories = app.websiteApi.categories()
@@ -104,8 +107,12 @@ fun WebsiteListScreen(
             } while (cursor != null && page < WEBSITE_MAX_PAGES)
             all
         }.onSuccess { entries = it }
-            .onFailure { error = friendlyError(it) }
+            .onFailure {
+                // 下拉刷新失败时保留原列表，只提示；首次加载失败才整页报错。
+                if (refreshing) AppMessages.show(friendlyError(it)) else error = friendlyError(it)
+            }
         loading = false
+        refreshing = false
     }
 
     Scaffold(
@@ -131,8 +138,18 @@ fun WebsiteListScreen(
             else -> {
                 val matched = entries.filter { websiteMatches(it, query) }
                 val (sections, closed) = websiteSections(matched, categories)
-                LazyColumn(
+                KungalPullToRefresh(
+                    isRefreshing = refreshing,
+                    onRefresh = {
+                        if (!refreshing) {
+                            refreshing = true
+                            reload++
+                        }
+                    },
                     modifier = Modifier.fillMaxSize().padding(padding),
+                ) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
@@ -239,6 +256,7 @@ fun WebsiteListScreen(
                     if (sections.isEmpty() && closed.isEmpty()) {
                         item(key = "empty") { EmptyBox("没有找到符合条件的网站") }
                     }
+                }
                 }
             }
         }

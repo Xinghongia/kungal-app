@@ -39,7 +39,7 @@ class KungalClient(
 ) {
     companion object {
         const val DEFAULT_BASE_URL = "https://www.kungal.com/api/v1"
-        const val USER_AGENT = "kungal-app/0.8.9 (Android)"
+        const val USER_AGENT = "kungal-app/0.8.10 (Android)"
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         private val EMPTY_BODY = ByteArray(0).toRequestBody(null, 0, 0)
 

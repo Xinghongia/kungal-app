@@ -58,6 +58,7 @@ import com.kungal.app.ui.components.Chip
 import com.kungal.app.ui.components.EmptyBox
 import com.kungal.app.ui.components.ErrorBox
 import com.kungal.app.ui.components.KungalTopAppBar
+import com.kungal.app.ui.components.KungalPullToRefresh
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.galgame.WallCommentSection
 import com.kungal.app.ui.topic.friendlyError
@@ -107,6 +108,7 @@ fun WebsiteDetailScreen(
     var allTags by remember { mutableStateOf<List<WebsiteTag>>(emptyList()) }
     var groups by remember { mutableStateOf<List<WebsiteTagGroup>>(emptyList()) }
     var loading by remember(host) { mutableStateOf(true) }
+    var refreshing by remember { mutableStateOf(false) }
     var error by remember(host) { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
     var showScoreDetail by remember { mutableStateOf(false) }
@@ -114,7 +116,7 @@ fun WebsiteDetailScreen(
     var favoritePending by remember { mutableStateOf(false) }
 
     LaunchedEffect(host, reload) {
-        loading = true
+        if (!refreshing) loading = true
         error = null
         runCatching {
             coroutineScope {
@@ -127,8 +129,12 @@ fun WebsiteDetailScreen(
             site = detail
             allTags = tags
             groups = tagGroups
-        }.onFailure { error = friendlyError(it) }
+        }.onFailure {
+            // 下拉刷新失败时保留原内容，只提示；首次加载失败才整页报错。
+            if (refreshing) AppMessages.show(friendlyError(it)) else error = friendlyError(it)
+        }
         loading = false
+        refreshing = false
     }
 
     fun toggleLike() {
@@ -218,44 +224,54 @@ fun WebsiteDetailScreen(
             )
             else -> {
                 val current = site!!
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .verticalScroll(rememberScrollState())
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                KungalPullToRefresh(
+                    isRefreshing = refreshing,
+                    onRefresh = {
+                        if (!refreshing) {
+                            refreshing = true
+                            reload++
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize().padding(padding),
                 ) {
-                    WebsiteHeaderCard(
-                        site = current,
-                        allTags = allTags,
-                        groups = groups,
-                        showScoreDetail = showScoreDetail,
-                        onToggleScoreDetail = { showScoreDetail = !showScoreDetail },
-                        likePending = likePending,
-                        favoritePending = favoritePending,
-                        onToggleLike = ::toggleLike,
-                        onToggleFavorite = ::toggleFavorite,
-                        onVisit = { AndroidActions.openInBrowser(context, websiteVisitUrl(current.host)) },
-                        onOpenTag = onOpenTag,
-                    )
-                    WebsiteInfoCard(
-                        site = current,
-                        onOpenCategory = onOpenCategory,
-                        onOpenUrl = { url -> AndroidActions.openInBrowser(context, url) },
-                        onCopyUrl = { url -> AndroidActions.copyText(context, "网站地址", url) },
-                    )
-                    WebsiteStatsCard(site = current)
-                    WallCommentSection(
-                        app = app,
-                        subjectType = "website",
-                        subjectId = current.id,
-                        maxLength = WEBSITE_COMMENT_MAX,
-                        title = "用户评论",
-                        onOpenUser = onOpenUser,
-                        onOpenLogin = onOpenLogin,
-                    )
-                    Spacer(Modifier.height(8.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        WebsiteHeaderCard(
+                            site = current,
+                            allTags = allTags,
+                            groups = groups,
+                            showScoreDetail = showScoreDetail,
+                            onToggleScoreDetail = { showScoreDetail = !showScoreDetail },
+                            likePending = likePending,
+                            favoritePending = favoritePending,
+                            onToggleLike = ::toggleLike,
+                            onToggleFavorite = ::toggleFavorite,
+                            onVisit = { AndroidActions.openInBrowser(context, websiteVisitUrl(current.host)) },
+                            onOpenTag = onOpenTag,
+                        )
+                        WebsiteInfoCard(
+                            site = current,
+                            onOpenCategory = onOpenCategory,
+                            onOpenUrl = { url -> AndroidActions.openInBrowser(context, url) },
+                            onCopyUrl = { url -> AndroidActions.copyText(context, "网站地址", url) },
+                        )
+                        WebsiteStatsCard(site = current)
+                        WallCommentSection(
+                            app = app,
+                            subjectType = "website",
+                            subjectId = current.id,
+                            maxLength = WEBSITE_COMMENT_MAX,
+                            title = "用户评论",
+                            onOpenUser = onOpenUser,
+                            onOpenLogin = onOpenLogin,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
                 }
             }
         }

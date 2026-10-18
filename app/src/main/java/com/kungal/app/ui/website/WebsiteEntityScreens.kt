@@ -26,8 +26,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.kungal.app.KungalApp
 import com.kungal.app.NsfwDisplayMode
+import com.kungal.app.ui.components.AppMessages
 import com.kungal.app.ui.components.EmptyBox
 import com.kungal.app.ui.components.ErrorBox
+import com.kungal.app.ui.components.KungalPullToRefresh
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.topic.friendlyError
@@ -75,11 +77,12 @@ fun WebsiteCategoryScreen(
     var category by remember(slug) { mutableStateOf<WebsiteCategory?>(null) }
     var sites by remember(slug) { mutableStateOf<List<WebsiteEntry>>(emptyList()) }
     var loading by remember(slug) { mutableStateOf(true) }
+    var refreshing by remember { mutableStateOf(false) }
     var error by remember(slug) { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(slug, nsfwDisplay.allowsNsfw, reload) {
-        loading = true
+        if (!refreshing) loading = true
         error = null
         runCatching {
             val data = app.websiteApi.category(slug)
@@ -87,8 +90,11 @@ fun WebsiteCategoryScreen(
         }.onSuccess { (data, list) ->
             category = data
             sites = list
-        }.onFailure { error = friendlyError(it) }
+        }.onFailure {
+            if (refreshing) AppMessages.show(friendlyError(it)) else error = friendlyError(it)
+        }
         loading = false
+        refreshing = false
     }
 
     Scaffold(
@@ -117,8 +123,18 @@ fun WebsiteCategoryScreen(
             )
             else -> {
                 val data = category!!
-                LazyColumn(
+                KungalPullToRefresh(
+                    isRefreshing = refreshing,
+                    onRefresh = {
+                        if (!refreshing) {
+                            refreshing = true
+                            reload++
+                        }
+                    },
                     modifier = Modifier.fillMaxSize().padding(padding),
+                ) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
@@ -158,6 +174,7 @@ fun WebsiteCategoryScreen(
                         }
                     }
                 }
+                }
             }
         }
     }
@@ -175,11 +192,12 @@ fun WebsiteTagScreen(
     var tag by remember(slug) { mutableStateOf<WebsiteTag?>(null) }
     var sites by remember(slug) { mutableStateOf<List<WebsiteEntry>>(emptyList()) }
     var loading by remember(slug) { mutableStateOf(true) }
+    var refreshing by remember { mutableStateOf(false) }
     var error by remember(slug) { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(slug, nsfwDisplay.allowsNsfw, reload) {
-        loading = true
+        if (!refreshing) loading = true
         error = null
         runCatching {
             val data = app.websiteApi.tag(slug)
@@ -187,8 +205,11 @@ fun WebsiteTagScreen(
         }.onSuccess { (data, list) ->
             tag = data
             sites = list
-        }.onFailure { error = friendlyError(it) }
+        }.onFailure {
+            if (refreshing) AppMessages.show(friendlyError(it)) else error = friendlyError(it)
+        }
         loading = false
+        refreshing = false
     }
 
     Scaffold(
@@ -217,8 +238,18 @@ fun WebsiteTagScreen(
             )
             else -> {
                 val data = tag!!
-                LazyColumn(
+                KungalPullToRefresh(
+                    isRefreshing = refreshing,
+                    onRefresh = {
+                        if (!refreshing) {
+                            refreshing = true
+                            reload++
+                        }
+                    },
                     modifier = Modifier.fillMaxSize().padding(padding),
+                ) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
@@ -258,6 +289,7 @@ fun WebsiteTagScreen(
                             WebsiteCard(site = site, onClick = { onOpenWebsite(site.host) })
                         }
                     }
+                }
                 }
             }
         }
