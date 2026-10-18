@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -477,14 +478,16 @@ fun LotteryFormDialog(
             }
         } else {
             model.prizes.forEachIndexed { index, prize ->
-                PrizeEditor(
-                    app = app,
-                    index = index,
-                    prize = prize,
-                    floorEntry = model.entryMode == "floor",
-                    canRemove = model.prizes.size > 1,
-                    onRemove = { model.prizes.removeAt(index) },
-                )
+                key(prize) {
+                    PrizeEditor(
+                        app = app,
+                        index = index,
+                        prize = prize,
+                        floorEntry = model.entryMode == "floor",
+                        canRemove = model.prizes.size > 1,
+                        onRemove = { model.prizes.removeAt(index) },
+                    )
+                }
             }
             TextButton(
                 onClick = { if (model.prizes.size < 10) model.prizes.add(PrizeFormState()) },
