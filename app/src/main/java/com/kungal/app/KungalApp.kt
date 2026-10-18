@@ -35,6 +35,7 @@ import com.kungal.core.api.ToolsetApi
 import com.kungal.core.api.TopicApi
 import com.kungal.core.api.UserApi
 import com.kungal.core.api.WallCommentApi
+import com.kungal.core.api.WebsiteApi
 import com.kungal.core.model.Account
 import com.kungal.core.session.Session
 import kotlinx.coroutines.CoroutineScope
@@ -134,6 +135,9 @@ class KungalApp : Application() {
     lateinit var newsSubmissionApi: NewsSubmissionApi
         private set
 
+    lateinit var websiteApi: WebsiteApi
+        private set
+
     lateinit var sessionStore: SessionStore
         private set
 
@@ -231,6 +235,7 @@ class KungalApp : Application() {
         calendarApi = CalendarApi(client)
         newsApi = NewsApi(client)
         newsSubmissionApi = NewsSubmissionApi(client)
+        websiteApi = WebsiteApi(client)
         chatRealtime = ChatRealtimeHub(this)
         sessionStore = SessionStore(this)
         settingsStore = SettingsStore(this)

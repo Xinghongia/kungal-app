@@ -112,6 +112,10 @@ import com.kungal.app.ui.user.FollowListScreen
 import com.kungal.app.ui.user.ProfileSettingsScreen
 import com.kungal.app.ui.user.UserProfileScreen
 import com.kungal.app.ui.util.AndroidActions
+import com.kungal.app.ui.website.WebsiteCategoryScreen
+import com.kungal.app.ui.website.WebsiteDetailScreen
+import com.kungal.app.ui.website.WebsiteListScreen
+import com.kungal.app.ui.website.WebsiteTagScreen
 
 private object Routes {
     // 一级页面（底部导航）
@@ -158,6 +162,10 @@ private object Routes {
     const val NEWS_EDIT = "edit/news"
     const val NEWS_EDIT_ID = "edit/news/{submissionId}"
     const val NEWS_MONTH = "news/archive/{year}/{month}?lane={lane}&source={source}"
+    const val WEBSITE = "website"
+    const val WEBSITE_DETAIL = "website/detail/{host}"
+    const val WEBSITE_CATEGORY = "website/category/{slug}"
+    const val WEBSITE_TAG = "website/tag/{slug}"
     const val GALGAME_RESOURCE_LIST = "galgame/resources"
     const val GALGAME_LIBRARY = "galgame/library"
     const val GALGAME_WORK = "galgame/work/{workId}"
@@ -218,6 +226,9 @@ private object Routes {
     fun galgameQuizEdit(id: String) = "galgame/quiz/edit/$id"
     fun newsDetail(id: String) = "news/detail/$id"
     fun newsEdit(id: String) = "edit/news/$id"
+    fun websiteDetail(host: String) = "website/detail/${Uri.encode(host)}"
+    fun websiteCategory(slug: String) = "website/category/${Uri.encode(slug)}"
+    fun websiteTag(slug: String) = "website/tag/${Uri.encode(slug)}"
     fun newsMonth(year: Int, month: Int, lane: String? = null, source: String? = null): String =
         "news/archive/$year/$month?lane=${Uri.encode(lane.orEmpty())}" +
             "&source=${Uri.encode(source.orEmpty())}"
@@ -312,6 +323,13 @@ fun AppNav(app: KungalApp) {
                     ),
                 )
             }
+            clean == "/website" -> nav.navigate(Routes.WEBSITE)
+            clean.startsWith("/website-category/") && segment.isNotBlank() ->
+                nav.navigate(Routes.websiteCategory(segment))
+            clean.startsWith("/website-tag/") && segment.isNotBlank() ->
+                nav.navigate(Routes.websiteTag(segment))
+            clean.startsWith("/website/") && segment.isNotBlank() ->
+                nav.navigate(Routes.websiteDetail(segment))
             clean == "/galgame/resource" -> nav.navigate(Routes.GALGAME_RESOURCE_LIST)
             clean == "/toolset" -> nav.navigate(Routes.TOOLSET_LIST)
             clean == "/edit/toolset/create" ->
@@ -403,6 +421,7 @@ fun AppNav(app: KungalApp) {
             entry.webPath == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
             entry.webPath == "/galgame-calendar" -> nav.navigate(Routes.galgameCalendar())
             entry.webPath == "/news" -> nav.navigate(Routes.NEWS)
+            entry.webPath == "/website" -> nav.navigate(Routes.WEBSITE)
             entry.webPath == "/edit/news" ->
                 if (app.isLoggedIn) nav.navigate(Routes.NEWS_EDIT) else nav.navigate(Routes.LOGIN)
             entry.webPath == "/galgame-quiz" -> nav.navigate(Routes.GALGAME_QUIZ)
@@ -436,10 +455,13 @@ fun AppNav(app: KungalApp) {
         val toolsetId = clean.removePrefix("/toolset/")
         val quizId = clean.removePrefix("/galgame-quiz/")
         val newsId = clean.removePrefix("/news/")
+        val websiteHost = clean.removePrefix("/website/")
         when {
             clean == "/news" -> nav.navigate(Routes.NEWS)
             clean.startsWith("/news/") && newsId.isNotEmpty() && newsId.all { it.isDigit() } ->
                 nav.navigate(Routes.newsDetail(newsId))
+            clean.startsWith("/website/") && websiteHost.isNotBlank() ->
+                nav.navigate(Routes.websiteDetail(websiteHost))
             clean.startsWith("/galgame-quiz/") && quizId.isNotEmpty() && quizId.all { it.isDigit() } ->
                 nav.navigate(Routes.galgameQuiz(quizId))
             clean.startsWith("/topic/") && topicId.isNotEmpty() && topicId.all { it.isDigit() } ->
@@ -934,6 +956,53 @@ fun AppNav(app: KungalApp) {
                     onOpenItem = { id -> nav.navigate(Routes.newsDetail(id)) },
                     onOpenMonth = { y, m, l, s -> nav.navigate(Routes.newsMonth(y, m, l, s)) },
                     onOpenUrl = { url -> AndroidActions.openInBrowser(context, url) },
+                )
+            }
+            composable(Routes.WEBSITE) {
+                WebsiteListScreen(
+                    app = app,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenWebsite = { host -> nav.navigate(Routes.websiteDetail(host)) },
+                    onOpenCategory = { slug -> nav.navigate(Routes.websiteCategory(slug)) },
+                )
+            }
+            composable(
+                route = Routes.WEBSITE_DETAIL,
+                arguments = listOf(navArgument("host") { type = NavType.StringType }),
+            ) { entry ->
+                WebsiteDetailScreen(
+                    app = app,
+                    host = entry.arguments?.getString("host").orEmpty(),
+                    onBack = { nav.popBackStack() },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
+                    onOpenLogin = { nav.navigate(Routes.LOGIN) },
+                    onOpenCategory = { slug -> nav.navigate(Routes.websiteCategory(slug)) },
+                    onOpenTag = { slug -> nav.navigate(Routes.websiteTag(slug)) },
+                )
+            }
+            composable(
+                route = Routes.WEBSITE_CATEGORY,
+                arguments = listOf(navArgument("slug") { type = NavType.StringType }),
+            ) { entry ->
+                WebsiteCategoryScreen(
+                    app = app,
+                    slug = entry.arguments?.getString("slug").orEmpty(),
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenWebsite = { host -> nav.navigate(Routes.websiteDetail(host)) },
+                )
+            }
+            composable(
+                route = Routes.WEBSITE_TAG,
+                arguments = listOf(navArgument("slug") { type = NavType.StringType }),
+            ) { entry ->
+                WebsiteTagScreen(
+                    app = app,
+                    slug = entry.arguments?.getString("slug").orEmpty(),
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenWebsite = { host -> nav.navigate(Routes.websiteDetail(host)) },
                 )
             }
             composable(Routes.GALGAME_LIBRARY) {
