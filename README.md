@@ -4,6 +4,7 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.3-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![Tests](https://img.shields.io/badge/tests-358%20passing-brightgreen)](#测试)
+[![Release](https://img.shields.io/github/v/release/Xinghongia/kungal-app?label=release)](https://github.com/Xinghongia/kungal-app/releases)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [kungal.com](https://www.kungal.com)（鲲 Galgame 论坛）的**非官方**安卓第三方客户端。
@@ -124,12 +125,17 @@
 需要 **JDK 21** 与 **Android SDK**（`compileSdk 37`）。在项目根目录：
 
 ```bash
-./gradlew :core:test            # core 单元测试
+./gradlew :core:test             # core 单元测试
 ./gradlew :app:testDebugUnitTest # app 单元测试
-./gradlew :app:assembleDebug    # 构建 APK
+./gradlew :app:assembleDebug     # 构建 debug APK
+./gradlew :app:assembleRelease   # 构建 release APK（需本地签名配置）
 ```
 
-产物位于 `app/build/outputs/apk/debug/app-debug.apk`。
+debug 产物位于 `app/build/outputs/apk/debug/app-debug.apk`。
+
+release 构建需要仓库根目录下的 `keystore.properties`（`storeFile` / `storePassword` /
+`keyAlias` / `keyPassword`）与对应密钥库；两者都在 `.gitignore` 中，未配置时 release 输出不签名，
+不影响 debug 构建与单元测试。
 
 ## 测试
 
@@ -140,8 +146,13 @@
 
 ## 下载
 
-暂未发布 Release。首个 Release 将在开源后提供，目前可按下文自行构建。
-安装包约 27 MB，首次安装需允许「安装未知来源应用」。
+当前版本 **0.8.15**（code 44），安装包约 18 MB，要求 Android 8.0 及以上。
+
+从 [Releases](https://github.com/Xinghongia/kungal-app/releases) 页面下载
+`kungal-app-0.8.15.apk` 安装即可；首次安装需允许「安装未知来源应用」。
+
+- 不同版本将使用同一签名，可直接覆盖升级；
+- 从早期自编译的 debug 包切换时，因签名不同需先卸载旧版（会清除本机登录状态与设置）。
 
 ## 已知限制
 
