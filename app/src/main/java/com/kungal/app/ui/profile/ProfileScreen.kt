@@ -659,13 +659,13 @@ private fun AboutGroup(
             onClick = onOpenAboutMe,
         )
         item(
-            headline = "免责说明",
+            headline = "免责声明",
             supporting = "非官方客户端与内容责任",
             icon = Icons.Outlined.Article,
             onClick = onOpenDisclaimer,
         )
         item(
-            headline = "隐私协议",
+            headline = "隐私政策",
             supporting = "本地数据与网络请求说明",
             icon = Icons.Outlined.Lock,
             onClick = onOpenPrivacy,

@@ -12,8 +12,8 @@ android {
         applicationId = "com.kungal.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 43
-        versionName = "0.8.14"
+        versionCode = 44
+        versionName = "0.8.15"
     }
 
     buildFeatures {
