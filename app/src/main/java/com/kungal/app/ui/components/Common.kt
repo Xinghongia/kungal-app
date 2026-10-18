@@ -48,6 +48,8 @@ import com.kungal.app.R
 
 /**
  * 通用图片：加载失败/为空时兜底显示占位底图（弱网加载失败很常见，界面不能什么都不画）。
+ * [fallback] 用于业务自定义的空图（如 Galgame 无封面时显示站点的「暂无封面」插图），
+ * 优先于默认的破图标占位。
  */
 @Composable
 fun KungalImage(
@@ -57,6 +59,7 @@ fun KungalImage(
     fallbackIcon: Boolean = false,
     shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(0.dp),
     contentScale: ContentScale = ContentScale.Crop,
+    fallback: (@Composable () -> Unit)? = null,
 ) {
     val placeholder: @Composable () -> Unit = {
         Box(
@@ -72,7 +75,7 @@ fun KungalImage(
         }
     }
     if (url.isNullOrBlank()) {
-        Box(modifier = modifier.clip(shape)) { placeholder() }
+        Box(modifier = modifier.clip(shape)) { fallback?.invoke() ?: placeholder() }
         return
     }
     SubcomposeAsyncImage(
@@ -81,7 +84,7 @@ fun KungalImage(
         modifier = modifier.clip(shape),
         contentScale = contentScale,
         loading = { placeholder() },
-        error = { placeholder() },
+        error = { fallback?.invoke() ?: placeholder() },
     )
 }
 

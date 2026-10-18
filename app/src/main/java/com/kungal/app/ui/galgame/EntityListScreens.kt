@@ -305,6 +305,7 @@ private fun SeriesListRow(series: SeriesSummary, onClick: () -> Unit) {
                             .width(52.dp)
                             .aspectRatio(5f / 7f)
                             .clip(RoundedCornerShape(4.dp)),
+                        fallback = { NoCoverArtwork() },
                     )
                 }
             }

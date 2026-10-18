@@ -247,19 +247,12 @@ fun RatingRow(
 
 @Composable
 private fun RatingWorkCover(work: WorkRef?, blurCover: Boolean) {
-    val url = work?.cover?.url
-    if (work?.isNsfw == true && blurCover) {
-        NsfwCoverImage(
-            url = url,
-            modifier = Modifier.width(48.dp).aspectRatio(5f / 7f).clip(RoundedCornerShape(6.dp)),
-        )
-    } else {
-        KungalImage(
-            url = url,
-            contentDescription = null,
-            modifier = Modifier.width(48.dp).aspectRatio(5f / 7f).clip(RoundedCornerShape(6.dp)),
-        )
-    }
+    WorkCoverImage(
+        url = work?.cover?.url,
+        isNsfw = work?.isNsfw == true,
+        blurNsfw = blurCover,
+        modifier = Modifier.width(48.dp).aspectRatio(5f / 7f).clip(RoundedCornerShape(6.dp)),
+    )
 }
 
 fun workTitleOf(work: WorkRef): String =

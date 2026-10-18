@@ -1,7 +1,7 @@
 ---
 handoff_schema: tavernweave/next/v1
 project_id: kungal-android-client
-status: bp05-u2-calendar
+status: cover-placeholder-0.7.7
 updated: 2026-10-18
 ---
 
@@ -32,6 +32,15 @@ updated: 2026-10-18
 
 ## 最近证据
 
+- 2026-10-18 **无封面 Galgame 显示站点占位图（版本 0.7.7）**（驾驶员对比网页发现不一致）：
+  - 新增 `KungalImage` 的 `fallback` 参数与共享 `WorkCoverImage`/`NoCoverArtwork`
+  - 站点 `/galgame-no-cover.webp` 收入 `drawable-nodpi`；无封面或加载失败时显示，
+    NSFW 模糊逻辑不变
+  - 接入资料库卡片、实体作品行、排行、资源列表/详情、词条头部、评分卡片/详情、
+    用户主页作品/评分/资源/游玩时长、系列样例、关联作品、投稿候选
+  - 证据：core 177 + app 89 = **266 项单测全绿**；`assembleDebug` 通过；已装机
+    （0.7.7/code 28）；启动冒烟无崩溃；详见 `docs/devlog/2026-10-18-无封面占位图.md`
+  - 未验证：各页面占位图实际观感需驾驶员确认
 - 2026-10-18 **BP-05 U2 发售月历（版本 0.7.6）**：
   - core：新增 `ReleaseCalendarMonth/Upcoming/Pending/Tba/Today` 模型与 `CalendarApi`
     （五端点）；真实响应样本入夹具，5 项新单测

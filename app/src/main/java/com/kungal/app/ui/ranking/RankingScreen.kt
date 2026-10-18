@@ -49,6 +49,7 @@ import com.kungal.app.ui.components.KungalPullToRefresh
 import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.components.NsfwCoverImage
+import com.kungal.app.ui.galgame.WorkCoverImage
 import com.kungal.app.ui.topic.friendlyError
 import com.kungal.core.model.TopicRankingEntry
 import com.kungal.core.model.UserRankingEntry
@@ -440,15 +441,13 @@ private fun WorkRankingRow(
     ) {
         RankBadge(entry.rank)
         Spacer(Modifier.width(10.dp))
-        if (work.isNsfw && blurNsfw) {
-            NsfwCoverImage(url = work.cover?.url, modifier = Modifier.width(40.dp).height(56.dp))
-        } else {
-            KungalImage(
-                url = work.cover?.url,
-                contentDescription = work.displayName,
-                modifier = Modifier.width(40.dp).height(56.dp).clip(RoundedCornerShape(6.dp)),
-            )
-        }
+        WorkCoverImage(
+            url = work.cover?.url,
+            isNsfw = work.isNsfw,
+            blurNsfw = blurNsfw,
+            contentDescription = work.displayName,
+            modifier = Modifier.width(40.dp).height(56.dp).clip(RoundedCornerShape(6.dp)),
+        )
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(

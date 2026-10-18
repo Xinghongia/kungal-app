@@ -137,24 +137,16 @@ fun RatingDetailScreen(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
-                                        if (work.isNsfw && nsfwDisplay.blursMedia) {
-                                            NsfwCoverImage(
-                                                url = work.cover?.url,
-                                                modifier = Modifier
-                                                    .width(52.dp)
-                                                    .aspectRatio(5f / 7f)
-                                                    .clip(RoundedCornerShape(5.dp)),
-                                            )
-                                        } else {
-                                            KungalImage(
-                                                url = work.cover?.url,
-                                                contentDescription = workTitle(work),
-                                                modifier = Modifier
-                                                    .width(52.dp)
-                                                    .aspectRatio(5f / 7f)
-                                                    .clip(RoundedCornerShape(5.dp)),
-                                            )
-                                        }
+                                        WorkCoverImage(
+                                            url = work.cover?.url,
+                                            isNsfw = work.isNsfw,
+                                            blurNsfw = nsfwDisplay.blursMedia,
+                                            contentDescription = workTitle(work),
+                                            modifier = Modifier
+                                                .width(52.dp)
+                                                .aspectRatio(5f / 7f)
+                                                .clip(RoundedCornerShape(5.dp)),
+                                        )
                                         Column {
                                             Text(
                                                 workTitle(work),

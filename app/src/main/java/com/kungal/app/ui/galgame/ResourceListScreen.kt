@@ -241,15 +241,13 @@ private fun ResourceCard(
                     .aspectRatio(5f / 7f)
                     .clip(RoundedCornerShape(8.dp)),
             ) {
-                if (work?.isNsfw == true && blurNsfw) {
-                    NsfwCoverImage(url = work.cover?.url, modifier = Modifier.fillMaxSize())
-                } else {
-                    KungalImage(
-                        url = work?.cover?.url,
-                        contentDescription = title,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+                WorkCoverImage(
+                    url = work?.cover?.url,
+                    isNsfw = work?.isNsfw == true,
+                    blurNsfw = blurNsfw,
+                    contentDescription = title,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

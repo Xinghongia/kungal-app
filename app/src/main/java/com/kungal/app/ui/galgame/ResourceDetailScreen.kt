@@ -295,15 +295,13 @@ private fun ResourceHero(
                     .aspectRatio(5f / 7f)
                     .clip(RoundedCornerShape(10.dp)),
             ) {
-                if (work?.isNsfw == true && blurMedia) {
-                    NsfwCoverImage(url = work.cover?.url, modifier = Modifier.fillMaxSize())
-                } else {
-                    KungalImage(
-                        url = work?.cover?.url,
-                        contentDescription = work?.displayName,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+                WorkCoverImage(
+                    url = work?.cover?.url,
+                    isNsfw = work?.isNsfw == true,
+                    blurNsfw = blurMedia,
+                    contentDescription = work?.displayName,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

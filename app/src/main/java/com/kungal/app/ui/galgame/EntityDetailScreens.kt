@@ -567,6 +567,7 @@ fun SeriesDetailScreen(
                                             .aspectRatio(5f / 7f)
                                             .clip(RoundedCornerShape(4.dp))
                                             .clickable { onOpenWork(sample.id) },
+                                        fallback = { NoCoverArtwork() },
                                     )
                                 }
                             }

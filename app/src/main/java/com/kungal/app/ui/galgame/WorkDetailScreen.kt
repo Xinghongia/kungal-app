@@ -339,15 +339,13 @@ private fun WorkHeader(
                     .aspectRatio(5f / 7f)
                     .clip(RoundedCornerShape(10.dp)),
             ) {
-                if (work.isNsfw && blurMedia) {
-                    NsfwCoverImage(url = coverUrl, modifier = Modifier.fillMaxSize())
-                } else {
-                    KungalImage(
-                        url = coverUrl,
-                        contentDescription = workTitle(work),
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+                WorkCoverImage(
+                    url = coverUrl,
+                    isNsfw = work.isNsfw,
+                    blurNsfw = blurMedia,
+                    contentDescription = workTitle(work),
+                    modifier = Modifier.fillMaxSize(),
+                )
                 TextButton(
                     onClick = { coverUrl?.let(onOpenCover) ?: onOpenCovers() },
                     modifier = Modifier.align(Alignment.BottomStart),

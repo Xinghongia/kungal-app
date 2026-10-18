@@ -47,6 +47,7 @@ import com.kungal.app.ui.components.PageResult
 import com.kungal.app.ui.components.PagedListContent
 import com.kungal.app.ui.content.documentPlainText
 import com.kungal.app.ui.galgame.ResourceEditorSheet
+import com.kungal.app.ui.galgame.WorkCoverImage
 import com.kungal.app.ui.topic.friendlyError
 import com.kungal.app.ui.util.relativeTime
 import com.kungal.core.model.CollectionSummary
@@ -1095,8 +1096,10 @@ fun PlaytimeTab(
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    KungalImage(
+                    WorkCoverImage(
                         url = item.workSummary.cover?.url,
+                        isNsfw = item.workSummary.isNsfw,
+                        blurNsfw = false,
                         contentDescription = null,
                         modifier = Modifier.size(44.dp, 60.dp).clip(RoundedCornerShape(6.dp)),
                     )
@@ -1170,20 +1173,5 @@ fun formatMinutes(minutes: Int): String {
         hours == 0 -> "$rest 分钟"
         rest == 0 -> "$hours 小时"
         else -> "$hours 小时 $rest 分钟"
-    }
-}
-
-/** 作品封面；NSFW 且设置为「模糊」时打码，点击可揭示。 */
-@Composable
-private fun WorkCoverImage(
-    url: String?,
-    isNsfw: Boolean,
-    blurNsfw: Boolean,
-    modifier: Modifier,
-) {
-    if (isNsfw && blurNsfw) {
-        Box(modifier) { NsfwCoverImage(url = url, modifier = Modifier.fillMaxSize()) }
-    } else {
-        KungalImage(url = url, contentDescription = null, modifier = modifier)
     }
 }

@@ -445,24 +445,16 @@ private fun CandidateRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             val image = hit.workSummary.banner?.url ?: hit.workSummary.cover?.url
-            if (hit.workSummary.isNsfw && blurCover) {
-                com.kungal.app.ui.components.NsfwCoverImage(
-                    url = image,
-                    modifier = Modifier
-                        .width(112.dp)
-                        .aspectRatio(16f / 9f)
-                        .clip(RoundedCornerShape(10.dp)),
-                )
-            } else {
-                KungalImage(
-                    url = image,
-                    contentDescription = candidateTitle(hit),
-                    modifier = Modifier
-                        .width(112.dp)
-                        .aspectRatio(16f / 9f)
-                        .clip(RoundedCornerShape(10.dp)),
-                )
-            }
+            WorkCoverImage(
+                url = image,
+                isNsfw = hit.workSummary.isNsfw,
+                blurNsfw = blurCover,
+                contentDescription = candidateTitle(hit),
+                modifier = Modifier
+                    .width(112.dp)
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(10.dp)),
+            )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
                     candidateTitle(hit),

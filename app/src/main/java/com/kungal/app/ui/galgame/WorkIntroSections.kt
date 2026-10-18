@@ -650,6 +650,7 @@ private fun SeriesSection(work: Work, onOpenWeb: (String) -> Unit) {
                                     .width(48.dp)
                                     .aspectRatio(5f / 7f)
                                     .clip(RoundedCornerShape(4.dp)),
+                                fallback = { NoCoverArtwork() },
                             )
                         }
                     }
@@ -687,6 +688,7 @@ private fun RelatedSection(
                                 .width(44.dp)
                                 .aspectRatio(5f / 7f)
                                 .clip(RoundedCornerShape(4.dp)),
+                            fallback = { NoCoverArtwork() },
                         )
                         Column {
                             Text(

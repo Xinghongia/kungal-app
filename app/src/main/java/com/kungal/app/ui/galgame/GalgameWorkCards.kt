@@ -1,5 +1,6 @@
 package com.kungal.app.ui.galgame
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,13 +26,58 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.kungal.app.R
 import com.kungal.app.ui.components.Chip
 import com.kungal.app.ui.components.KungalImage
 import com.kungal.app.ui.components.NsfwCoverImage
 import com.kungal.core.model.WorkSummary
+
+/**
+ * 作品封面：无封面或图片加载失败时显示官网同款「暂无封面」插图
+ * （站点 /galgame-no-cover.webp）；NSFW 且设置为「模糊」时打码。
+ */
+@Composable
+fun WorkCoverImage(
+    url: String?,
+    isNsfw: Boolean,
+    blurNsfw: Boolean,
+    modifier: Modifier = Modifier,
+    contentDescription: String? = null,
+) {
+    if (isNsfw && blurNsfw && !url.isNullOrBlank()) {
+        NsfwCoverImage(url = url, modifier = modifier)
+    } else {
+        KungalImage(
+            url = url,
+            contentDescription = contentDescription,
+            modifier = modifier,
+            fallback = { NoCoverArtwork() },
+        )
+    }
+}
+
+/** 站点「封面不足」占位图（官方 web 公共资源），按 contain 铺满、底色与网页一致。 */
+@Composable
+fun NoCoverArtwork(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.galgame_no_cover),
+            contentDescription = "暂无封面",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit,
+        )
+    }
+}
 
 /** 资料库网格卡片（两列）：封面 + 标题 + 会社 + 发售 + 评分 + 平台。 */
 @Composable
@@ -46,18 +93,13 @@ fun GalgameWorkCard(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Box {
-            if (work.isNsfw && blurCover) {
-                NsfwCoverImage(
-                    url = work.cover?.url,
-                    modifier = Modifier.fillMaxWidth().aspectRatio(5f / 7f),
-                )
-            } else {
-                KungalImage(
-                    url = work.cover?.url,
-                    contentDescription = workTitle(work),
-                    modifier = Modifier.fillMaxWidth().aspectRatio(5f / 7f),
-                )
-            }
+            WorkCoverImage(
+                url = work.cover?.url,
+                isNsfw = work.isNsfw,
+                blurNsfw = blurCover,
+                contentDescription = workTitle(work),
+                modifier = Modifier.fillMaxWidth().aspectRatio(5f / 7f),
+            )
             if (work.isNsfw) {
                 Text(
                     text = "NSFW",
@@ -138,24 +180,16 @@ fun EntityWorkRow(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (work.isNsfw && blurCover) {
-            NsfwCoverImage(
-                url = work.cover?.url,
-                modifier = Modifier
-                    .width(58.dp)
-                    .aspectRatio(5f / 7f)
-                    .clip(RoundedCornerShape(6.dp)),
-            )
-        } else {
-            KungalImage(
-                url = work.cover?.url,
-                contentDescription = workTitle(work),
-                modifier = Modifier
-                    .width(58.dp)
-                    .aspectRatio(5f / 7f)
-                    .clip(RoundedCornerShape(6.dp)),
-            )
-        }
+        WorkCoverImage(
+            url = work.cover?.url,
+            isNsfw = work.isNsfw,
+            blurNsfw = blurCover,
+            contentDescription = workTitle(work),
+            modifier = Modifier
+                .width(58.dp)
+                .aspectRatio(5f / 7f)
+                .clip(RoundedCornerShape(6.dp)),
+        )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 text = workTitle(work),
