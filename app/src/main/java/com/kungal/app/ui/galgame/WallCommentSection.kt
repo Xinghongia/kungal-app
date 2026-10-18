@@ -576,35 +576,38 @@ private fun CommentRow(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(26.dp)) {
-                Icon(Icons.Outlined.MoreVert, contentDescription = "更多操作", modifier = Modifier.size(16.dp))
-            }
-            DropdownMenu(
-                expanded = menuOpen,
-                onDismissRequest = { menuOpen = false },
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            ) {
-                DropdownMenuItem(
-                    text = { Text("回复") },
-                    onClick = { menuOpen = false; onReply(comment) },
-                )
-                if (comment.viewer?.canEdit == true) {
-                    DropdownMenuItem(
-                        text = { Text("编辑") },
-                        onClick = { menuOpen = false; onEdit(comment) },
-                    )
+            // 弹层锚定在按钮所在的 Box 上（直接放在 Row 里会从行首弹出）
+            Box {
+                IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(26.dp)) {
+                    Icon(Icons.Outlined.MoreVert, contentDescription = "更多操作", modifier = Modifier.size(16.dp))
                 }
-                if (comment.viewer?.canDelete == true) {
+                DropdownMenu(
+                    expanded = menuOpen,
+                    onDismissRequest = { menuOpen = false },
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ) {
                     DropdownMenuItem(
-                        text = { Text("删除") },
-                        onClick = { menuOpen = false; onDelete(comment) },
+                        text = { Text("回复") },
+                        onClick = { menuOpen = false; onReply(comment) },
                     )
-                }
-                if (comment.viewer?.canFlag == true) {
-                    DropdownMenuItem(
-                        text = { Text("举报") },
-                        onClick = { menuOpen = false; onFlag(comment) },
-                    )
+                    if (comment.viewer?.canEdit == true) {
+                        DropdownMenuItem(
+                            text = { Text("编辑") },
+                            onClick = { menuOpen = false; onEdit(comment) },
+                        )
+                    }
+                    if (comment.viewer?.canDelete == true) {
+                        DropdownMenuItem(
+                            text = { Text("删除") },
+                            onClick = { menuOpen = false; onDelete(comment) },
+                        )
+                    }
+                    if (comment.viewer?.canFlag == true) {
+                        DropdownMenuItem(
+                            text = { Text("举报") },
+                            onClick = { menuOpen = false; onFlag(comment) },
+                        )
+                    }
                 }
             }
         }
