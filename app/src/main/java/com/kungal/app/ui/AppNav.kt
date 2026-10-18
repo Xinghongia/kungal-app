@@ -89,6 +89,9 @@ import com.kungal.app.ui.messages.MessagesScreen
 import com.kungal.app.ui.messages.NotificationListScreen
 import com.kungal.app.ui.messages.NotificationPreferencesScreen
 import com.kungal.app.ui.messages.WallsScreen
+import com.kungal.app.ui.news.NewsDetailScreen
+import com.kungal.app.ui.news.NewsListScreen
+import com.kungal.app.ui.news.NewsMonthScreen
 import com.kungal.app.ui.points.PointsScreen
 import com.kungal.app.ui.profile.ProfileScreen
 import com.kungal.app.ui.quiz.QuizDetailScreen
@@ -147,6 +150,9 @@ private object Routes {
     const val GALGAME_QUIZ_CREATE = "galgame/quiz/create?workId={workId}"
     const val GALGAME_QUIZ_EDIT = "galgame/quiz/edit/{quizId}"
     const val GALGAME_CALENDAR = "galgame/calendar?view={view}&month={month}&year={year}&doujin={doujin}"
+    const val NEWS = "news"
+    const val NEWS_DETAIL = "news/detail/{newsItemId}"
+    const val NEWS_MONTH = "news/archive/{year}/{month}?lane={lane}&source={source}"
     const val GALGAME_RESOURCE_LIST = "galgame/resources"
     const val GALGAME_LIBRARY = "galgame/library"
     const val GALGAME_WORK = "galgame/work/{workId}"
@@ -205,6 +211,10 @@ private object Routes {
     fun galgameQuizCreate(workId: String? = null) =
         "galgame/quiz/create?workId=${Uri.encode(workId.orEmpty())}"
     fun galgameQuizEdit(id: String) = "galgame/quiz/edit/$id"
+    fun newsDetail(id: String) = "news/detail/$id"
+    fun newsMonth(year: Int, month: Int, lane: String? = null, source: String? = null): String =
+        "news/archive/$year/$month?lane=${Uri.encode(lane.orEmpty())}" +
+            "&source=${Uri.encode(source.orEmpty())}"
     fun galgameResource(id: String) = "galgame/resource/$id"
     fun toolset(id: String) = "toolset/detail/$id"
     fun toolsetEdit(id: String) = "toolset/edit/$id"
@@ -262,6 +272,19 @@ fun AppNav(app: KungalApp) {
         val looksId = segment.isNotEmpty() && segment.all(Char::isDigit)
         when {
             clean == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
+            clean == "/news" -> nav.navigate(Routes.NEWS)
+            clean.startsWith("/news/") -> {
+                val monthLink = parseNewsMonthPath(path)
+                val newsId = clean.removePrefix("/news/")
+                when {
+                    monthLink != null -> nav.navigate(
+                        Routes.newsMonth(monthLink.year, monthLink.month, monthLink.lane, monthLink.source),
+                    )
+                    newsId.isNotEmpty() && newsId.all(Char::isDigit) ->
+                        nav.navigate(Routes.newsDetail(newsId))
+                    else -> AndroidActions.openInBrowser(context, "https://www.kungal.com$path")
+                }
+            }
             clean == "/galgame-quiz" -> nav.navigate(Routes.GALGAME_QUIZ)
             clean.startsWith("/galgame-quiz/") && looksId -> nav.navigate(Routes.galgameQuiz(segment))
             clean == "/edit/galgame/quiz" ->
@@ -367,6 +390,7 @@ fun AppNav(app: KungalApp) {
             rankingTab != null -> nav.navigate(Routes.ranking(rankingTab))
             entry.webPath == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
             entry.webPath == "/galgame-calendar" -> nav.navigate(Routes.galgameCalendar())
+            entry.webPath == "/news" -> nav.navigate(Routes.NEWS)
             entry.webPath == "/galgame-quiz" -> nav.navigate(Routes.GALGAME_QUIZ)
             entry.webPath == "/edit/galgame/quiz" ->
                 if (app.isLoggedIn) nav.navigate(Routes.galgameQuizCreate()) else nav.navigate(Routes.LOGIN)
@@ -397,7 +421,11 @@ fun AppNav(app: KungalApp) {
         val resourceId = clean.removePrefix("/galgame/resource/")
         val toolsetId = clean.removePrefix("/toolset/")
         val quizId = clean.removePrefix("/galgame-quiz/")
+        val newsId = clean.removePrefix("/news/")
         when {
+            clean == "/news" -> nav.navigate(Routes.NEWS)
+            clean.startsWith("/news/") && newsId.isNotEmpty() && newsId.all { it.isDigit() } ->
+                nav.navigate(Routes.newsDetail(newsId))
             clean.startsWith("/galgame-quiz/") && quizId.isNotEmpty() && quizId.all { it.isDigit() } ->
                 nav.navigate(Routes.galgameQuiz(quizId))
             clean.startsWith("/topic/") && topicId.isNotEmpty() && topicId.all { it.isDigit() } ->
@@ -804,6 +832,50 @@ fun AppNav(app: KungalApp) {
                     initialDoujin = entry.arguments?.getBoolean("doujin") ?: false,
                     onBack = { nav.popBackStack() },
                     onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                )
+            }
+            composable(Routes.NEWS) {
+                NewsListScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenItem = { id -> nav.navigate(Routes.newsDetail(id)) },
+                    onOpenMonth = { year, month, lane, source ->
+                        nav.navigate(Routes.newsMonth(year, month, lane, source))
+                    },
+                    onOpenUrl = { url -> AndroidActions.openInBrowser(context, url) },
+                )
+            }
+            composable(
+                route = Routes.NEWS_DETAIL,
+                arguments = listOf(navArgument("newsItemId") { type = NavType.StringType }),
+            ) { entry ->
+                NewsDetailScreen(
+                    app = app,
+                    newsItemId = entry.arguments?.getString("newsItemId").orEmpty(),
+                    onBack = { nav.popBackStack() },
+                    onOpenUrl = { url -> AndroidActions.openInBrowser(context, url) },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
+                )
+            }
+            composable(
+                route = Routes.NEWS_MONTH,
+                arguments = listOf(
+                    navArgument("year") { type = NavType.IntType },
+                    navArgument("month") { type = NavType.IntType },
+                    navArgument("lane") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("source") { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) { entry ->
+                NewsMonthScreen(
+                    app = app,
+                    year = entry.arguments?.getInt("year") ?: 0,
+                    month = entry.arguments?.getInt("month") ?: 0,
+                    lane = entry.arguments?.getString("lane")?.takeIf { it.isNotBlank() },
+                    source = entry.arguments?.getString("source")?.takeIf { it.isNotBlank() },
+                    onBack = { nav.popBackStack() },
+                    onOpenItem = { id -> nav.navigate(Routes.newsDetail(id)) },
+                    onOpenMonth = { y, m, l, s -> nav.navigate(Routes.newsMonth(y, m, l, s)) },
+                    onOpenUrl = { url -> AndroidActions.openInBrowser(context, url) },
                 )
             }
             composable(Routes.GALGAME_LIBRARY) {
@@ -1339,6 +1411,38 @@ internal fun parseCalendarPath(path: String): CalendarLink {
         month = params["month"]?.takeIf { it.matches(Regex("""\d{4}-\d{2}""")) },
         year = params["year"]?.toIntOrNull()?.takeIf { it > 0 },
         doujin = params["doujin"] == "1" || params["doujin"] == "true",
+    )
+}
+
+/**
+ * 情报月归档链接：`/news/{year}/{month}`，可带 `?lane=news|column&source=ymgal`。
+ * 其他 /news 路径（详情、投稿）返回 null。
+ */
+internal data class NewsMonthLink(
+    val year: Int,
+    val month: Int,
+    val lane: String? = null,
+    val source: String? = null,
+)
+
+internal fun parseNewsMonthPath(path: String): NewsMonthLink? {
+    val clean = path.substringBefore('?').substringBefore('#').trimEnd('/')
+    val parts = clean.removePrefix("/news/").split('/').filter { it.isNotBlank() }
+    if (parts.size != 2) return null
+    val year = parts[0].toIntOrNull()?.takeIf { it in 1970..9999 } ?: return null
+    val month = parts[1].toIntOrNull()?.takeIf { it in 1..12 } ?: return null
+    val params = path.substringAfter('?', "").substringBefore('#')
+        .split('&')
+        .mapNotNull { part ->
+            val index = part.indexOf('=')
+            if (index <= 0) null else part.substring(0, index) to part.substring(index + 1)
+        }
+        .toMap()
+    return NewsMonthLink(
+        year = year,
+        month = month,
+        lane = params["lane"]?.takeIf { it == "news" || it == "column" },
+        source = params["source"]?.takeIf { it.isNotBlank() },
     )
 }
 

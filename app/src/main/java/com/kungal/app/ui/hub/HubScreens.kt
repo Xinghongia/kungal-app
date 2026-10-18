@@ -145,6 +145,7 @@ val DiscoverSections: List<HubSection> = listOf(
     HubSection(
         title = "网站动态",
         entries = listOf(
+            HubEntry("Galgame 情报", "业界新闻、新作情报与专栏", Icons.Outlined.Newspaper, "/news", "BP-05"),
             HubEntry("动态时间线", "全站最新动态", Icons.Outlined.Timeline, "/activity", "BP-05"),
             HubEntry("分类动态", "按分类查看动态", Icons.Outlined.Layers, "/activity/category", "BP-05"),
         ),

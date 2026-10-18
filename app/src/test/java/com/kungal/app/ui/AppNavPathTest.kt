@@ -58,4 +58,28 @@ class AppNavPathTest {
             parseCalendarPath("/galgame-calendar?view=xxx&month=2026-1&year=abc&doujin=0"),
         )
     }
+
+    @Test
+    fun `情报月归档链接解析年月与随行筛选`() {
+        assertEquals(
+            NewsMonthLink(year = 2026, month = 10),
+            parseNewsMonthPath("/news/2026/10"),
+        )
+        assertEquals(
+            NewsMonthLink(year = 2026, month = 10, lane = "column", source = "ymgal"),
+            parseNewsMonthPath("/news/2026/10?lane=column&source=ymgal"),
+        )
+        assertEquals(
+            NewsMonthLink(year = 2025, month = 1),
+            parseNewsMonthPath("/news/2025/1?lane=bad"),
+        )
+    }
+
+    @Test
+    fun `情报详情与非法月归档不当作月归档`() {
+        assertNull(parseNewsMonthPath("/news/4760"))
+        assertNull(parseNewsMonthPath("/news/2026/13"))
+        assertNull(parseNewsMonthPath("/news/2026"))
+        assertNull(parseNewsMonthPath("/news/mine"))
+    }
 }
