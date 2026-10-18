@@ -43,6 +43,10 @@ import com.kungal.app.ui.hub.GalgameSections
 import com.kungal.app.ui.hub.HubEntry
 import com.kungal.app.ui.hub.HubScreen
 import com.kungal.app.ui.hub.PublishHubScreen
+import com.kungal.app.ui.activity.ActivityCategoryScreen
+import com.kungal.app.ui.activity.ActivityTimelineScreen
+import com.kungal.app.ui.activity.UpdateHistoryScreen
+import com.kungal.app.ui.activity.UpdateTodoScreen
 import com.kungal.app.ui.activity.FollowingScreen
 import com.kungal.app.ui.chat.ChatConversationScreen
 import com.kungal.app.ui.chat.ChatListScreen
@@ -166,6 +170,10 @@ private object Routes {
     const val WEBSITE_DETAIL = "website/detail/{host}"
     const val WEBSITE_CATEGORY = "website/category/{slug}"
     const val WEBSITE_TAG = "website/tag/{slug}"
+    const val ACTIVITY = "activity"
+    const val ACTIVITY_CATEGORY = "activity/category"
+    const val UPDATE_HISTORY = "update/history"
+    const val UPDATE_TODO = "update/todo"
     const val GALGAME_RESOURCE_LIST = "galgame/resources"
     const val GALGAME_LIBRARY = "galgame/library"
     const val GALGAME_WORK = "galgame/work/{workId}"
@@ -324,6 +332,10 @@ fun AppNav(app: KungalApp) {
                 )
             }
             clean == "/website" -> nav.navigate(Routes.WEBSITE)
+            clean == "/activity" -> nav.navigate(Routes.ACTIVITY)
+            clean == "/activity/category" -> nav.navigate(Routes.ACTIVITY_CATEGORY)
+            clean == "/update/history" -> nav.navigate(Routes.UPDATE_HISTORY)
+            clean == "/update/todo" -> nav.navigate(Routes.UPDATE_TODO)
             clean.startsWith("/website-category/") && segment.isNotBlank() ->
                 nav.navigate(Routes.websiteCategory(segment))
             clean.startsWith("/website-tag/") && segment.isNotBlank() ->
@@ -422,6 +434,10 @@ fun AppNav(app: KungalApp) {
             entry.webPath == "/galgame-calendar" -> nav.navigate(Routes.galgameCalendar())
             entry.webPath == "/news" -> nav.navigate(Routes.NEWS)
             entry.webPath == "/website" -> nav.navigate(Routes.WEBSITE)
+            entry.webPath == "/activity" -> nav.navigate(Routes.ACTIVITY)
+            entry.webPath == "/activity/category" -> nav.navigate(Routes.ACTIVITY_CATEGORY)
+            entry.webPath == "/update/history" -> nav.navigate(Routes.UPDATE_HISTORY)
+            entry.webPath == "/update/todo" -> nav.navigate(Routes.UPDATE_TODO)
             entry.webPath == "/edit/news" ->
                 if (app.isLoggedIn) nav.navigate(Routes.NEWS_EDIT) else nav.navigate(Routes.LOGIN)
             entry.webPath == "/galgame-quiz" -> nav.navigate(Routes.GALGAME_QUIZ)
@@ -1003,6 +1019,37 @@ fun AppNav(app: KungalApp) {
                     nsfwDisplay = nsfwDisplay,
                     onBack = { nav.popBackStack() },
                     onOpenWebsite = { host -> nav.navigate(Routes.websiteDetail(host)) },
+                )
+            }
+            composable(Routes.ACTIVITY) {
+                ActivityTimelineScreen(
+                    app = app,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenPath = { path -> openInternalPath(path) },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
+                )
+            }
+            composable(Routes.ACTIVITY_CATEGORY) {
+                ActivityCategoryScreen(
+                    app = app,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenPath = { path -> openInternalPath(path) },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
+                )
+            }
+            composable(Routes.UPDATE_HISTORY) {
+                UpdateHistoryScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                )
+            }
+            composable(Routes.UPDATE_TODO) {
+                UpdateTodoScreen(
+                    app = app,
+                    onBack = { nav.popBackStack() },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
                 )
             }
             composable(Routes.GALGAME_LIBRARY) {

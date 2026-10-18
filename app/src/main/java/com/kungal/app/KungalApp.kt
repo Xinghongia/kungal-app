@@ -14,7 +14,9 @@ import com.kungal.core.api.ActivityApi
 import com.kungal.core.api.CalendarApi
 import com.kungal.core.api.ChatApi
 import com.kungal.core.api.CollectionApi
+import com.kungal.core.api.DocApi
 import com.kungal.core.api.EditApi
+import com.kungal.core.api.FriendLinkApi
 import com.kungal.core.api.GalgameApi
 import com.kungal.core.api.GalgameEntityApi
 import com.kungal.core.api.ImageApi
@@ -31,8 +33,10 @@ import com.kungal.core.api.SectionApi
 import com.kungal.core.api.ShopApi
 import com.kungal.core.api.SocialApi
 import com.kungal.core.api.SubmissionApi
+import com.kungal.core.api.TodoApi
 import com.kungal.core.api.ToolsetApi
 import com.kungal.core.api.TopicApi
+import com.kungal.core.api.UpdateLogApi
 import com.kungal.core.api.UserApi
 import com.kungal.core.api.WallCommentApi
 import com.kungal.core.api.WebsiteApi
@@ -124,6 +128,18 @@ class KungalApp : Application() {
         private set
 
     lateinit var activityApi: ActivityApi
+        private set
+
+    lateinit var updateLogApi: UpdateLogApi
+        private set
+
+    lateinit var todoApi: TodoApi
+        private set
+
+    lateinit var docApi: DocApi
+        private set
+
+    lateinit var friendLinkApi: FriendLinkApi
         private set
 
     lateinit var calendarApi: CalendarApi
@@ -232,6 +248,10 @@ class KungalApp : Application() {
         toolsetApi = ToolsetApi(client)
         searchApi = SearchApi(client)
         activityApi = ActivityApi(client)
+        updateLogApi = UpdateLogApi(client)
+        todoApi = TodoApi(client)
+        docApi = DocApi(client)
+        friendLinkApi = FriendLinkApi(client)
         calendarApi = CalendarApi(client)
         newsApi = NewsApi(client)
         newsSubmissionApi = NewsSubmissionApi(client)
