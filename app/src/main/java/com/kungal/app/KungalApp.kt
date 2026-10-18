@@ -20,6 +20,7 @@ import com.kungal.core.api.GalgameEntityApi
 import com.kungal.core.api.ImageApi
 import com.kungal.core.api.MeApi
 import com.kungal.core.api.NotificationApi
+import com.kungal.core.api.QuizApi
 import com.kungal.core.api.RatingApi
 import com.kungal.core.api.RankingApi
 import com.kungal.core.api.ResourceApi
@@ -96,6 +97,9 @@ class KungalApp : Application() {
         private set
 
     lateinit var ratingApi: RatingApi
+        private set
+
+    lateinit var quizApi: QuizApi
         private set
 
     lateinit var wallCommentApi: WallCommentApi
@@ -208,6 +212,7 @@ class KungalApp : Application() {
         collectionApi = CollectionApi(client)
         entityApi = GalgameEntityApi(client)
         ratingApi = RatingApi(client)
+        quizApi = QuizApi(client)
         wallCommentApi = WallCommentApi(client)
         editApi = EditApi(client)
         submissionApi = SubmissionApi(client)

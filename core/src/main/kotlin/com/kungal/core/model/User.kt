@@ -284,6 +284,15 @@ data class QuizSummary(
     @SerialName("view_count") val viewCount: Int = 0,
     @SerialName("created_at") val createdAt: String = "",
     @SerialName("updated_at") val updatedAt: String = "",
+    @SerialName("bumped_at") val bumpedAt: String = "",
+    val viewer: QuizSummaryViewer? = null,
+)
+
+/** 摘要里的本人状态（题目列表用）。 */
+@Serializable
+data class QuizSummaryViewer(
+    @SerialName("has_answered") val hasAnswered: Boolean = false,
+    @SerialName("is_correct") val isCorrect: Boolean? = null,
 )
 
 /** 工具集摘要（/users/{id}/toolsets 与 /toolsets）。 */

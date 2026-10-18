@@ -91,6 +91,9 @@ import com.kungal.app.ui.messages.NotificationPreferencesScreen
 import com.kungal.app.ui.messages.WallsScreen
 import com.kungal.app.ui.points.PointsScreen
 import com.kungal.app.ui.profile.ProfileScreen
+import com.kungal.app.ui.quiz.QuizDetailScreen
+import com.kungal.app.ui.quiz.QuizEditorScreen
+import com.kungal.app.ui.quiz.QuizListScreen
 import com.kungal.app.ui.ranking.RankingScreen
 import com.kungal.app.ui.search.EntityFamily
 import com.kungal.app.ui.search.SearchScreen
@@ -139,6 +142,10 @@ private object Routes {
     const val CHAT_SETTINGS = "messages/chat/settings"
     const val RANKING = "ranking?tab={tab}"
     const val GALGAME_WORKS = "galgame/works"
+    const val GALGAME_QUIZ = "galgame/quiz"
+    const val GALGAME_QUIZ_DETAIL = "galgame/quiz/{quizId}"
+    const val GALGAME_QUIZ_CREATE = "galgame/quiz/create?workId={workId}"
+    const val GALGAME_QUIZ_EDIT = "galgame/quiz/edit/{quizId}"
     const val GALGAME_CALENDAR = "galgame/calendar?view={view}&month={month}&year={year}&doujin={doujin}"
     const val GALGAME_RESOURCE_LIST = "galgame/resources"
     const val GALGAME_LIBRARY = "galgame/library"
@@ -194,6 +201,10 @@ private object Routes {
     ): String = "galgame/calendar?view=${Uri.encode(view.orEmpty())}" +
         "&month=${Uri.encode(month.orEmpty())}&year=${Uri.encode(year.orEmpty())}&doujin=$doujin"
     fun galgameWork(id: String) = "galgame/work/$id"
+    fun galgameQuiz(id: String) = "galgame/quiz/$id"
+    fun galgameQuizCreate(workId: String? = null) =
+        "galgame/quiz/create?workId=${Uri.encode(workId.orEmpty())}"
+    fun galgameQuizEdit(id: String) = "galgame/quiz/edit/$id"
     fun galgameResource(id: String) = "galgame/resource/$id"
     fun toolset(id: String) = "toolset/detail/$id"
     fun toolsetEdit(id: String) = "toolset/edit/$id"
@@ -251,6 +262,10 @@ fun AppNav(app: KungalApp) {
         val looksId = segment.isNotEmpty() && segment.all(Char::isDigit)
         when {
             clean == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
+            clean == "/galgame-quiz" -> nav.navigate(Routes.GALGAME_QUIZ)
+            clean.startsWith("/galgame-quiz/") && looksId -> nav.navigate(Routes.galgameQuiz(segment))
+            clean == "/edit/galgame/quiz" ->
+                if (app.isLoggedIn) nav.navigate(Routes.galgameQuizCreate()) else nav.navigate(Routes.LOGIN)
             clean == "/galgame-calendar" -> {
                 val link = parseCalendarPath(path)
                 nav.navigate(
@@ -352,6 +367,9 @@ fun AppNav(app: KungalApp) {
             rankingTab != null -> nav.navigate(Routes.ranking(rankingTab))
             entry.webPath == "/galgame" -> nav.navigate(Routes.GALGAME_WORKS)
             entry.webPath == "/galgame-calendar" -> nav.navigate(Routes.galgameCalendar())
+            entry.webPath == "/galgame-quiz" -> nav.navigate(Routes.GALGAME_QUIZ)
+            entry.webPath == "/edit/galgame/quiz" ->
+                if (app.isLoggedIn) nav.navigate(Routes.galgameQuizCreate()) else nav.navigate(Routes.LOGIN)
             entry.webPath == "/galgame/resource" -> nav.navigate(Routes.GALGAME_RESOURCE_LIST)
             entry.webPath == "/toolset" -> nav.navigate(Routes.TOOLSET_LIST)
             entry.webPath == "/edit/toolset/create" ->
@@ -378,7 +396,10 @@ fun AppNav(app: KungalApp) {
         val workId = clean.removePrefix("/galgame/")
         val resourceId = clean.removePrefix("/galgame/resource/")
         val toolsetId = clean.removePrefix("/toolset/")
+        val quizId = clean.removePrefix("/galgame-quiz/")
         when {
+            clean.startsWith("/galgame-quiz/") && quizId.isNotEmpty() && quizId.all { it.isDigit() } ->
+                nav.navigate(Routes.galgameQuiz(quizId))
             clean.startsWith("/topic/") && topicId.isNotEmpty() && topicId.all { it.isDigit() } ->
                 nav.navigate(Routes.topic(topicId))
             clean.startsWith("/user/") -> {
@@ -648,6 +669,7 @@ fun AppNav(app: KungalApp) {
                     onOpenChat = { id -> nav.navigate(Routes.chat(userId = id)) },
                     onOpenResource = { id -> nav.navigate(Routes.galgameResource(id)) },
                     onOpenToolset = { id -> nav.navigate(Routes.toolset(id)) },
+                    onOpenQuiz = { id -> nav.navigate(Routes.galgameQuiz(id)) },
                     onOpenWeb = ::openUrlOrPath,
                     onEditProfile = { nav.navigate(Routes.PROFILE_SETTINGS) },
                 )
@@ -793,6 +815,61 @@ fun AppNav(app: KungalApp) {
                     onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
                 )
             }
+            composable(Routes.GALGAME_QUIZ) {
+                QuizListScreen(
+                    app = app,
+                    nsfwDisplay = nsfwDisplay,
+                    onBack = { nav.popBackStack() },
+                    onOpenQuiz = { id -> nav.navigate(Routes.galgameQuiz(id)) },
+                    onCreate = { nav.navigate(Routes.galgameQuizCreate()) },
+                    onOpenLogin = { nav.navigate(Routes.LOGIN) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_QUIZ_DETAIL,
+                arguments = listOf(navArgument("quizId") { type = NavType.StringType }),
+            ) { entry ->
+                val quizId = entry.arguments?.getString("quizId").orEmpty()
+                QuizDetailScreen(
+                    app = app,
+                    quizId = quizId,
+                    onBack = { nav.popBackStack() },
+                    onOpenWork = { id -> nav.navigate(Routes.galgameWork(id)) },
+                    onOpenUser = { id -> nav.navigate(Routes.user(id)) },
+                    onOpenLogin = { nav.navigate(Routes.LOGIN) },
+                    onEdit = { id -> nav.navigate(Routes.galgameQuizEdit(id)) },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_QUIZ_CREATE,
+                arguments = listOf(
+                    navArgument("workId") { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) { entry ->
+                QuizEditorScreen(
+                    app = app,
+                    quizId = null,
+                    initialWorkId = entry.arguments?.getString("workId")?.takeIf { it.isNotBlank() },
+                    onBack = { nav.popBackStack() },
+                    onSaved = { id ->
+                        nav.popBackStack()
+                        nav.navigate(Routes.galgameQuiz(id))
+                    },
+                )
+            }
+            composable(
+                route = Routes.GALGAME_QUIZ_EDIT,
+                arguments = listOf(navArgument("quizId") { type = NavType.StringType }),
+            ) { entry ->
+                val quizId = entry.arguments?.getString("quizId").orEmpty()
+                QuizEditorScreen(
+                    app = app,
+                    quizId = quizId,
+                    initialWorkId = null,
+                    onBack = { nav.popBackStack() },
+                    onSaved = { nav.popBackStack() },
+                )
+            }
             composable(Routes.GALGAME_RESOURCE_LIST) {
                 ResourceListScreen(
                     app = app,
@@ -871,6 +948,14 @@ fun AppNav(app: KungalApp) {
                     onOpenExpireResources = { id -> nav.navigate(Routes.userResourceExpire(id)) },
                     onOpenEdit = { nav.navigate(Routes.galgameEdit(entry.arguments?.getString("workId").orEmpty())) },
                     onOpenHistory = { nav.navigate(Routes.galgameHistory(entry.arguments?.getString("workId").orEmpty())) },
+                    onOpenQuiz = { id -> nav.navigate(Routes.galgameQuiz(id)) },
+                    onCreateQuiz = { workId ->
+                        if (app.isLoggedIn) {
+                            nav.navigate(Routes.galgameQuizCreate(workId))
+                        } else {
+                            nav.navigate(Routes.LOGIN)
+                        }
+                    },
                 )
             }
             composable(

@@ -74,6 +74,7 @@ import com.kungal.app.ui.components.KungalTopAppBar
 import com.kungal.app.ui.components.LoadingBox
 import com.kungal.app.ui.components.NsfwCoverImage
 import com.kungal.app.ui.content.FullScreenImageViewer
+import com.kungal.app.ui.quiz.WorkQuizSection
 import com.kungal.core.model.Work
 import java.util.Locale
 
@@ -101,6 +102,8 @@ fun WorkDetailScreen(
     onOpenExpireResources: (String) -> Unit,
     onOpenEdit: () -> Unit,
     onOpenHistory: () -> Unit,
+    onOpenQuiz: (String) -> Unit,
+    onCreateQuiz: (String) -> Unit,
 ) {
     val vm: WorkDetailViewModel = viewModel(key = "work-detail-$workId") {
         WorkDetailViewModel(app, workId, nsfwDisplay.allowsNsfw)
@@ -251,12 +254,15 @@ fun WorkDetailScreen(
                                 onOpenLogin = onOpenLogin,
                             )
                         }
-                        WorkTab.QUIZ -> item(key = "quiz-placeholder") {
-                            UpcomingPanel(
-                                icon = Icons.Outlined.Visibility,
-                                title = "题库",
-                                description = "该作品的题库将在 BP-05 接入。当前可先在网页查看。",
-                                onOpenWeb = { onOpenBrowser("https://www.kungal.com/galgame/${work.id}?tab=quiz") },
+                        WorkTab.QUIZ -> item(key = "work-quizzes") {
+                            WorkQuizSection(
+                                app = app,
+                                workId = work.id,
+                                nsfwDisplay = nsfwDisplay,
+                                onOpenQuiz = onOpenQuiz,
+                                onCreate = {
+                                    if (app.isLoggedIn) onCreateQuiz(work.id) else onOpenLogin()
+                                },
                             )
                         }
                     }
@@ -569,40 +575,6 @@ private fun HeaderAction(
         Icon(icon, contentDescription = null, modifier = Modifier.size(15.dp))
         Spacer(Modifier.width(3.dp))
         Text(label, style = MaterialTheme.typography.labelSmall)
-    }
-}
-
-@Composable
-private fun UpcomingPanel(
-    icon: ImageVector,
-    title: String,
-    description: String,
-    onOpenWeb: () -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-        shape = RoundedCornerShape(12.dp),
-    ) {
-        Column(
-            Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(36.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(
-                description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-            Button(onClick = onOpenWeb) { Text("在浏览器查看") }
-        }
     }
 }
 

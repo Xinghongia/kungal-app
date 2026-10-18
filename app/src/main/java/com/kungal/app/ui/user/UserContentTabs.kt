@@ -902,7 +902,7 @@ fun QuizTab(
     userId: String,
     isSelf: Boolean,
     header: @Composable () -> Unit,
-    onOpenWeb: (String) -> Unit,
+    onOpenQuiz: (String) -> Unit,
 ) {
     var mode by remember(userId) { mutableStateOf("authored") }
     PagedListContent(
@@ -930,7 +930,7 @@ fun QuizTab(
         keyOf = { it.id },
         pagination = true,
         pageSize = 50,
-    ) { quiz -> QuizRow(quiz, onClick = { onOpenWeb(siteUrl("/galgame-quiz/${quiz.id}")) }) }
+    ) { quiz -> QuizRow(quiz, onClick = { onOpenQuiz(quiz.id) }) }
 }
 
 @Composable

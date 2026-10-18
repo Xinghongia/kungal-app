@@ -96,6 +96,7 @@ fun UserProfileScreen(
     onOpenChat: (userId: String) -> Unit,
     onOpenResource: (String) -> Unit,
     onOpenToolset: (String) -> Unit,
+    onOpenQuiz: (String) -> Unit,
     onOpenWeb: (String) -> Unit,
     onEditProfile: () -> Unit,
 ) {
@@ -256,6 +257,7 @@ fun UserProfileScreen(
                             onOpenUser = onOpenUser,
                             onOpenResource = onOpenResource,
                             onOpenToolset = onOpenToolset,
+                            onOpenQuiz = onOpenQuiz,
                             onOpenWeb = onOpenWeb,
                             resourceInitialState = resourceInitialState,
                             resourceInitialRelation = resourceInitialRelation,
@@ -432,6 +434,7 @@ private fun UserTabContent(
     onOpenUser: (String) -> Unit,
     onOpenResource: (String) -> Unit,
     onOpenToolset: (String) -> Unit,
+    onOpenQuiz: (String) -> Unit,
     onOpenWeb: (String) -> Unit,
     resourceInitialState: String = "valid",
     resourceInitialRelation: String = "published",
@@ -463,7 +466,7 @@ private fun UserTabContent(
             initialRelation = resourceInitialRelation,
             onOpenResource = onOpenResource,
         )
-        UserTab.QUIZ -> QuizTab(app, userId, isSelf, header, onOpenWeb)
+        UserTab.QUIZ -> QuizTab(app, userId, isSelf, header, onOpenQuiz)
         UserTab.TOOLSET -> ToolsetTab(
             app = app,
             userId = userId,
