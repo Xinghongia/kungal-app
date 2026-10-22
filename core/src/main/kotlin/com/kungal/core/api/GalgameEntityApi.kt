@@ -8,6 +8,7 @@ import com.kungal.core.model.CharacterSummary
 import com.kungal.core.model.CompanyDetail
 import com.kungal.core.model.CompanyGraph
 import com.kungal.core.model.CompanySummary
+import com.kungal.core.model.CompanyWork
 import com.kungal.core.model.CreditList
 import com.kungal.core.model.CreditNameDetail
 import com.kungal.core.model.CreditNameRef
@@ -177,10 +178,14 @@ class GalgameEntityApi(private val client: KungalClient) {
         deserializer = WikiCompanyRedirect.serializer(),
     )
 
-    suspend fun companyWorks(companyId: String, query: EntityWorkQuery): PagedList<WorkSummary> = client.get(
+    /**
+     * 会社作品列表：接口返回的元素是 company_work 包裹（含 via_company），
+     * 与标签/引擎/系列的作品列表不同，必须先拆包再当作品用。
+     */
+    suspend fun companyWorks(companyId: String, query: EntityWorkQuery): PagedList<CompanyWork> = client.get(
         path = "/companies/$companyId/works",
         query = query.toQuery(),
-        deserializer = PagedList.serializer(WorkSummary.serializer()),
+        deserializer = PagedList.serializer(CompanyWork.serializer()),
     )
 
     suspend fun companyGraph(companyId: String): CompanyGraph = client.get(

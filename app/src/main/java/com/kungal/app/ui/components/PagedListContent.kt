@@ -34,6 +34,9 @@ data class PageResult<T>(
     val total: Int = 0,
 )
 
+/** 列表项的兜底 key：接口给出的 key 为空或重复时用它，避免 LazyColumn 直接崩溃。 */
+private data class FallbackItemKey(val index: Int)
+
 /**
  * 通用分页列表：首屏加载、触底自动加载（游标模式）/ 页码分页（pagination=true）、
  * 失败重试、空态。
@@ -66,6 +69,19 @@ fun <T> PagedListContent(
     var ended by remember(key) { mutableStateOf(false) }
     var reloadToken by remember(key) { mutableStateOf(0) }
     var refreshing by remember(key) { mutableStateOf(false) }
+
+    // 接口偶尔给出空 id / 重复 id；直接交给 LazyColumn 会因 key 冲突崩溃，这里逐项去重后兜底到下标。
+    val itemKeys = remember(items) {
+        val used = HashSet<Any>()
+        items.mapIndexed { index, item ->
+            val raw = keyOf(item)
+            if (raw != null && !(raw is String && raw.isBlank()) && used.add(raw)) {
+                raw
+            } else {
+                FallbackItemKey(index).also { used.add(it) }
+            }
+        }
+    }
 
     // 切换筛选条件/二级菜单时回到顶部，避免沿用上一个列表的滚动位置
     LaunchedEffect(key) { listState.scrollToItem(0) }
@@ -170,7 +186,7 @@ fun <T> PagedListContent(
                     }
                 }
             } else {
-                itemsIndexed(items, key = { index, item -> keyOf(item) ?: index }) { _, item ->
+                itemsIndexed(items, key = { index, _ -> itemKeys[index] }) { _, item ->
                     itemContent(item)
                 }
                 item(key = "paged-footer") {

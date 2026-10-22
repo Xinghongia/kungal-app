@@ -1,8 +1,8 @@
 ---
 handoff_schema: tavernweave/next/v1
 project_id: kungal-android-client
-status: hotfix-0.8.19
-updated: 2026-10-18
+status: hotfix-0.8.20
+updated: 2026-10-22
 ---
 
 # NEXT · kungal 第三方安卓客户端
@@ -32,6 +32,17 @@ updated: 2026-10-18
 
 ## 最近证据
 
+- 2026-10-22 **会社/发行商页闪退修复（版本 0.8.20）**（驾驶员实机报告两条路径点会社/发行商闪退）：
+  - 根因：`/companies/{id}/works` 的元素是 `company_work` 包裹，`companyWorks` 却按普通作品列表
+    解析，导致每项 `id` 为空，LazyColumn key 冲突抛
+    `IllegalArgumentException: Key "" was already used`；设备 dropbox 14:46:59 / 14:47:33
+    两份崩溃记录与堆栈一致；
+  - `companyWorks` 改为按 `PagedList<CompanyWork>` 解析，会社页取 `work_summary`；
+    `PagedListContent` 增加空/重复 key 的下标兜底，防止同类数据问题再崩整页；
+  - 证据：core 234 + app 145 = **379 项单测全绿**；`assembleDebug` / `assembleRelease` 通过；
+    新增真实响应 fixture `galgame_company_works.json`；详见
+    `docs/devlog/2026-10-22-会社页作品列表闪退.md`
+  - 未验证：0.8.20 装机后需重走「评分 → 作品 → 会社」与「搜索 → 会社」两条路径
 - 2026-10-18 **改名页萌萌点显示修正 + 接口缺口 P0 作者侧（版本 0.8.19）**
   （驾驶员报告余额显示错误，并要求补齐 P0）：
   - 改名页把 `/account-prices` 的 `rename_cost`（改名价格 17）误显示成

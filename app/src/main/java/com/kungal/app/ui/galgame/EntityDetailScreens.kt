@@ -67,6 +67,7 @@ import com.kungal.core.model.SeriesDetail
 import com.kungal.core.model.TagBlock
 import com.kungal.core.model.TagDetail
 import com.kungal.core.model.TraitDetail
+import com.kungal.core.net.PagedList
 import kotlinx.coroutines.launch
 
 @Composable
@@ -395,7 +396,14 @@ fun CompanyDetailScreen(
                 entityKey = "company-works-$resolvedId",
                 includeNsfw = nsfwDisplay.allowsNsfw,
                 blurNsfw = nsfwDisplay.blursMedia,
-                load = { query -> app.entityApi.companyWorks(resolvedId, query) },
+                load = { query ->
+                    val page = app.entityApi.companyWorks(resolvedId, query)
+                    PagedList(
+                        items = page.items.map { it.workSummary },
+                        total = page.total,
+                        totalRelation = page.totalRelation,
+                    )
+                },
                 onOpenWork = onOpenWork,
                 showVia = true,
                 header = {
