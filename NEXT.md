@@ -45,7 +45,9 @@ updated: 2026-10-22
   - 证据：core 234 + app 151 = **385 项单测全绿**；`assembleDebug` / `assembleRelease` 通过；
     新增真实响应 fixture `galgame_company_works.json`；详见
     `docs/devlog/2026-10-22-会社页作品列表闪退.md`
-  - 未验证：0.8.21 装机后需重走「评分 → 作品 → 会社」与「搜索 → 会社」两条路径
+  - 已发布 GitHub Release **v0.8.21**（`kungal-app-0.8.21.apk`，SHA-256
+    `22b27a92…`），驾驶员已在 0.8.21 上确认会社/发行商页不再闪退
+  - 未验证：会社页「作品来源」筛选（自身／旗下品牌）与 `via_company` 的展示未在本批调整
 - 2026-10-18 **改名页萌萌点显示修正 + 接口缺口 P0 作者侧（版本 0.8.19）**
   （驾驶员报告余额显示错误，并要求补齐 P0）：
   - 改名页把 `/account-prices` 的 `rename_cost`（改名价格 17）误显示成
