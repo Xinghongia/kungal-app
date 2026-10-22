@@ -38,6 +38,28 @@ data class PageResult<T>(
 private data class FallbackItemKey(val index: Int)
 
 /**
+ * 逐项决定 LazyColumn 的 key：空字符串、null 与重复 key 都退回下标。
+ * 返回的 key 保证两两不同。
+ */
+internal fun pageItemKeys(rawKeys: List<Any?>): List<Any> {
+    val used = HashSet<Any>(rawKeys.size)
+    return rawKeys.mapIndexed { index, raw ->
+        if (raw != null && !(raw is String && raw.isBlank()) && used.add(raw)) {
+            raw
+        } else {
+            FallbackItemKey(index).also { used.add(it) }
+        }
+    }
+}
+
+/**
+ * 取第 [index] 项的 key。LazyColumn 的 item provider 可能先于父组合观察到新的 items，
+ * 此时 [keys] 还是上一次组合的结果，短于当前项数，必须兜底而不是越界。
+ */
+internal fun pageItemKeyAt(keys: List<Any>, index: Int): Any =
+    keys.getOrNull(index) ?: FallbackItemKey(index)
+
+/**
  * 通用分页列表：首屏加载、触底自动加载（游标模式）/ 页码分页（pagination=true）、
  * 失败重试、空态。
  * key 变化（筛选条件/用户变化）时整体重来，并回到列表顶部。
@@ -71,17 +93,7 @@ fun <T> PagedListContent(
     var refreshing by remember(key) { mutableStateOf(false) }
 
     // 接口偶尔给出空 id / 重复 id；直接交给 LazyColumn 会因 key 冲突崩溃，这里逐项去重后兜底到下标。
-    val itemKeys = remember(items) {
-        val used = HashSet<Any>()
-        items.mapIndexed { index, item ->
-            val raw = keyOf(item)
-            if (raw != null && !(raw is String && raw.isBlank()) && used.add(raw)) {
-                raw
-            } else {
-                FallbackItemKey(index).also { used.add(it) }
-            }
-        }
-    }
+    val itemKeys = remember(items) { pageItemKeys(items.map { keyOf(it) }) }
 
     // 切换筛选条件/二级菜单时回到顶部，避免沿用上一个列表的滚动位置
     LaunchedEffect(key) { listState.scrollToItem(0) }
@@ -186,7 +198,7 @@ fun <T> PagedListContent(
                     }
                 }
             } else {
-                itemsIndexed(items, key = { index, _ -> itemKeys[index] }) { _, item ->
+                itemsIndexed(items, key = { index, _ -> pageItemKeyAt(itemKeys, index) }) { _, item ->
                     itemContent(item)
                 }
                 item(key = "paged-footer") {
